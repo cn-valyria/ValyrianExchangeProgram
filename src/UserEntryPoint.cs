@@ -1,16 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Web.Http;
 using api.Auth;
 using api.Contracts;
 using api.Utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
 namespace api;
@@ -19,19 +16,23 @@ public class UserEntryPoint
 {
     private readonly ITokenProvider _tokenProvider;
     private readonly IAuthenticationProvider _authenticationProvider;
+    private readonly ILogger<UserEntryPoint> _logger;
 
-    public UserEntryPoint(ITokenProvider tokenProvider, IAuthenticationProvider authenticationProvider)
+    public UserEntryPoint(
+        ITokenProvider tokenProvider,
+        IAuthenticationProvider authenticationProvider,
+        ILogger<UserEntryPoint> logger)
     {
         _tokenProvider = tokenProvider;
         _authenticationProvider = authenticationProvider;
+        _logger = logger;
     }
 
-    [FunctionName(nameof(Authenticate))]
+    [Function(nameof(Authenticate))]
     public async Task<IActionResult> Authenticate(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/authenticate")] HttpRequest request,
-        ILogger logger)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/authenticate")] HttpRequest request)
     {
-        logger.LogInformation($"Beginning execution for {nameof(Authenticate)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(Authenticate)} method...");
 
         var account = await JsonSerializer.DeserializeAsync<AuthorizeUserRequest>(
             request.Body,
@@ -48,24 +49,23 @@ public class UserEntryPoint
             if (!await _authenticationProvider.IsAuthenticated(account))
                 return new UnauthorizedResult();
 
-            logger.LogInformation($"Account (NationId: {account.NationId}, RulerName: {account.RulerName}, UniqueCode: {account.UniqueCode}) was authenticated");
+            _logger.LogInformation($"Account (NationId: {account.NationId}, RulerName: {account.RulerName}, UniqueCode: {account.UniqueCode}) was authenticated");
 
             return new OkObjectResult(GenerateTokenResponse(account));
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(Authenticate)}", e);
-            logger.LogError(e, wrapperException.Message);
+            _logger.LogError(e, wrapperException.Message);
             return new ExceptionResult(wrapperException, true);
         }
     }
 
-    [FunctionName(nameof(RefreshToken))]
+    [Function(nameof(RefreshToken))]
     public async Task<IActionResult> RefreshToken(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/refresh")] HttpRequest request,
-        ILogger logger)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "user/refresh")] HttpRequest request)
     {
-        logger.LogInformation($"Beginning execution for {nameof(RefreshToken)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(RefreshToken)} method...");
 
         try
         {
@@ -77,24 +77,23 @@ public class UserEntryPoint
             if (account is null)
                 return new UnauthorizedResult();
 
-            logger.LogInformation($"Account (NationId: {account.NationId}, RulerName: {account.RulerName}, UniqueCode: {account.UniqueCode}) was authenticated");
+            _logger.LogInformation($"Account (NationId: {account.NationId}, RulerName: {account.RulerName}, UniqueCode: {account.UniqueCode}) was authenticated");
 
             return new OkObjectResult(GenerateTokenResponse(account));
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(RefreshToken)}", e);
-            logger.LogError(e, wrapperException.Message);
+            _logger.LogError(e, wrapperException.Message);
             return new ExceptionResult(wrapperException, true);
         }
     }
 
-    [FunctionName(nameof(GetAuthorizedAccount)), FunctionAuthorize]
+    [Function(nameof(GetAuthorizedAccount)), FunctionAuthorize]
     public async Task<IActionResult> GetAuthorizedAccount(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/account")] HttpRequest request,
-        ILogger logger)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "user/account")] HttpRequest request)
     {
-        logger.LogInformation($"Beginning execution for {nameof(GetAuthorizedAccount)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(GetAuthorizedAccount)} method...");
 
         try 
         {
@@ -104,14 +103,14 @@ public class UserEntryPoint
 
             var authorizedAccount = await _authenticationProvider.GetAuthorizedAccount(originalAuthRequest);
 
-            logger.LogInformation($"Account (Id: {authorizedAccount.AccountId}, Roles: {string.Join(',', authorizedAccount.Roles)}) was fetched");
+            _logger.LogInformation($"Account (Id: {authorizedAccount.AccountId}, Roles: {string.Join(',', authorizedAccount.Roles)}) was fetched");
 
             return new OkObjectResult(authorizedAccount);
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAuthorizedAccount)}", e);
-            logger.LogError(e, wrapperException.Message);
+            _logger.LogError(e, wrapperException.Message);
             return new ExceptionResult(wrapperException, true);
         }
     }

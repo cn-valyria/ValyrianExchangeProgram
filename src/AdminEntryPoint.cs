@@ -1,14 +1,11 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Repository;
-using System.Web.Http;
+using Microsoft.Azure.Functions.Worker;
+using api.Utils;
 
 namespace api;
 
@@ -18,7 +15,7 @@ public class AdminEntryPoint
 
     public AdminEntryPoint(IAdminRepository adminRepository) => _adminRepository = adminRepository;
 
-    [FunctionName(nameof(GetDashboardData))]
+    [Function(nameof(GetDashboardData))]
     public async Task<IActionResult> GetDashboardData(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "dashboard")] HttpRequest req,
         ILogger log)

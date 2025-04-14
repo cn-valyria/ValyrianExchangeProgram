@@ -1,25 +1,9 @@
 using api.Auth;
-using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Repository;
 
-[assembly: FunctionsStartup(typeof(api.Startup))]
-
-namespace api;
-
-public class Startup : FunctionsStartup
-{
-    public override void Configure(IFunctionsHostBuilder builder)
-    {
-        builder.Services
-            .AddLogging()
-            .AddVepDbRepositories(builder.GetContext().Configuration)
-            .AddInternalProviders()
-            .AddAutoMapper(typeof(Startup));
-    }
-}
+namespace api.Utils;
 
 internal static class StartupExtensions
 {

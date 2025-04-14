@@ -2,15 +2,14 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using AutoMapper;
-using System.Web.Http;
 using System.Linq;
 using Repository;
+using Microsoft.Azure.Functions.Worker;
+using api.Utils;
 
 namespace api;
 
@@ -22,7 +21,7 @@ public class ListsEntryPoint
     public ListsEntryPoint(IListsRepository listsRepository, IMapper mapper)
         => (_listsRepository, _mapper) = (listsRepository, mapper);
 
-    [FunctionName(nameof(GetAllLists))]
+    [Function(nameof(GetAllLists))]
     public async Task<IActionResult> GetAllLists(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "lists")] HttpRequest req,
         ILogger log)

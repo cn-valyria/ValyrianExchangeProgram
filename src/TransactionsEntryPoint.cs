@@ -1,18 +1,17 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Web.Http;
-using Repository.DTO;
 using Repository;
 using System.ComponentModel;
 using AutoMapper;
 using api.Contracts;
 using System.Text.Json;
 using Repository.Infrastructure;
+using Microsoft.Azure.Functions.Worker;
+using api.Utils;
+using Repository.DTO;
 
 namespace api;
 
@@ -24,7 +23,7 @@ public class TransactionsEntryPoint
     public TransactionsEntryPoint(ITransactionsRepository transactionsRepository, IMapper mapper)
         => (_transactionsRepository, _mapper) = (transactionsRepository, mapper);
 
-    [FunctionName(nameof(SearchTransactions))]
+    [Function(nameof(SearchTransactions))]
     public async Task<IActionResult> SearchTransactions(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "transactions/{type}")] HttpRequest request,
         string type,
@@ -54,7 +53,7 @@ public class TransactionsEntryPoint
         }
     }
 
-    [FunctionName(nameof(CreateTransaction))]
+    [Function(nameof(CreateTransaction))]
     public async Task<IActionResult> CreateTransaction(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "transactions")] HttpRequest request,
         ILogger log)
@@ -83,7 +82,7 @@ public class TransactionsEntryPoint
         }
     }
 
-    [FunctionName(nameof(UpdateTransaction))]
+    [Function(nameof(UpdateTransaction))]
     public async Task<IActionResult> UpdateTransaction(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "transactions")] HttpRequest request,
         ILogger log)
@@ -117,7 +116,7 @@ public class TransactionsEntryPoint
         }
     }
 
-    [FunctionName(nameof(DeleteTransaction))]
+    [Function(nameof(DeleteTransaction))]
     public async Task<IActionResult> DeleteTransaction(
         [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "transactions/{id}")] HttpRequest request,
         int? id,
