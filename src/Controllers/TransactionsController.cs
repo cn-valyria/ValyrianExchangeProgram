@@ -29,19 +29,18 @@ public class TransactionsController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("{type}")]
-    public async Task<IActionResult> SearchTransactions(string type)
+    [HttpGet("{transactionType}")]
+    public async Task<IActionResult> SearchTransactions(
+        TransactionType transactionType,
+        int? limit,
+        int? offset,
+        [FromBody] TransactionFilters filters)
     {
         _logger.LogInformation($"Beginning execution for {nameof(SearchTransactions)} method...");
         _logger.LogInformation("Received query params: {@query}", Request.Query);
 
         try
         {
-            var transactionType = Enum.TryParse<TransactionType>(type, out var enumType) ? enumType : TransactionType.All;
-            var filters = ConvertToFilters(Request.Query);
-            var limit = ConvertFromQueryString<int>(Request.Query["limit"]);
-            var offset = ConvertFromQueryString<int>(Request.Query["offset"]);
-
             _logger.LogInformation("Parsed the filters {filters} with limit {limit} and offset {offset}",
                 System.Text.Json.JsonSerializer.Serialize(filters), limit, offset);
 
@@ -128,33 +127,6 @@ public class TransactionsController : ControllerBase
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(DeleteTransaction)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    private TransactionFilters ConvertToFilters(IQueryCollection query) => new TransactionFilters
-    {
-        SentBy = query["sentBy"],
-        ReceivedBy = query["receivedBy"],
-        SentSince = ConvertFromQueryString<DateTime>(query["sentSince"]),
-        SentUntil = ConvertFromQueryString<DateTime>(query["sentUntil"])
-    };
-
-    private T? ConvertFromQueryString<T>(string queryStringValue) where T : struct
-    {
-        if (string.IsNullOrEmpty(queryStringValue))
-            return null;
-
-        try
-        {
-            var converter = TypeDescriptor.GetConverter(typeof(T));
-            if (converter is not null)
-                return (T)converter.ConvertFromString(queryStringValue);
-
-            return null;
-        }
-        catch (NotSupportedException)
-        {
-            return null;
         }
     }
 }
