@@ -3,11 +3,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using api.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using Newtonsoft.Json;
 
 namespace api.Auth;
 
@@ -85,7 +85,7 @@ public class TokenProvider : ITokenProvider
                 ClockSkew = TimeSpan.Zero
             }, out var validatedToken);
 
-            _logger.LogDebug($"Validated token: {JsonConvert.SerializeObject(validatedToken)}");
+            _logger.LogDebug($"Validated token: {JsonSerializer.Serialize(validatedToken)}");
 
             // This technically should only make it this far if ValidateToken worked, but it's a nice 
             // way to sanity check the boolean result

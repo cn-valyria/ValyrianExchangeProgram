@@ -1,38 +1,35 @@
 using System;
-using System.IO;
-using System.Text.Json;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Repository;
 using Repository.DTO;
 using Repository.Infrastructure;
-using System.Linq;
 using api.Auth;
 using AutoMapper;
 using Models;
-using Microsoft.Azure.Functions.Worker;
-using api.Utils;
 
-namespace api;
+namespace api.Controllers;
 
-public class AccountsEntryPoint
+[ApiController]
+[Route("api/[controller]")]
+public class AccountsController : ControllerBase
 {
     private readonly IAccountsRepository _accountsRepository;
     private readonly ITransactionsRepository _transactionsRepository;
     private readonly IListsRepository _listsRepository;
     private readonly ITokenProvider _tokenProvider;
     private readonly IMapper _mapper;
-    private readonly ILogger<AccountsEntryPoint> _logger;
+    private readonly ILogger<AccountsController> _logger;
 
-    public AccountsEntryPoint(
-        IAccountsRepository accountsRepository, 
+    public AccountsController(
+        IAccountsRepository accountsRepository,
         ITransactionsRepository transactionsRepository,
         IListsRepository listsRepository,
         ITokenProvider tokenProvider,
         IMapper mapper,
-        ILogger<AccountsEntryPoint> logger)
+        ILogger<AccountsController> logger)
     {
         _accountsRepository = accountsRepository;
         _transactionsRepository = transactionsRepository;
@@ -42,13 +39,10 @@ public class AccountsEntryPoint
         _logger = logger;
     }
 
-    [Function(nameof(GetAllAccounts))]
-    public async Task<IActionResult> GetAllAccounts([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "accounts")] HttpRequest req)
+    [HttpGet]
+    public async Task<IActionResult> GetAllAccounts()
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAllAccounts)} method...");
-
-        // if (!_tokenProvider.ValidateToken(req.GetJwtBearerToken()))
-        //     return new UnauthorizedResult();
 
         try
         {
@@ -56,189 +50,158 @@ public class AccountsEntryPoint
 
             _logger.LogInformation("GetAllAccounts execution complete. Found {count} results.", results.Count());
 
-            return new OkObjectResult(results);
+            return Ok(results);
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAllAccounts)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(GetAccount))]
-    public async Task<IActionResult> GetAccount(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "accounts/{id}")] HttpRequest request,
-        int? id)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetAccount(int id)
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAccount)} method...");
 
-        if (id is null)
-            return new BadRequestObjectResult("Must provide an ID to delete in the request");
-
-        try 
+        try
         {
-            var result = await _accountsRepository.GetAccountByIdAsync(id.Value);
+            var result = await _accountsRepository.GetAccountByIdAsync(id);
 
             _logger.LogInformation("{methodName} execution complete. Returned {@result}.", nameof(GetAccount), result);
 
-            return new OkObjectResult(result);
+            return Ok(result);
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccount)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(GetAccountTransactions))]
-    public async Task<IActionResult> GetAccountTransactions(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "accounts/{id}/transactions")] HttpRequest request,
-        int? id)
+    [HttpGet("{id}/transactions")]
+    public async Task<IActionResult> GetAccountTransactions(int id)
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAccountTransactions)} method...");
 
-        if (id is null)
-            return new BadRequestObjectResult("Must provide an ID to delete in the request");
-
-        try 
+        try
         {
-            var results = await _transactionsRepository.GetTransactionsByAccount(id.Value);
+            var results = await _transactionsRepository.GetTransactionsByAccount(id);
 
             _logger.LogInformation($"{nameof(GetAccountTransactions)} execution complete. Found {results.Count} results.");
 
-            return new OkObjectResult(results.Select(_mapper.Map<Transaction>));
+            return Ok(results.Select(_mapper.Map<Transaction>));
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountTransactions)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(GetAccountAidList))]
-    public async Task<IActionResult> GetAccountAidList(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "accounts/{id}/aidList")] HttpRequest request,
-        int? id)
+    [HttpGet("{id}/aidList")]
+    public async Task<IActionResult> GetAccountAidList(int id)
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAccountAidList)} method...");
 
-        if (id is null)
-            return new BadRequestObjectResult("Must provide an ID to delete in the request");
-
-        try 
+        try
         {
-            var results = await _listsRepository.GetListRecipientsForAccountAsync(id.Value);
+            var results = await _listsRepository.GetListRecipientsForAccountAsync(id);
 
             _logger.LogInformation($"{nameof(GetAccountAidList)} execution complete. Found {results.Count} results.");
 
-            return new OkObjectResult(results.Select(_mapper.Map<ListRecipient>));
+            return Ok(results.Select(_mapper.Map<ListRecipient>));
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountAidList)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(CreateAccount))]
-    public async Task<IActionResult> CreateAccount([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "accounts")] HttpRequest request)
+    [HttpPost]
+    public async Task<IActionResult> CreateAccount([FromBody] AccountCreateRequest newAccountRequest)
     {
         _logger.LogInformation($"Beginning execution for {nameof(CreateAccount)} method...");
 
         try
         {
-            var newAccountRequest = await JsonSerializer.DeserializeAsync<AccountCreateRequest>(
-                request.Body,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
             _logger.LogInformation($"Received request to create account: {{ nationId: {newAccountRequest.NationId} }}");
 
             var createdAccount = await _accountsRepository.CreateAccountAsync(newAccountRequest);
 
             _logger.LogInformation($"Successfully created account with ID: {createdAccount.Id}");
 
-            return new OkObjectResult(createdAccount);
+            return Ok(createdAccount);
         }
         catch (NotFoundException e)
         {
             _logger.LogWarning(e.Message);
-            return new NotFoundObjectResult(e.Message);
+            return NotFound(e.Message);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(UpdateAccount)}", e);
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(CreateAccount)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(UpdateAccount))]
-    public async Task<IActionResult> UpdateAccount([HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "accounts")] HttpRequest request)
+    [HttpPut]
+    public async Task<IActionResult> UpdateAccount([FromBody] AccountUpdateRequest accountToUpdate)
     {
         _logger.LogInformation($"Beginning execution for {nameof(UpdateAccount)} method...");
 
         try
         {
-            var content = await new StreamReader(request.Body).ReadToEndAsync();
-            var accountToUpdate = JsonSerializer.Deserialize<AccountUpdateRequest>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            
             await _accountsRepository.UpdateAccountAsync(accountToUpdate);
 
-            return new OkResult();
+            return Ok();
         }
         catch (NotFoundException e)
         {
             _logger.LogWarning(e.Message);
-            return new NotFoundObjectResult(e.Message);
+            return NotFound(e.Message);
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(UpdateAccount)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(RemoveAccount))]
-    public async Task<IActionResult> RemoveAccount(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "accounts/{id}")] HttpRequest request,
-        int? id)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> RemoveAccount(int id)
     {
         _logger.LogInformation($"Beginning execution for {nameof(RemoveAccount)} method...");
 
-        if (id is null)
-            return new BadRequestObjectResult("Must provide an ID to delete in the request");
-
         try
         {
-            await _accountsRepository.RemoveAccountAsync(id.Value);
-            return new OkResult();
+            await _accountsRepository.RemoveAccountAsync(id);
+            return Ok();
         }
         catch (NotFoundException e)
         {
             _logger.LogWarning(e.Message);
-            return new NotFoundObjectResult(e.Message);
+            return NotFound(e.Message);
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(RemoveAccount)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [Function(nameof(FindProspectAccount))]
-    public async Task<IActionResult> FindProspectAccount([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "accounts/prospect")] HttpRequest request)
+    [HttpGet("prospect")]
+    public async Task<IActionResult> FindProspectAccount([FromQuery] int nationId)
     {
         _logger.LogInformation($"Beginning execution for {nameof(FindProspectAccount)} method...");
-
-        string nationIdParameter = request.Query["nationId"];
-        if (!int.TryParse(nationIdParameter, out var nationId))
-            return new BadRequestObjectResult("Must provide a nationId parameter in the request");
 
         try
         {
@@ -247,22 +210,22 @@ public class AccountsEntryPoint
             {
                 var warning = $"No prospective merchant found by the provided parameters: {{ nationId: {nationId} }}.";
                 _logger.LogWarning(warning);
-                return new NotFoundObjectResult(warning);
+                return NotFound(warning);
             }
 
             _logger.LogInformation($"Successfully found a prospect for the provided parameters: {{ nationId: {nationId} }}!");
-            return new OkObjectResult(prospectAccount);
+            return Ok(prospectAccount);
         }
         catch (AlreadyExistsException e)
         {
             _logger.LogWarning(e.Message);
-            return new ConflictObjectResult(e.Message);
+            return Conflict(e.Message);
         }
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(FindProspectAccount)}", e);
             _logger.LogError(e, wrapperException.Message);
-            return new ExceptionResult(wrapperException, true);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 }
