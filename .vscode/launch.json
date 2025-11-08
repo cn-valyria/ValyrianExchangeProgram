@@ -6,9 +6,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/src/bin/Debug/net8.0/api.dll",
+      "program": "${workspaceFolder}/src/Valyria.Api/bin/Debug/net8.0/Valyria.Api.dll",
       "args": [],
-      "cwd": "${workspaceFolder}/src",
+      "cwd": "${workspaceFolder}/src/Valyria.Api",
       "stopAtEntry": false,
       "serverReadyAction": {
         "action": "openExternally",

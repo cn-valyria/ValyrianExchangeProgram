@@ -7,7 +7,7 @@
       "type": "process",
       "args": [
         "build",
-        "${workspaceFolder}/src/api.csproj",
+        "${workspaceFolder}/src/Valyria.Api/Valyria.Api.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
@@ -23,7 +23,7 @@
       "type": "process",
       "args": [
         "publish",
-        "${workspaceFolder}/src/api.csproj",
+        "${workspaceFolder}/src/Valyria.Api/Valyria.Api.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
@@ -37,7 +37,7 @@
         "watch",
         "run",
         "--project",
-        "${workspaceFolder}/src/api.csproj"
+        "${workspaceFolder}/src/Valyria.Api/Valyria.Api.csproj"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -47,7 +47,7 @@
       "type": "process",
       "args": [
         "clean",
-        "${workspaceFolder}/src/api.csproj",
+        "${workspaceFolder}/src/Valyria.Api/Valyria.Api.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary"
       ],
