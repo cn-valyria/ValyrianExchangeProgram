@@ -2,11 +2,30 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": ".NET Core Launch (web)",
+      "name": "Aspire AppHost",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-apphost",
+      "program": "${workspaceFolder}/src/Valyria.AppHost/bin/Debug/net9.0/Valyria.AppHost.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/Valyria.AppHost",
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "Now listening on: (http?://\\S+)",
+        "uriFormat": "%s"
+      }
+    },
+    {
+      "name": "Valyria API (Direct)",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/src/Valyria.Api/bin/Debug/net8.0/Valyria.Api.dll",
+      "program": "${workspaceFolder}/src/Valyria.Api/bin/Debug/net9.0/Valyria.Api.dll",
       "args": [],
       "cwd": "${workspaceFolder}/src/Valyria.Api",
       "stopAtEntry": false,
@@ -16,9 +35,6 @@
       },
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      },
-      "sourceFileMap": {
-        "/Views": "${workspaceFolder}/Views"
       }
     },
     {

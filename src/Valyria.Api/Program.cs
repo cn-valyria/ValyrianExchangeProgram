@@ -2,14 +2,19 @@ using Valyria.Api;
 using Valyria.Api.Auth;
 using Valyria.Api.Extensions;
 using Valyria.Infrastructure.Extensions;
-using Microsoft.ApplicationInsights.Extensibility;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add Aspire service defaults (includes telemetry, health checks, service discovery)
+builder.AddServiceDefaults();
 
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Valyria API", Version = "v1" });
+});
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -22,10 +27,6 @@ builder.Services.AddAuthenticationServices();
 
 // Register authorization filter
 builder.Services.AddScoped<ApiAuthorizeFilter>();
-
-// Add Application Insights
-builder.Services.AddApplicationInsightsTelemetry();
-builder.Services.AddSingleton<ITelemetryInitializer, CloudRoleNameTelemetryInitializer>();
 
 // Add CORS if needed
 builder.Services.AddCors(options =>
@@ -40,25 +41,25 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// Map Aspire default endpoints (health checks, etc.)
+app.MapDefaultEndpoints();
+
+// Enable Swagger in all environments when running through Aspire
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Valyria API v1");
+    c.RoutePrefix = "swagger";
+});
+
+// Only use HTTPS redirection in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
 }
 
-app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-// Helper class for Application Insights
-public class CloudRoleNameTelemetryInitializer : ITelemetryInitializer
-{
-    public void Initialize(Microsoft.ApplicationInsights.Channel.ITelemetry telemetry)
-    {
-        telemetry.Context.Cloud.RoleName = "Valyria API";
-    }
-}
