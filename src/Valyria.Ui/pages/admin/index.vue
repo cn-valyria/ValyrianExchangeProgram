@@ -17,7 +17,7 @@
           <div class="level-item has-text-centered">
             <div>
               <p class="heading">Buyer to Seller Ratio</p>
-              <p class="title">{{ parseFloat(dashboard.totalBuyers / dashboard.totalSellers).toFixed(2) }}</p>
+              <p class="title">{{ buyerSellerRatio }}</p>
             </div>
           </div>
           <div class="level-item has-text-centered">
@@ -40,34 +40,34 @@
         <div class="tile is-ancestor">
           <div class="tile is-parent">
             <article class="tile is-child box">
-              <admin-dashboard-total-transactions-tile :data="dashboard.transactionsPerDay" />
+              <AdminDashboardTotalTransactionsTile :data="dashboard.transactionsPerDay" />
             </article>
           </div>
           <div class="tile is-parent">
             <article class="tile is-child box">
-              <admin-dashboard-pending-credit-tile :data="dashboard.pendingCreditByAlliance" />
+              <AdminDashboardPendingCreditTile :data="dashboard.pendingCreditByAlliance" />
             </article>
           </div>
           <div class="tile is-parent">
             <article class="tile is-child box">
-              <admin-dashboard-accounts-by-role :data="dashboard.accountsPerRole" />
+              <AdminDashboardAccountsByRole :data="dashboard.accountsPerRole" />
             </article>
           </div>
         </div>
         <div class="tile is-ancestor">
           <div class="tile is-parent">
             <article class="tile is-child box">
-              <admin-dashboard-total-slots-by-role :data="dashboard.totalSlotsPerRole" />
+              <AdminDashboardTotalSlotsByRole :data="dashboard.totalSlotsPerRole" />
             </article>
           </div>
           <div class="tile is-parent">
             <article class="tile is-child box">
-              <admin-dashboard-free-slots-by-list :data="dashboard.freeSlotsPerList" />
+              <AdminDashboardFreeSlotsByList :data="dashboard.freeSlotsPerList" />
             </article>
           </div>
           <div class="tile is-parent">
             <article class="tile is-child box">
-              <admin-dashboard-accounts-by-alliance :data="dashboard.accountsPerAlliance" />
+              <AdminDashboardAccountsByAlliance :data="dashboard.accountsPerAlliance" />
             </article>
           </div>
         </div>
@@ -76,32 +76,57 @@
   </div>
 </template>
 
-<script>
-import { mapState, mapActions, mapGetters } from 'vuex';
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useAdminStore } from '~/stores/admin'
+import { useAuthStore } from '~/stores/auth'
 
-export default {
-  name: 'AdminIndex',
-  computed: {
-    ...mapState({
-      dashboard: state => state.admin.dashboard
-    }),
-    ...mapGetters({
-      loggedInUser: "loggedInUser"
-    }),
-  },
-  async created() {
-    if (!this.loggedInUser.roles.some(role => role.name === "Admin")) {
-      this.$log.warn("Tried to access an admin page without the admin role.");
-      this.$router.push("/");
-      return;
-    }
+definePageMeta({
+  middleware: 'auth'
+})
 
-    await this.loadDashboard();
-  },
-  methods: {
-    ...mapActions({
-      loadDashboard: "admin/loadDashboard"
+const router = useRouter()
+const toast = useToast()
+
+const adminStore = useAdminStore()
+const authStore = useAuthStore()
+
+const { dashboard } = storeToRefs(adminStore)
+const { loggedInUser } = storeToRefs(authStore)
+
+// Computed property for buyer to seller ratio
+const buyerSellerRatio = computed<string>(() => {
+  if (!dashboard.value.totalBuyers || !dashboard.value.totalSellers) {
+    return '0.00'
+  }
+  return (dashboard.value.totalBuyers / dashboard.value.totalSellers).toFixed(2)
+})
+
+// Check admin access and load dashboard on mount
+onMounted(async () => {
+  // Check if user has admin role
+  if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
+    console.warn('Tried to access an admin page without the admin role.')
+    toast.add({
+      severity: 'error',
+      summary: 'Access Denied',
+      detail: 'You do not have permission to access this page.',
+      life: 5000
+    })
+    await router.push('/')
+    return
+  }
+
+  try {
+    await adminStore.loadDashboard()
+  } catch (error) {
+    console.error('Failed to load dashboard:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load dashboard data. Please try again.',
+      life: 5000
     })
   }
-}
+})
 </script>

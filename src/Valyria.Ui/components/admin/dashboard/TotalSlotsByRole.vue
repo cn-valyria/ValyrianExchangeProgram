@@ -7,50 +7,52 @@
   </div>
 </template>
 
-<script>
-import { accountRoles } from '~/infrastructure/dataLists';
+<script setup lang="ts">
+import { accountRoles } from '~/infrastructure/dataLists'
 
-export default {
-  props: {
-    data: []
-  },
-  // components: {
-  //   ApexChart: () => import('vue-apexcharts')
-  // },
-  computed: {
-    options() {
-      return {
-        chart: {
-          toolbar: {
-            show: false
-          }
-        },
-        plotOptions: {
-          bar: {
-            distributed: true
-          }
-        },
-        xaxis: {
-          categories: this.data && this.data.map(x => accountRoles.find(role => role.code === x.role).description) || []
-        },
-        yaxis: {
-          title: {
-            text: "Total Aid Slots"
-          }
-        },
-        legend: {
-          show: false
-        }
-      };
+interface SlotData {
+  role: string
+  totalSlots: number
+}
+
+interface Props {
+  data: SlotData[]
+}
+
+const props = defineProps<Props>()
+
+const options = computed(() => {
+  return {
+    chart: {
+      toolbar: {
+        show: false
+      }
     },
-    series() {
-      return [
-        {
-          name: "Total Aid Slots",
-          data: this.data && this.data.map(x => x.totalSlots) || []
-        }
-      ]
+    plotOptions: {
+      bar: {
+        distributed: true
+      }
+    },
+    xaxis: {
+      categories: props.data?.map(x => accountRoles.find(role => role.code === x.role)?.description ?? '') ?? []
+    },
+    yaxis: {
+      title: {
+        text: "Total Aid Slots"
+      }
+    },
+    legend: {
+      show: false
     }
   }
-}
+})
+
+const series = computed(() => {
+  return [
+    {
+      name: "Total Aid Slots",
+      data: props.data?.map(x => x.totalSlots) ?? []
+    }
+  ]
+})
 </script>

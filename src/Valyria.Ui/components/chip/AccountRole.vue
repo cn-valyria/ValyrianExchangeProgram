@@ -1,41 +1,40 @@
 <template>
-  <b-taglist attached>
-    <b-tag :type="codeColor">{{ code }}</b-tag>
-    <b-tag type="is-dark">{{ code !== undefined ? roles.find(r => r.code === code).description : "" }}</b-tag>
-  </b-taglist>
+  <div class="flex gap-0">
+    <Tag :severity="codeColor" :value="code" />
+    <Tag severity="secondary" :value="roleDescription" />
+  </div>
 </template>
 
-<script>
-import { accountRoles } from '~/infrastructure/dataLists';
+<script setup lang="ts">
+import { accountRoles } from '~/infrastructure/dataLists'
 
-export default {
-  props: {
-    code: String
-  },
-  data: () => ({
-    roles: accountRoles
-  }),
-  computed: {
-    codeColor() {
-      switch (this.code) {
-        case "B": // Buyer
-        case "D": // Donor
-        case "W": // Temp Receiver
-          return "is-warning";
-        case "S": // Seller
-        case "F": // Farm
-        case "N": // Probationary Seller
-        case "Q": // Temp Collector
-          return "is-danger";
-        case "C": // Collector
-        case "R": // Receiver
-        case "P": // Temp Donor
-        case "V": // Temp Farm
-          return "is-info";
-        default: // Unknown
-          return "is-light";
-      }
-    }
+const props = defineProps<{
+  code: string
+}>()
+
+const roleDescription = computed(() => {
+  const role = accountRoles.find((r) => r.code === props.code)
+  return role ? role.description : ''
+})
+
+const codeColor = computed(() => {
+  switch (props.code) {
+    case 'B': // Buyer
+    case 'D': // Donor
+    case 'W': // Temp Receiver
+      return 'warn'
+    case 'S': // Seller
+    case 'F': // Farm
+    case 'N': // Probationary Seller
+    case 'Q': // Temp Collector
+      return 'danger'
+    case 'C': // Collector
+    case 'R': // Receiver
+    case 'P': // Temp Donor
+    case 'V': // Temp Farm
+      return 'info'
+    default: // Unknown
+      return 'secondary'
   }
-}
+})
 </script>

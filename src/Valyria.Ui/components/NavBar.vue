@@ -42,18 +42,18 @@
               <NuxtLink to="/admin/lists" class="navbar-item">Lists</NuxtLink>
             </div>
             <hr class="navbar-divider" />
-            <a class="navbar-item" @click="logout()">Log Out</a>
+            <a class="navbar-item" @click="handleLogout()">Log Out</a>
           </div>
         </div>
 
         <a v-else class="navbar-item">
           <div class="buttons">
-            <b-button type="is-primary" label="Log In" @click="loginFormIsVisible = true" />
+            <Button label="Log In" @click="loginFormIsVisible = true" />
           </div>
         </a>
       </div>
     </div>
-    
+
     <Login :show="loginFormIsVisible" @close="loginFormIsVisible = false" />
   </nav>
 </template>
@@ -65,33 +65,30 @@
 }
 </style>
 
-<script>
-import { mapGetters } from 'vuex';
+<script setup lang="ts">
+import { useAuthStore } from '~/stores/auth'
 
-export default {
-  data: () => ({
-    dropdownIsVisible: false,
-    loginFormIsVisible: false
-  }),
-  computed: {
-    ...mapGetters({
-      isAuthenticated: "isAuthenticated",
-      loggedInUser: "loggedInUser"
-    }),
-    accountUrl() {
-      return `/account/${this.loggedInUser.accountId}`;
-    },
-    accountIsAdmin() {
-      return this.loggedInUser.roles.some(role => role.name === "Admin");
-    },
-    accountCanSeeLists() {
-      return this.loggedInUser.roles.some(role => role.name === "Admin - Lists");
-    }
-  },
-  methods: {
-    async logout() {
-      await this.$auth.logout();
-    }
-  }
+const dropdownIsVisible = ref(false)
+const loginFormIsVisible = ref(false)
+
+const authStore = useAuthStore()
+
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+const loggedInUser = computed(() => authStore.loggedInUser)
+
+const accountUrl = computed(() => {
+  return loggedInUser.value ? `/account/${loggedInUser.value.accountId}` : ''
+})
+
+const accountIsAdmin = computed(() => {
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin") ?? false
+})
+
+const accountCanSeeLists = computed(() => {
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin - Lists") ?? false
+})
+
+const handleLogout = async () => {
+  await authStore.logout()
 }
 </script>

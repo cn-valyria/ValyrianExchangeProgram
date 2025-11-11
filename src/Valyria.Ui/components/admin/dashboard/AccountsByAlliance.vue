@@ -10,7 +10,7 @@
           {{ row.allianceName }}
         </div>
         <div class="column is-narrow">
-          <span class="tag is-rounded">{{ row.totalAccounts }}</span>
+          <Tag :value="row.totalAccounts" rounded />
         </div>
       </div>
       <div v-if="index !== (data.length - 1)" class="is-divider"></div>
@@ -24,10 +24,15 @@
 }
 </style>
 
-<script>
-export default {
-  props: {
-    data: []
-  }
+<script setup lang="ts">
+interface AllianceData {
+  allianceName: string
+  totalAccounts: number
 }
+
+interface Props {
+  data: AllianceData[]
+}
+
+defineProps<Props>()
 </script>

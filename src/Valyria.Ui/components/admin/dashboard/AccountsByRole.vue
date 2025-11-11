@@ -7,25 +7,27 @@
   </div>
 </template>
 
-<script>
-import { accountRoles } from '~/infrastructure/dataLists';
+<script setup lang="ts">
+import { accountRoles } from '~/infrastructure/dataLists'
 
-export default {
-  props: {
-    data: []
-  },
-  // components: {
-  //   ApexChart: () => import('vue-apexcharts')
-  // },
-  computed: {
-    options() {
-      return {
-        labels: this.data && this.data.map(x => accountRoles.find(role => role.code === x.role).description) || []
-      };
-    },
-    series() {
-      return this.data && this.data.map(x => x.totalAccounts) || [];
-    }
-  }
+interface RoleData {
+  role: string
+  totalAccounts: number
 }
+
+interface Props {
+  data: RoleData[]
+}
+
+const props = defineProps<Props>()
+
+const options = computed(() => {
+  return {
+    labels: props.data?.map(x => accountRoles.find(role => role.code === x.role)?.description ?? '') ?? []
+  }
+})
+
+const series = computed(() => {
+  return props.data?.map(x => x.totalAccounts) ?? []
+})
 </script>

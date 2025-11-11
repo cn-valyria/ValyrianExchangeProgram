@@ -1,14 +1,114 @@
-// Import Bulma's core
-@import "~bulma/sass/utilities/_all";
+// Global styles for Valyrian Exchange Program
 
-// Actual Bulma/Buefy variable overrides
-$primary: #00d1b2;
+// VEP admin tables are huge so downsize this globally
+.p-datatable {
+  font-size: 0.8rem;
 
-// VEP admin tables are huge so downsize this globally for now
-.table {
-    font-size: 0.8rem;
+  .p-datatable-thead > tr > th {
+    font-size: 0.85rem;
+    padding: 0.5rem;
+  }
+
+  .p-datatable-tbody > tr > td {
+    padding: 0.5rem;
+  }
 }
 
-// Import Bulma and Buefy styles
-@import "~bulma";
-@import "~buefy/src/scss/buefy";
+// Ensure proper spacing for form fields
+.field {
+  margin-bottom: 1rem;
+}
+
+// Utility classes for layout
+.flex {
+  display: flex;
+}
+
+.gap-0 {
+  gap: 0;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(12, 1fr);
+}
+
+.col-2 {
+  grid-column: span 2;
+}
+
+.col-5 {
+  grid-column: span 5;
+}
+
+.col-6 {
+  grid-column: span 6;
+}
+
+.col-12 {
+  grid-column: span 12;
+}
+
+// Text utilities
+.text-red-500 {
+  color: #ef4444;
+}
+
+.text-center {
+  text-align: center;
+}
+
+// Spacing utilities
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+// Width utilities
+.w-full {
+  width: 100%;
+}
+
+// Display utilities
+.block {
+  display: block;
+}
+
+// Custom styles for alliance images
+.alliance-img {
+  height: 18px;
+  width: 18px;
+  object-fit: cover;
+}
+
+// PrimeVue customizations for better UX
+.p-dialog {
+  max-width: 90vw;
+}
+
+.p-tabview {
+  .p-tabview-panels {
+    padding: 1rem;
+  }
+}
+
+// Ensure tags are inline
+.p-tag {
+  display: inline-flex;
+}

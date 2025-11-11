@@ -8,138 +8,245 @@
     </div>
     <div class="container">
       <div class="section table-container">
-        <button class="button is-success" @click="createAccount()">Create</button>
-        <b-table :data="accounts" default-sort="nationId">
-          <b-table-column field="id" label="Actions" v-slot="props">
-            <div class="buttons are-small">
-              <button class="button is-info" @click="editAccount(props.row)">Edit</button>
-              <button
-                class="button is-danger"
-                :class="{ 'is-loading': accountIdBeingDeleted === props.row.id }"
-                @click="deleteAccountById(props.row.id)"
-              >
-                Delete
-              </button>
-            </div>
-          </b-table-column>
-          <b-table-column field="nationId" label="Nation" sortable searchable :custom-search="filterByNation">
-            <template v-slot="props">
-              {{ props.row.rulerName }} of {{ props.row.nationName }}
+        <Button label="Create" severity="success" @click="createAccount()" class="mb-3" />
+        <DataTable
+          :value="accounts"
+          :sortField="'nationId'"
+          :sortOrder="1"
+          filterDisplay="row"
+          :globalFilterFields="['rulerName', 'nationName', 'allianceName', 'role']"
+          paginator
+          :rows="25"
+          :rowsPerPageOptions="[10, 25, 50, 100]"
+        >
+          <Column field="id" header="Actions" style="width: 140px">
+            <template #body="slotProps">
+              <div class="flex gap-2">
+                <Button
+                  label="Edit"
+                  severity="info"
+                  size="small"
+                  @click="editAccount(slotProps.data)"
+                />
+                <Button
+                  label="Delete"
+                  severity="danger"
+                  size="small"
+                  :loading="accountIdBeingDeleted === slotProps.data.id"
+                  @click="deleteAccountById(slotProps.data.id)"
+                />
+              </div>
             </template>
-            <template #searchable="props">
-              <b-input v-model="props.filters.nationId" placeholder="Filter..." size="is-small" />
+          </Column>
+          <Column field="nationId" header="Nation" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.rulerName }} of {{ slotProps.data.nationName }}
             </template>
-          </b-table-column>
-          <b-table-column field="allianceName" label="Alliance" sortable searchable>
-            <template v-slot="props">
-              {{ props.row.allianceName }}
+            <template #filter="{ filterModel, filterCallback }">
+              <InputText
+                v-model="filterModel.value"
+                type="text"
+                @input="filterCallback()"
+                placeholder="Filter..."
+                class="p-column-filter"
+              />
             </template>
-            <template #searchable="props">
-              <b-input v-model="props.filters.allianceName" placeholder="Filter..." size="is-small" />
+          </Column>
+          <Column field="allianceName" header="Alliance" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.allianceName }}
             </template>
-          </b-table-column>
-          <b-table-column field="role" label="Role" sortable searchable :custom-search="filterByRole">
-            <template v-slot="props">
-              {{ roles.find(r => r.code === props.row.role).description }}
+            <template #filter="{ filterModel, filterCallback }">
+              <InputText
+                v-model="filterModel.value"
+                type="text"
+                @input="filterCallback()"
+                placeholder="Filter..."
+                class="p-column-filter"
+              />
             </template>
-            <template #searchable="props">
-              <b-input v-model="props.filters.role" placeholder="Filter..." size="is-small" />
+          </Column>
+          <Column field="role" header="Role" sortable>
+            <template #body="slotProps">
+              {{ getRoleDescription(slotProps.data.role) }}
             </template>
-          </b-table-column>
-          <b-table-column field="credit" label="Credit" v-slot="props" sortable>
-            {{ props.row.credit }}
-          </b-table-column>
-          <b-table-column field="debt" label="Debt" v-slot="props" sortable>
-            {{ props.row.debt }}
-          </b-table-column>
-          <b-table-column field="slotsUsed" label="Slots Free" v-slot="props" sortable>
-            {{ props.row.slotsFull - props.row.slotsUsed }}
-          </b-table-column>
-          <b-table-column field="slotsFull" label="Slots Full" v-slot="props" sortable>
-            {{ props.row.slotsFull }}
-          </b-table-column>
-        </b-table>
+            <template #filter="{ filterModel, filterCallback }">
+              <InputText
+                v-model="filterModel.value"
+                type="text"
+                @input="filterCallback()"
+                placeholder="Filter..."
+                class="p-column-filter"
+              />
+            </template>
+          </Column>
+          <Column field="credit" header="Credit" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.credit }}
+            </template>
+          </Column>
+          <Column field="debt" header="Debt" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.debt }}
+            </template>
+          </Column>
+          <Column field="slotsUsed" header="Slots Free" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.slotsFull - slotProps.data.slotsUsed }}
+            </template>
+          </Column>
+          <Column field="slotsFull" header="Slots Full" sortable>
+            <template #body="slotProps">
+              {{ slotProps.data.slotsFull }}
+            </template>
+          </Column>
+        </DataTable>
       </div>
     </div>
 
-    <AdminAccountEditDialog 
-      :account="accountBeingEdited" 
+    <AdminAccountEditDialog
+      :account="accountBeingEdited"
       :show="editDialogIsVisible"
-      @close="closeAccountEditDialog()" 
+      @close="closeAccountEditDialog()"
     />
   </div>
 </template>
 
-<script>
-import { mapActions, mapState, mapGetters } from 'vuex';
-import { accountRoles } from '~/infrastructure/dataLists';
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useAdminAccountsStore } from '~/stores/adminAccounts'
+import { useAuthStore } from '~/stores/auth'
+import { accountRoles } from '~/infrastructure/dataLists'
 
-export default {
-  name: 'AdminAccountsPage',
-  data: () => ({
-    editDialogIsVisible: false,
-    accountBeingEdited: undefined,
-    accountIdBeingDeleted: 0,
-    roles: accountRoles
-  }),
-  computed: {
-    ...mapState({
-      accounts: state => state.admin.accounts.accounts
-    }),
-    ...mapGetters({
-      loggedInUser: "loggedInUser"
+interface Account {
+  id: number
+  nationId: number
+  rulerName: string
+  nationName: string
+  role: string
+  allianceId: number
+  allianceName: string
+  allianceAcronym: string
+  uniqueCode: string
+  discord: string | null
+  discordUniqueId: string | null
+  credit: number
+  debt: number
+  slotsUsed: number
+  slotsFull: number
+  hasForeignMinistry: boolean
+  hasFederalAidCommission: boolean
+  hasDisasterReliefAgency: boolean
+}
+
+definePageMeta({
+  middleware: 'auth'
+})
+
+const router = useRouter()
+const toast = useToast()
+
+const adminAccountsStore = useAdminAccountsStore()
+const authStore = useAuthStore()
+
+const { accounts } = storeToRefs(adminAccountsStore)
+const { loggedInUser } = storeToRefs(authStore)
+
+const editDialogIsVisible = ref<boolean>(false)
+const accountBeingEdited = ref<Account | undefined>(undefined)
+const accountIdBeingDeleted = ref<number>(0)
+const roles = accountRoles
+
+// Helper function to get role description
+const getRoleDescription = (roleCode: string): string => {
+  const role = roles.find(r => r.code === roleCode)
+  return role ? role.description : roleCode
+}
+
+// Filter function for nation search (ruler or nation name)
+const filterByNation = (row: Account, input: string): boolean => {
+  return row.rulerName.toLowerCase().includes(input.toLowerCase())
+    || row.nationName.toLowerCase().includes(input.toLowerCase())
+}
+
+// Filter function for role search
+const filterByRole = (row: Account, input: string): boolean => {
+  const rolesMatchingInput = roles
+    .filter(role => role.description.toLowerCase().includes(input.toLowerCase()))
+    .map(role => role.code)
+
+  return rolesMatchingInput.includes(row.role)
+}
+
+// Create new account
+const createAccount = (): void => {
+  accountBeingEdited.value = {} as Account
+  editDialogIsVisible.value = true
+}
+
+// Edit existing account
+const editAccount = (account: Account): void => {
+  accountBeingEdited.value = account
+  editDialogIsVisible.value = true
+}
+
+// Delete account by ID
+const deleteAccountById = async (accountId: number): Promise<void> => {
+  accountIdBeingDeleted.value = accountId
+
+  try {
+    await adminAccountsStore.deleteAccount(accountId)
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Account deleted successfully.',
+      life: 3000
     })
-  },
-  created() {
-    if (!this.loggedInUser.roles.some(role => role.name === "Admin")) {
-      this.$log.warn("Tried to access an admin page without the admin role.");
-      this.$router.push("/");
-      return;
-    }
-
-    this.loadAllAccounts();
-    this.$log.info(this.accounts);
-  },
-  methods: {
-    ...mapActions({
-      loadAllAccounts: "admin/accounts/loadAllAccounts",
-      deleteAccount: "admin/accounts/deleteAccount"
-    }),
-    createAccount() {
-      this.accountBeingEdited = {};
-      this.editDialogIsVisible = true;
-    },
-    editAccount(account) {
-      this.accountBeingEdited = account;
-      this.editDialogIsVisible = true;
-    },
-    async deleteAccountById(accountId) {
-      this.accountIdBeingDeleted = accountId;
-
-      try {
-        await this.deleteAccount(accountId);
-      } catch (e) {
-        this.$log.error(e);
-        this.$toast.error("VEP encountered an error while deleting the account. Please try again, or contact @lilweirdward if the error persists.");
-      }
-
-      this.accountIdBeingDeleted = 0;
-    },
-    closeAccountEditDialog() {
-      this.accountBeingEdited = undefined;
-      this.editDialogIsVisible = false;
-    },
-    filterByNation(row, input) {
-      return row.rulerName.toLowerCase().includes(input.toLowerCase())
-        || row.nationName.toLowerCase().includes(input.toLowerCase());
-    },
-    filterByRole(row, input) {
-      const rolesMatchingInput = this.roles
-        .filter(role => role.description.toLowerCase().includes(input.toLowerCase()))
-        .map(role => role.code);
-      
-      return rolesMatchingInput.includes(row.role);
-    }
+  } catch (error) {
+    console.error('Failed to delete account:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'VEP encountered an error while deleting the account. Please try again, or contact @lilweirdward if the error persists.',
+      life: 5000
+    })
+  } finally {
+    accountIdBeingDeleted.value = 0
   }
 }
+
+// Close account edit dialog
+const closeAccountEditDialog = (): void => {
+  accountBeingEdited.value = undefined
+  editDialogIsVisible.value = false
+}
+
+// Check admin access and load accounts on mount
+onMounted(async () => {
+  // Check if user has admin role
+  if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
+    console.warn('Tried to access an admin page without the admin role.')
+    toast.add({
+      severity: 'error',
+      summary: 'Access Denied',
+      detail: 'You do not have permission to access this page.',
+      life: 5000
+    })
+    await router.push('/')
+    return
+  }
+
+  try {
+    await adminAccountsStore.loadAllAccounts()
+    console.log('Accounts loaded:', accounts.value)
+  } catch (error) {
+    console.error('Failed to load accounts:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load accounts. Please try again.',
+      life: 5000
+    })
+  }
+})
 </script>

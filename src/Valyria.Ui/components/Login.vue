@@ -1,92 +1,130 @@
 <template>
-  <div class="modal" :class="{ 'is-active': show }">
-    <div class="modal-background"></div>
-    <div class="modal-card">
-      <header class="modal-card-head">
-        <p class="modal-card-title">VEP Login Portal</p>
-        <button type="button" class="delete" @click="$emit('close')"></button>
-      </header>
-      <section class="modal-card-body">
-        <div class="columns">
-          <div class="column">
-            <b-field
-              label="Nation ID"
-              :type="{ 'is-danger': nationIdOrRulerNameIsMissing }"
-              :message="{ 'Nation ID or Ruler Name is required.': nationIdOrRulerNameIsMissing }"
-            >
-              <b-input type="text" v-model="nationId"></b-input>
-            </b-field>
-          </div>
-          <div class="is-divider-vertical" data-content="OR"></div>
-          <div class="column">
-            <b-field
-              label="Ruler Name"
-              :type="{ 'is-danger': nationIdOrRulerNameIsMissing }"
-              :message="{ 'Nation ID or Ruler Name is required.': nationIdOrRulerNameIsMissing }"
-            >
-              <b-input type="text" v-model="rulerName"></b-input>
-            </b-field>
-          </div>
+  <Dialog v-model:visible="isVisible" modal header="VEP Login Portal" :style="{ width: '50rem' }">
+    <div class="grid">
+      <div class="col-5">
+        <div class="field">
+          <label for="nationId" class="block mb-2">Nation ID</label>
+          <InputText
+            id="nationId"
+            v-model="nationId"
+            type="text"
+            class="w-full"
+            :invalid="nationIdOrRulerNameIsMissing"
+          />
+          <small v-if="nationIdOrRulerNameIsMissing" class="text-red-500">
+            Nation ID or Ruler Name is required.
+          </small>
         </div>
-        <b-field
-          label="Unique Code"
-          :type="{ 'is-danger': uniqueCodeIsMissing }"
-          :message="{ 'Unique Code is required.': uniqueCodeIsMissing }"
-        >
-          <b-input type="text" v-model="uniqueCode"></b-input>
-        </b-field>
-        <!-- <b-checkbox>Remember Me</b-checkbox> -->
-      </section>
-      <footer class="modal-card-foot">
-        <b-button label="Close" @click="$emit('close')" />
-        <b-button type="is-primary" label="Log In" @click="login()" />
-      </footer>
+      </div>
+      <Divider layout="vertical" class="col-2">OR</Divider>
+      <div class="col-5">
+        <div class="field">
+          <label for="rulerName" class="block mb-2">Ruler Name</label>
+          <InputText
+            id="rulerName"
+            v-model="rulerName"
+            type="text"
+            class="w-full"
+            :invalid="nationIdOrRulerNameIsMissing"
+          />
+          <small v-if="nationIdOrRulerNameIsMissing" class="text-red-500">
+            Nation ID or Ruler Name is required.
+          </small>
+        </div>
+      </div>
     </div>
-  </div>
+    <div class="field mt-4">
+      <label for="uniqueCode" class="block mb-2">Unique Code</label>
+      <InputText
+        id="uniqueCode"
+        v-model="uniqueCode"
+        type="text"
+        class="w-full"
+        :invalid="uniqueCodeIsMissing"
+      />
+      <small v-if="uniqueCodeIsMissing" class="text-red-500">Unique Code is required.</small>
+    </div>
+
+    <template #footer>
+      <Button label="Close" text @click="closeDialog" />
+      <Button label="Log In" @click="login" />
+    </template>
+  </Dialog>
 </template>
 
-<style>
-.checkbox {
-  /* The buefy checkbox is stupid and only colors the text on hover, so this forces it to always be visible */
-  color: #363636 !important;
-}
-</style>
+<script setup lang="ts">
+const props = defineProps<{
+  show: boolean
+}>()
 
-<script>
-export default {
-  name: "LoginVepUser",
-  props: {
-    show: Boolean
-  },
-  data: () => ({
-    nationId: "",
-    rulerName: "",
-    uniqueCode: "",
-    nationIdOrRulerNameIsMissing: false,
-    uniqueCodeIsMissing: false
-  }),
-  methods: {
-    async login() {
-      if (!this.formIsValid()) {
-        return;
-      }
+const emit = defineEmits<{
+  close: []
+}>()
 
-      await this.$auth.loginWith("local", {
-        data: {
-          nationId: this.nationId,
-          rulerName: this.rulerName,
-          uniqueCode: this.uniqueCode
-        }
-      });
+const authStore = useAuthStore()
+const toast = useToast()
 
-      this.$emit("close");
-    },
-    formIsValid() {
-      this.nationIdOrRulerNameIsMissing = (this.nationId.length === 0 && this.rulerName.length === 0);
-      this.uniqueCodeIsMissing = this.uniqueCode.length === 0;
+const nationId = ref('')
+const rulerName = ref('')
+const uniqueCode = ref('')
+const nationIdOrRulerNameIsMissing = ref(false)
+const uniqueCodeIsMissing = ref(false)
 
-      return !(this.nationIdOrRulerNameIsMissing || this.uniqueCodeIsMissing);
+const isVisible = computed({
+  get: () => props.show,
+  set: (value) => {
+    if (!value) {
+      closeDialog()
     }
+  },
+})
+
+function closeDialog() {
+  emit('close')
+  // Reset form
+  nationId.value = ''
+  rulerName.value = ''
+  uniqueCode.value = ''
+  nationIdOrRulerNameIsMissing.value = false
+  uniqueCodeIsMissing.value = false
+}
+
+function formIsValid() {
+  nationIdOrRulerNameIsMissing.value =
+    nationId.value.length === 0 && rulerName.value.length === 0
+  uniqueCodeIsMissing.value = uniqueCode.value.length === 0
+
+  return !(nationIdOrRulerNameIsMissing.value || uniqueCodeIsMissing.value)
+}
+
+async function login() {
+  if (!formIsValid()) {
+    return
+  }
+
+  try {
+    await authStore.login({
+      nationId: nationId.value ? parseInt(nationId.value) : undefined,
+      rulerName: rulerName.value || undefined,
+      uniqueCode: uniqueCode.value,
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: 'Login Successful',
+      detail: 'Welcome back!',
+      life: 3000,
+    })
+
+    closeDialog()
+  } catch (error) {
+    console.error('Login failed:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Login Failed',
+      detail: 'Invalid credentials. Please try again.',
+      life: 5000,
+    })
   }
 }
 </script>

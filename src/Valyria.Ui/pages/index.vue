@@ -28,16 +28,16 @@
             <div class="content">
               <h3>Manage your own balance instead of individual deals</h3>
               <p>
-                If you've played CN before, you're probably familiar with the concept of a "tech deal": a buyer sends 
-                cash to a seller in exchange for technology. They can be great for new players and ancient nations 
-                alike, but they typically require a lot of research, maintenance, and tracking in order to maintain 
+                If you've played CN before, you're probably familiar with the concept of a "tech deal": a buyer sends
+                cash to a seller in exchange for technology. They can be great for new players and ancient nations
+                alike, but they typically require a lot of research, maintenance, and tracking in order to maintain
                 healthy deals long-term.
               </p>
               <p>
-                The Valyrian Exchange Program is a new paradigm in tech dealing. Instead of managing individual deals, 
-                you are given a simple ledger - known as your balance - that tracks how much aid you've sent, how much 
-                you're owed, and how much you're due to send. VEP enrolls well over one hundred nations, with an even 
-                split of buyers and sellers, so you're guaranteed a consistent source of incoming aid and outgoing 
+                The Valyrian Exchange Program is a new paradigm in tech dealing. Instead of managing individual deals,
+                you are given a simple ledger - known as your balance - that tracks how much aid you've sent, how much
+                you're owed, and how much you're due to send. VEP enrolls well over one hundred nations, with an even
+                split of buyers and sellers, so you're guaranteed a consistent source of incoming aid and outgoing
                 targets. Never worry about 1x1 deals again; get signed up in VEP today!
               </p>
             </div>
@@ -60,7 +60,7 @@
                 <div class="content">
                   <h5>Lovely Website</h5>
                   <p>
-                    Let's be honest: CN isn't known for being a very attractive app. It doesn't have to be that 
+                    Let's be honest: CN isn't known for being a very attractive app. It doesn't have to be that
                     way for a wonderful tool such as VEP, though! And VEP isn't just pretty; it is thoughtfully-
                     crafted to be simple and easy to understand.
                   </p>
@@ -77,7 +77,7 @@
                 <div class="content">
                   <h5>Constant Aid</h5>
                   <p>
-                    In VEP, it's assumed that if you have an open aid slot, then you'd like to either receive aid or 
+                    In VEP, it's assumed that if you have an open aid slot, then you'd like to either receive aid or
                     send more out. We want to make sure that you're using your aid slots to their max capacity!
                   </p>
                 </div>
@@ -95,7 +95,7 @@
                 <div class="content">
                   <h5>Fair Rates</h5>
                   <p>
-                    9/100: $9 million in cash for 100 technology levels. That's been VEP's rate since it was founded, 
+                    9/100: $9 million in cash for 100 technology levels. That's been VEP's rate since it was founded,
                     and it's the fixed rate for VEP's future.
                   </p>
                 </div>
@@ -111,7 +111,7 @@
                 <div class="content">
                   <h5>Automated Transactions</h5>
                   <p>
-                    All aid is imported and tallied against your balance every morning, in CN time, so you'll never 
+                    All aid is imported and tallied against your balance every morning, in CN time, so you'll never
                     need to track aid screens again.
                   </p>
                 </div>
@@ -126,7 +126,7 @@
       <div class="hero-body has-text-centered">
         <p class="title">Start managing your account now!</p>
         <p class="subtitle">
-          If you already have an account, dig into our additional resources to learn more about the nuts and bolts of 
+          If you already have an account, dig into our additional resources to learn more about the nuts and bolts of
           how VEP works
         </p>
         <a class="button is-white">How VEP Works</a>
@@ -140,21 +140,30 @@
   </div>
 </template>
 
-<style>
+<script setup lang="ts">
+definePageMeta({
+  auth: false
+})
+
+const route = useRoute()
+const toast = useToast()
+
+// Check for auth failure on mount
+onMounted(() => {
+  if (route.query.auth === 'failed') {
+    toast.add({
+      severity: 'error',
+      summary: 'Authentication Required',
+      detail: "You can't access that page until you're logged in. Please log into your account, or contact VEP management to create one for you.",
+      life: 5000
+    })
+  }
+})
+</script>
+
+<style scoped>
 img#dragons-illustration {
   width: 375px;
   margin-top: -2rem;
 }
 </style>
-
-<script>
-export default {
-  name: 'IndexPage',
-  auth: false,
-  created() {
-    if (this.$route.query.auth && this.$route.query.auth === "failed") {
-      this.$toast.error("You can't access that page until you're logged in. Please log into your account, or contact VEP management to create one for you.");
-    }
-  }
-}
-</script>

@@ -8,316 +8,429 @@
     </div>
     <div class="container">
       <div class="section">
-        <b-field grouped>
-          <b-field label="Sent By" expanded>
-            <b-input v-model="filters.sentBy"></b-input>
-          </b-field>
-          <b-field label="Received By" expanded>
-            <b-input v-model="filters.receivedBy"></b-input>
-          </b-field>
-          <b-field label="Since" grouped expanded>
-            <b-datepicker v-model="filters.sentSince" :mobile-native="false">
-              <template v-slot:trigger>
-                <b-button icon-left="calendar-today" type="is-link" />
-              </template>
-              <template v-slot:default>
-                <b-button type="is-white" @click="filters.sentSince = null">Clear</b-button>
-              </template>
-            </b-datepicker>
-            <b-input expanded readonly :value="filterSinceString"></b-input>
-          </b-field>
-          <b-field label="Until" grouped expanded>
-            <b-datepicker v-model="filters.sentUntil" :mobile-native="false">
-              <template v-slot:trigger>
-                <b-button icon-left="calendar-today" type="is-link" />
-              </template>
-              <template v-slot:default>
-                <b-button type="is-white" @click="filters.sentUntil = null">Clear</b-button>
-              </template>
-            </b-datepicker>
-            <b-input expanded readonly :value="filterUntilString"></b-input>
-          </b-field>
-          <p class="control">
-            <b-button label="Filter" type="is-primary" style="margin-top: 32px" @click="changePage(1)" />
-          </p>
-        </b-field>
-        <div class="tabs is-boxed">
-          <ul>
-            <li :class="{ 'is-active': currentTab === TRANSACTION_TYPES.aidBased }">
-              <a @click="changeTab(TRANSACTION_TYPES.aidBased)">
-                <span>Aid-Based</span>
-              </a>
-            </li>
-            <li :class="{ 'is-active': currentTab === TRANSACTION_TYPES.manual }">
-              <a @click="changeTab(TRANSACTION_TYPES.manual)">
-                <span>Manual</span>
-              </a>
-            </li>
-          </ul>
+        <div class="p-fluid grid">
+          <div class="col-12 md:col-3">
+            <label for="sentBy" class="block mb-2">Sent By</label>
+            <InputText id="sentBy" v-model="filters.sentBy" />
+          </div>
+          <div class="col-12 md:col-3">
+            <label for="receivedBy" class="block mb-2">Received By</label>
+            <InputText id="receivedBy" v-model="filters.receivedBy" />
+          </div>
+          <div class="col-12 md:col-3">
+            <label for="sentSince" class="block mb-2">Since</label>
+            <Calendar id="sentSince" v-model="filters.sentSince" showIcon />
+          </div>
+          <div class="col-12 md:col-3">
+            <label for="sentUntil" class="block mb-2">Until</label>
+            <Calendar id="sentUntil" v-model="filters.sentUntil" showIcon />
+          </div>
         </div>
-        <div v-if="currentTab === TRANSACTION_TYPES.aidBased">
-          <b-table
-            :data="aidBasedTransactions"
-            :loading="tableIsLoading"
+        <div class="mt-3">
+          <Button label="Filter" severity="primary" @click="changePage(1)" />
+        </div>
 
-            paginated 
-            backend-pagination 
-            :total="currentTransactionsPage.totalCount"
-            :per-page="limit"
-            @page-change="changePage"
-          >
-            <b-table-column field="id" label="Actions" width="140px" v-slot="props">
-              <div class="buttons are-small">
-                <button class="button is-info" @click="editTransaction(props.row, TRANSACTION_TYPES.aidBased)">View</button>
-                <button
-                  class="button is-danger"
-                  :class="{ 'is-loading': transactionIdBeingDeleted === props.row.id }"
-                  @click="deleteTransactionById(props.row.id)"
-                >
-                  Delete
-                </button>
-              </div>
-            </b-table-column>
-            <b-table-column field="sentBy" label="Sent By" v-slot="props">
-              {{ props.row.sentBy.rulerName }} of {{ props.row.sentBy.nationName }}
-            </b-table-column>
-            <b-table-column field="receivedBy" label="Received By" v-slot="props">
-              {{ props.row.receivedBy.rulerName }} of {{ props.row.receivedBy.nationName }}
-            </b-table-column>
-            <b-table-column field="code" label="Role Pairing" v-slot="props">
-              {{ props.row.code.sendingRole }}{{ props.row.code.receivingRole}}
-            </b-table-column>
-            <b-table-column field="status" label="Status" v-slot="props">
-              {{ toAidStatusDescription(props.row.status) }}
-            </b-table-column>
-            <b-table-column field="money" label="Money" v-slot="props">
-              {{ props.row.money }}
-            </b-table-column>
-            <b-table-column field="technology" label="Tech" v-slot="props">
-              {{ props.row.technology }}
-            </b-table-column>
-            <b-table-column field="reason" label="Reason" v-slot="props">
-              {{ props.row.reason }}
-            </b-table-column>
-            <b-table-column field="startsOn" label="Sent On" v-slot="props">
-              {{ props.row.startsOn.split('T')[0] }}
-            </b-table-column>
-            <template #empty>
-              <div class="has-text-centered">No transactions currently loaded</div>
-            </template>
-          </b-table>
-        </div>
-        <div v-if="currentTab === TRANSACTION_TYPES.manual">
-          <button class="button is-success" @click="createTransaction()">Create</button>
-          <b-table
-            :data="manualTransactions"
-            :loading="tableIsLoading"
+        <TabView v-model:activeIndex="activeTabIndex" class="mt-4">
+          <TabPanel header="Aid-Based">
+            <DataTable
+              :value="aidBasedTransactions"
+              :loading="tableIsLoading"
+              :totalRecords="currentTransactionsPage.totalCount"
+              lazy
+              paginator
+              :rows="limit"
+              @page="onPageChange"
+            >
+              <Column field="id" header="Actions" style="width: 140px">
+                <template #body="slotProps">
+                  <div class="flex gap-2">
+                    <Button
+                      label="View"
+                      severity="info"
+                      size="small"
+                      @click="editTransaction(slotProps.data, TRANSACTION_TYPES.aidBased)"
+                    />
+                    <Button
+                      label="Delete"
+                      severity="danger"
+                      size="small"
+                      :loading="transactionIdBeingDeleted === slotProps.data.id"
+                      @click="deleteTransactionById(slotProps.data.id)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <Column field="sentBy" header="Sent By">
+                <template #body="slotProps">
+                  {{ slotProps.data.sentBy.rulerName }} of {{ slotProps.data.sentBy.nationName }}
+                </template>
+              </Column>
+              <Column field="receivedBy" header="Received By">
+                <template #body="slotProps">
+                  {{ slotProps.data.receivedBy.rulerName }} of {{ slotProps.data.receivedBy.nationName }}
+                </template>
+              </Column>
+              <Column field="code" header="Role Pairing">
+                <template #body="slotProps">
+                  {{ slotProps.data.code.sendingRole }}{{ slotProps.data.code.receivingRole }}
+                </template>
+              </Column>
+              <Column field="status" header="Status">
+                <template #body="slotProps">
+                  {{ toAidStatusDescription(slotProps.data.status) }}
+                </template>
+              </Column>
+              <Column field="money" header="Money">
+                <template #body="slotProps">
+                  {{ slotProps.data.money }}
+                </template>
+              </Column>
+              <Column field="technology" header="Tech">
+                <template #body="slotProps">
+                  {{ slotProps.data.technology }}
+                </template>
+              </Column>
+              <Column field="reason" header="Reason">
+                <template #body="slotProps">
+                  {{ slotProps.data.reason }}
+                </template>
+              </Column>
+              <Column field="startsOn" header="Sent On">
+                <template #body="slotProps">
+                  {{ formatDate(slotProps.data.startsOn) }}
+                </template>
+              </Column>
+              <template #empty>
+                <div class="text-center">No transactions currently loaded</div>
+              </template>
+            </DataTable>
+          </TabPanel>
 
-            paginated 
-            backend-pagination 
-            :total="currentTransactionsPage.totalCount"
-            :per-page="limit"
-            @page-change="changePage"
-          >
-            <b-table-column field="id" label="Actions" width="140px" v-slot="props">
-              <div class="buttons are-small">
-                <button class="button is-info" @click="editTransaction(props.row, TRANSACTION_TYPES.manual)">Edit</button>
-                <button
-                  class="button is-danger"
-                  :class="{ 'is-loading': transactionIdBeingDeleted === props.row.id }"
-                  @click="deleteTransactionById(props.row.id)"
-                >
-                  Delete
-                </button>
-              </div>
-            </b-table-column>
-            <b-table-column field="nation" label="Account" v-slot="props">
-              {{ props.row.nation.rulerName }} of {{ props.row.nation.nationName }}
-            </b-table-column>
-            <b-table-column field="adjustmentType" label="Adjustment Type" v-slot="props">
-              {{ props.row.adjustmentType }}
-            </b-table-column>
-            <b-table-column field="reason" label="Reason" v-slot="props">
-              {{ props.row.reason }}
-            </b-table-column>
-            <b-table-column field="accountCode" label="Role" v-slot="props">
-              {{ props.row.accountCode }}
-            </b-table-column>
-            <b-table-column field="classification" label="Classification" v-slot="props">
-              {{ classifications.find(c => c.id === props.row.classification).description }}
-            </b-table-column>
-            <b-table-column field="rate" label="Rate" v-slot="props">
-              {{ props.row.rate }}
-            </b-table-column>
-            <template #empty>
-              <div class="has-text-centered">No transactions currently loaded</div>
-            </template>
-          </b-table>
-        </div>
+          <TabPanel header="Manual">
+            <Button label="Create" severity="success" @click="createTransaction()" class="mb-3" />
+            <DataTable
+              :value="manualTransactions"
+              :loading="tableIsLoading"
+              :totalRecords="currentTransactionsPage.totalCount"
+              lazy
+              paginator
+              :rows="limit"
+              @page="onPageChange"
+            >
+              <Column field="id" header="Actions" style="width: 140px">
+                <template #body="slotProps">
+                  <div class="flex gap-2">
+                    <Button
+                      label="Edit"
+                      severity="info"
+                      size="small"
+                      @click="editTransaction(slotProps.data, TRANSACTION_TYPES.manual)"
+                    />
+                    <Button
+                      label="Delete"
+                      severity="danger"
+                      size="small"
+                      :loading="transactionIdBeingDeleted === slotProps.data.id"
+                      @click="deleteTransactionById(slotProps.data.id)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <Column field="nation" header="Account">
+                <template #body="slotProps">
+                  {{ slotProps.data.nation.rulerName }} of {{ slotProps.data.nation.nationName }}
+                </template>
+              </Column>
+              <Column field="adjustmentType" header="Adjustment Type">
+                <template #body="slotProps">
+                  {{ slotProps.data.adjustmentType }}
+                </template>
+              </Column>
+              <Column field="reason" header="Reason">
+                <template #body="slotProps">
+                  {{ slotProps.data.reason }}
+                </template>
+              </Column>
+              <Column field="accountCode" header="Role">
+                <template #body="slotProps">
+                  {{ slotProps.data.accountCode }}
+                </template>
+              </Column>
+              <Column field="classification" header="Classification">
+                <template #body="slotProps">
+                  {{ getClassificationDescription(slotProps.data.classification) }}
+                </template>
+              </Column>
+              <Column field="rate" header="Rate">
+                <template #body="slotProps">
+                  {{ slotProps.data.rate }}
+                </template>
+              </Column>
+              <template #empty>
+                <div class="text-center">No transactions currently loaded</div>
+              </template>
+            </DataTable>
+          </TabPanel>
+        </TabView>
       </div>
     </div>
+
     <AdminAidBasedTransactionDialog
-      :show="aidBasedDialogIsVisible" 
-      :transaction="transactionBeingEdited" 
+      :show="aidBasedDialogIsVisible"
+      :transaction="transactionBeingEdited"
       @close="closeDialog(TRANSACTION_TYPES.aidBased)"
     />
-    <AdminManualTransactionDialog 
-      :show="manualDialogIsVisible" 
-      :transaction="transactionBeingEdited" 
-      :accounts="accounts" 
+    <AdminManualTransactionDialog
+      :show="manualDialogIsVisible"
+      :transaction="transactionBeingEdited"
+      :accounts="accounts"
       @close="closeDialog(TRANSACTION_TYPES.manual)"
     />
   </div>
 </template>
 
-<script>
-import { mapState, mapGetters, mapActions } from "vuex";
-import dateFormat from "dateformat";
-import { TRANSACTION_TYPES } from "~/infrastructure/constants";
-import { transactionClassifications } from '~/infrastructure/dataLists';
+<script setup lang="ts">
+import { storeToRefs } from 'pinia'
+import { useAdminTransactionsStore } from '~/stores/adminTransactions'
+import { useAdminAccountsStore } from '~/stores/adminAccounts'
+import { useAuthStore } from '~/stores/auth'
+import { TRANSACTION_TYPES } from '~/infrastructure/constants'
+import { transactionClassifications } from '~/infrastructure/dataLists'
 
-export default {
-  name: "AdminTransactionsPage",
-  data: () => ({
-    TRANSACTION_TYPES,
-    currentTab: TRANSACTION_TYPES.aidBased,
-    currentPage: 1,
-    limit: 25,
-    limitOptions: [ 10, 25, 100, 500 ],
-    tableIsLoading: false,
-    aidBasedDialogIsVisible: false,
-    manualDialogIsVisible: false,
-    transactionBeingEdited: undefined,
-    transactionIdBeingDeleted: 0,
-    classifications: transactionClassifications,
-    filters: {
-      sentBy: null,
-      receivedBy: null,
-      sentSince: null,
-      sentUntil: null
-    }
-  }),
-  computed: {
-    ...mapState({
-      currentTransactionsPage: state => state.admin.transactions.currentTransactionsPage,
-      accounts: state => state.admin.accounts.accounts
-    }),
-    ...mapGetters({
-      aidBasedTransactions: "admin/transactions/aidBasedTransactions",
-      manualTransactions: "admin/transactions/manualTransactions",
-      loggedInUser: "loggedInUser"
-    }),
-    totalPages() {
-      return Math.ceil(this.currentTransactionsPage.totalCount / 100);
-    },
-    tabIsAidBased() {
-      return this.currentTab === TRANSACTION_TYPES.aidBased;
-    },
-    tabIsManual() {
-      return this.currentTab === TRANSACTION_TYPES.manual;
-    },
-    filterSinceString() {
-      return this.filters.sentSince ? dateFormat(this.filters.sentSince, "mm/dd/yyyy") : "";
-    },
-    filterUntilString() {
-      return this.filters.sentUntil ? dateFormat(this.filters.sentUntil, "mm/dd/yyyy") : "";
-    }
-  },
-  async created() {
-    if (!this.loggedInUser.roles.some(role => role.name === "Admin")) {
-      this.$log.warn("Tried to access an admin page without the admin role.");
-      this.$router.push("/");
-      return;
-    }
+interface Transaction {
+  id: number
+  aidId: number | null
+  sentBy: {
+    nationId: number
+    rulerName: string
+    nationName: string
+    allianceId: number
+    allianceAcronym: string
+  } | null
+  receivedBy: {
+    nationId: number
+    rulerName: string
+    nationName: string
+    allianceId: number
+    allianceAcronym: string
+  } | null
+  status: string
+  rate: number
+  money: number | null
+  technology: number | null
+  reason: string | null
+  classification: string | null
+  code: {
+    sendingRole?: string
+    receivingRole?: string
+  } | null
+  startsOn: string
+}
 
-    await this.changePage(1);
-    this.$log.info(this.currentTransactionsPage);
+interface TransactionFilter {
+  sentBy: string | null
+  receivedBy: string | null
+  sentSince: Date | null
+  sentUntil: Date | null
+}
 
-    await this.loadAllAccounts();
-    this.$log.info(this.accounts);
-  },
-  methods: {
-    ...mapActions({
-      reloadCurrentTransactionsPage: "admin/transactions/reloadCurrentTransactionsPage",
-      deleteTransaction: "admin/transactions/deleteTransaction",
-      loadAllAccounts: "admin/accounts/loadAllAccounts"
-    }),
-    async changePage(newPageNumber) {
-      this.tableIsLoading = true;
-      this.currentPage = newPageNumber;
-      try {
-        await this.reloadCurrentTransactionsPage({
-          type: this.currentTab,
-          filter: {
-            sentBy: this.filters.sentBy,
-            receivedBy: this.filters.receivedBy,
-            sentSince: this.filters.sentSince,
-            sentUntil: this.filters.sentUntil
-          },
-          limit: this.limit,
-          offset: this.limit * (this.currentPage - 1)
-        });
-      } catch (e) {
-        this.$log.error(e);
-        this.$toast.error("The current page failed to load");
-      }
+definePageMeta({
+  middleware: 'auth'
+})
 
-      this.tableIsLoading = false;
-    },
-    async changeTab(tabName) {
-      if (this.currentTab === tabName) {
-        this.$log.warn("The same tab that is already active was clicked, so nothing will happen.");
-        return;
-      }
+const router = useRouter()
+const toast = useToast()
 
-      this.currentTab = tabName;
-      await this.changePage(1);
-    },
-    toAidStatusDescription(statusId) {
-      switch (statusId) {
-        case 1: return "Pending";
-        case 2: return "Approved";
-        case 3: return "Cancelled";
-        case 4: return "Expired";
-        default: return "Unknown";
-      }
-    },
-    createTransaction() {
-      this.transactionBeingEdited = {};
-      this.manualDialogIsVisible = true;
-    },
-    editTransaction(transaction, transactionType) {
-      this.transactionBeingEdited = transaction;
+const adminTransactionsStore = useAdminTransactionsStore()
+const adminAccountsStore = useAdminAccountsStore()
+const authStore = useAuthStore()
 
-      if (transactionType === TRANSACTION_TYPES.aidBased) {
-        this.aidBasedDialogIsVisible = true;
-      } else if (transactionType === TRANSACTION_TYPES.manual) {
-        this.manualDialogIsVisible = true;
-      }
-    },
-    async deleteTransactionById(id) {
-      this.transactionIdBeingDeleted = id;
+const { currentTransactionsPage, aidBasedTransactions, manualTransactions } = storeToRefs(adminTransactionsStore)
+const { accounts } = storeToRefs(adminAccountsStore)
+const { loggedInUser } = storeToRefs(authStore)
 
-      try {
-        await this.deleteTransaction(id);
-      } catch (e) {
-        this.$log.error(e);
-        this.$toast.error("VEP encountered an error while deleting the transaction. Please try again, or contact @lilweirdward if the error persists.");
-      }
+const activeTabIndex = ref<number>(0)
+const currentPage = ref<number>(1)
+const limit = ref<number>(25)
+const tableIsLoading = ref<boolean>(false)
+const aidBasedDialogIsVisible = ref<boolean>(false)
+const manualDialogIsVisible = ref<boolean>(false)
+const transactionBeingEdited = ref<Transaction | undefined>(undefined)
+const transactionIdBeingDeleted = ref<number>(0)
+const classifications = transactionClassifications
 
-      this.transactionIdBeingDeleted = 0;
-      await this.changePage(this.currentPage);
-    },
-    closeDialog(transactionType) {
-      if (transactionType === TRANSACTION_TYPES.aidBased) {
-        this.aidBasedDialogIsVisible = false;
-      } else if (transactionType === TRANSACTION_TYPES.manual) {
-        this.manualDialogIsVisible = false;
-      }
-      
-      this.transactionBeingEdited = undefined;
-      this.changePage(this.currentPage);
-    }
+const filters = ref<TransactionFilter>({
+  sentBy: null,
+  receivedBy: null,
+  sentSince: null,
+  sentUntil: null
+})
+
+// Computed property for current transaction type based on active tab
+const currentTab = computed<string>(() => {
+  return activeTabIndex.value === 0 ? TRANSACTION_TYPES.aidBased : TRANSACTION_TYPES.manual
+})
+
+// Helper function to get classification description
+const getClassificationDescription = (classificationId: number | null): string => {
+  if (classificationId === null) return 'N/A'
+  const classification = classifications.find(c => c.id === classificationId)
+  return classification ? classification.description : 'Unknown'
+}
+
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  return dateString.split('T')[0]
+}
+
+// Helper function to convert aid status ID to description
+const toAidStatusDescription = (statusId: string | number): string => {
+  const status = typeof statusId === 'string' ? parseInt(statusId) : statusId
+  switch (status) {
+    case 1: return 'Pending'
+    case 2: return 'Approved'
+    case 3: return 'Cancelled'
+    case 4: return 'Expired'
+    default: return 'Unknown'
   }
 }
+
+// Change page handler
+const changePage = async (newPageNumber: number): Promise<void> => {
+  tableIsLoading.value = true
+  currentPage.value = newPageNumber
+
+  try {
+    await adminTransactionsStore.reloadCurrentTransactionsPage({
+      type: currentTab.value,
+      filter: {
+        sentBy: filters.value.sentBy || undefined,
+        receivedBy: filters.value.receivedBy || undefined,
+        sentSince: filters.value.sentSince || undefined,
+        sentUntil: filters.value.sentUntil || undefined
+      },
+      limit: limit.value,
+      offset: limit.value * (currentPage.value - 1)
+    })
+  } catch (error) {
+    console.error('Failed to load transactions:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'The current page failed to load',
+      life: 5000
+    })
+  } finally {
+    tableIsLoading.value = false
+  }
+}
+
+// Page change event handler for DataTable
+const onPageChange = (event: any): void => {
+  const newPage = event.page + 1 // PrimeVue pages are 0-indexed
+  changePage(newPage)
+}
+
+// Change tab handler
+const changeTab = async (tabIndex: number): Promise<void> => {
+  if (activeTabIndex.value === tabIndex) {
+    console.warn('The same tab that is already active was clicked, so nothing will happen.')
+    return
+  }
+
+  activeTabIndex.value = tabIndex
+  await changePage(1)
+}
+
+// Watch for tab changes
+watch(activeTabIndex, async (newIndex) => {
+  await changePage(1)
+})
+
+// Create new transaction
+const createTransaction = (): void => {
+  transactionBeingEdited.value = {} as Transaction
+  manualDialogIsVisible.value = true
+}
+
+// Edit transaction
+const editTransaction = (transaction: Transaction, transactionType: string): void => {
+  transactionBeingEdited.value = transaction
+
+  if (transactionType === TRANSACTION_TYPES.aidBased) {
+    aidBasedDialogIsVisible.value = true
+  } else if (transactionType === TRANSACTION_TYPES.manual) {
+    manualDialogIsVisible.value = true
+  }
+}
+
+// Delete transaction by ID
+const deleteTransactionById = async (id: number): Promise<void> => {
+  transactionIdBeingDeleted.value = id
+
+  try {
+    await adminTransactionsStore.deleteTransaction(id)
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Transaction deleted successfully.',
+      life: 3000
+    })
+    await changePage(currentPage.value)
+  } catch (error) {
+    console.error('Failed to delete transaction:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'VEP encountered an error while deleting the transaction. Please try again, or contact @lilweirdward if the error persists.',
+      life: 5000
+    })
+  } finally {
+    transactionIdBeingDeleted.value = 0
+  }
+}
+
+// Close dialog
+const closeDialog = async (transactionType: string): Promise<void> => {
+  if (transactionType === TRANSACTION_TYPES.aidBased) {
+    aidBasedDialogIsVisible.value = false
+  } else if (transactionType === TRANSACTION_TYPES.manual) {
+    manualDialogIsVisible.value = false
+  }
+
+  transactionBeingEdited.value = undefined
+  await changePage(currentPage.value)
+}
+
+// Check admin access and load data on mount
+onMounted(async () => {
+  // Check if user has admin role
+  if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
+    console.warn('Tried to access an admin page without the admin role.')
+    toast.add({
+      severity: 'error',
+      summary: 'Access Denied',
+      detail: 'You do not have permission to access this page.',
+      life: 5000
+    })
+    await router.push('/')
+    return
+  }
+
+  try {
+    await changePage(1)
+    console.log('Transactions loaded:', currentTransactionsPage.value)
+
+    await adminAccountsStore.loadAllAccounts()
+    console.log('Accounts loaded:', accounts.value)
+  } catch (error) {
+    console.error('Failed to load page data:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load page data. Please try again.',
+      life: 5000
+    })
+  }
+})
 </script>

@@ -7,40 +7,42 @@
   </div>
 </template>
 
-<script>
-import dateFormat from 'dateformat';
+<script setup lang="ts">
+import dateFormat from 'dateformat'
 
-export default {
-  props: {
-    data: []
-  },
-  // components: {
-  //   ApexChart: () => import('vue-apexcharts')
-  // },
-  computed: {
-    options() {
-      return {
-        chart: {
-          toolbar: {
-            show: false
-          }
-        },
-        stroke: {
-          curve: "smooth"
-        },
-        xaxis: {
-          categories: this.data && this.data.map(x => dateFormat(new Date(x.dayTxnRecorded), "mmm-dd")) || []
-        }
-      };
+interface TransactionData {
+  dayTxnRecorded: string
+  txnCount: number
+}
+
+interface Props {
+  data: TransactionData[]
+}
+
+const props = defineProps<Props>()
+
+const options = computed(() => {
+  return {
+    chart: {
+      toolbar: {
+        show: false
+      }
     },
-    series() {
-      return [
-        {
-          name: "Transactions",
-          data: this.data && this.data.map(x => x.txnCount) || []
-        }
-      ];
+    stroke: {
+      curve: "smooth"
+    },
+    xaxis: {
+      categories: props.data?.map(x => dateFormat(new Date(x.dayTxnRecorded), "mmm-dd")) ?? []
     }
   }
-}
+})
+
+const series = computed(() => {
+  return [
+    {
+      name: "Transactions",
+      data: props.data?.map(x => x.txnCount) ?? []
+    }
+  ]
+})
 </script>
