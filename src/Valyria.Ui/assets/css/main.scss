@@ -1,0 +1,14 @@
+// Import Bulma's core
+@import "~bulma/sass/utilities/_all";
+
+// Actual Bulma/Buefy variable overrides
+$primary: #00d1b2;
+
+// VEP admin tables are huge so downsize this globally for now
+.table {
+    font-size: 0.8rem;
+}
+
+// Import Bulma and Buefy styles
+@import "~bulma";
+@import "~buefy/src/scss/buefy";

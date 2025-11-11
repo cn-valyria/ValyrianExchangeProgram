@@ -1,0 +1,49 @@
+{
+  "name": "cn-vep",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt",
+    "build": "nuxt generate",
+    "start": "nuxt start",
+    "generate": "nuxt generate",
+    "lint:js": "eslint --ext \".js,.vue\" --ignore-path .gitignore .",
+    "lint:prettier": "prettier --check .",
+    "lint": "npm run lint:js && npm run lint:prettier",
+    "lintfix": "prettier --write --list-different . && npm run lint:js -- --fix",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@nuxtjs/auth-next": "5.0.0-1667386184.dfbbb54",
+    "@nuxtjs/axios": "^5.13.6",
+    "@nuxtjs/toast": "^3.3.1",
+    "bulma-calendar": "^6.1.19",
+    "bulma-divider": "^0.2.0",
+    "core-js": "^3.41.0",
+    "dateformat": "^5.0.3",
+    "nuxt": "^2.18.1",
+    "nuxt-buefy": "^0.4.29",
+    "nuxt-logger": "^0.2.0",
+    "vue": "^2.7.16",
+    "vue-server-renderer": "^2.7.16",
+    "vue-template-compiler": "^2.7.16",
+    "webpack": "^4.47.0"
+  },
+  "devDependencies": {
+    "@babel/eslint-parser": "^7.27.0",
+    "@nuxtjs/eslint-config": "^8.0.0",
+    "@nuxtjs/eslint-module": "^3.1.0",
+    "@vue/test-utils": "^1.3.6",
+    "babel-core": "7.0.0-bridge.0",
+    "babel-jest": "^27.5.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^8.10.0",
+    "eslint-plugin-nuxt": "^3.2.0",
+    "eslint-plugin-vue": "^8.7.1",
+    "jest": "^27.5.1",
+    "prettier": "^2.8.8",
+    "sass": "^1.86.3",
+    "sass-loader": "^10.5.2",
+    "vue-jest": "^3.0.7"
+  }
+}

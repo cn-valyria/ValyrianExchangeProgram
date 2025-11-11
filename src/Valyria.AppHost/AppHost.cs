@@ -3,7 +3,22 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add the API project with HTTP and HTTPS endpoints
 var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
     .WithHttpEndpoint(port: 5000, name: "http")
-    .WithHttpsEndpoint(port: 5001, name: "https")
     .WithExternalHttpEndpoints();
+
+// builder.AddNpmApp("valyria-ui", "../Valyria.Ui")
+//     .WithReference(api)
+//     .WithEnvironment("BROWSER", "none")
+//     .WithEnvironment("ApiUrl", api.GetEndpoint("https"))
+//     .WithEndpoint(env: "VITE_PORT")
+//     .WithExternalHttpEndpoints()
+//     .PublishAsDockerFile();
+
+builder.AddNpmApp("valyria-ui", "../Valyria.Ui", "dev")
+    .WithHttpEndpoint(env: "PORT")
+    .WithExternalHttpEndpoints()
+    .WithNpmPackageInstallation()
+    .WithEnvironment("ApiUrl", api.GetEndpoint("http"))
+    .WithReference(api)
+    .WaitFor(api);
 
 builder.Build().Run();
