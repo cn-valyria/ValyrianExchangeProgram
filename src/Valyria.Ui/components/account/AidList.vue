@@ -1,78 +1,77 @@
 <template>
   <div>
-    <div v-if="slotsFree === 0" class="box py-6">
-      <div class="content has-text-centered">
-        <h5>You are not expected to interact with VEP today</h5>
-        <p>
-          Your nation does not have any free foreign aid slots, so you are not expected to send or receive any transactions today. Please check
-          again tomorrow for the updated status of your nation.
-        </p>
-      </div>
-    </div>
-    <Accordion v-else>
-      <AccordionPanel>
-        <AccordionHeader>
-          <span v-if="owesTech">Tech Targets</span>
-          <span v-else-if="owesCash">Cash Targets</span>
-          <span v-else-if="expectsCash">Incoming Cash</span>
-          <span v-else-if="expectsTech">Incoming Tech</span>
-          <span v-else>Potential Transactions</span>
-          &nbsp;
-          <span class="has-text-weight-normal">({{ aidList.length }} nations)</span>
-        </AccordionHeader>
-        <AccordionContent>
-          <div class="content">
-            <p>
-              Please
-              <span v-if="owesTech">send tech to </span>
-              <span v-else-if="owesCash">send cash to </span>
-              <span v-else-if="expectsCash">accept cash from </span>
-              <span v-else-if="expectsTech">accept tech from </span>
-              <span v-else>Potential Transactions</span>
-              any of the nations in the following list.
-            </p>
-            <p v-if="expectsCash || expectsTech">
-              IMPORTANT: <strong>Do not use this list to send aid. </strong>
-              It should only be used to verify that nations sending you aid are doing so legitimately.
-            </p>
-            <DataTable :value="aidList">
-              <Column field="nation" header="Nation">
-                <template #body="slotProps">
-                  <a v-if="owesCash || owesTech" :href="getAidNationLink(slotProps.data.nation)" target="_blank">
-                    {{ slotProps.data.nation.rulerName }} of {{ slotProps.data.nation.nationName }}
-                  </a>
-                  <span v-else>
-                    {{ slotProps.data.nation.rulerName }} of {{ slotProps.data.nation.nationName }}
-                  </span>
-                </template>
-              </Column>
-              <Column field="nation.allianceName" header="Alliance">
-                <template #body="slotProps">
-                  <div class="columns is-mobile">
-                    <div class="column is-narrow">
-                      <ChipAllianceAcronym :allianceName="slotProps.data.nation.allianceName"></ChipAllianceAcronym>
-                    </div>
-                    <div class="column">
-                      {{ slotProps.data.nation.allianceName }}
-                    </div>
-                  </div>
-                </template>
-              </Column>
-              <Column field="slotsFree" header="Slots Free">
-                <template #body="slotProps">
-                  {{ slotProps.data.slotsFree }}
-                </template>
-              </Column>
-              <Column field="discord" header="Discord Tag">
-                <template #body="slotProps">
-                  {{ slotProps.data.discord }}
-                </template>
-              </Column>
-            </DataTable>
-          </div>
-        </AccordionContent>
-      </AccordionPanel>
-    </Accordion>
+    <UCard v-if="slotsFree === 0" class="text-center">
+      <template #header>
+        <h5 class="text-xl font-semibold text-gray-900 dark:text-white">You are not expected to interact with VEP today</h5>
+      </template>
+      <p class="text-gray-600 dark:text-gray-400">
+        Your nation does not have any free foreign aid slots, so you are not expected to send or receive any transactions today. Please check
+        again tomorrow for the updated status of your nation.
+      </p>
+    </UCard>
+
+    <UAccordion v-else :items="accordionItems" :default-open="true">
+      <template #default="{ item, open }">
+        <UButton color="gray" variant="ghost" class="w-full" :ui="{ rounded: 'rounded-none rounded-t-lg', padding: { sm: 'p-3' } }">
+          <template #leading>
+            <div class="w-5 h-5 rounded-full" :class="[open ? 'bg-primary-500' : 'bg-gray-400']" />
+          </template>
+
+          <span class="truncate text-lg font-semibold">
+            <span v-if="owesTech">Tech Targets</span>
+            <span v-else-if="owesCash">Cash Targets</span>
+            <span v-else-if="expectsCash">Incoming Cash</span>
+            <span v-else-if="expectsTech">Incoming Tech</span>
+            <span v-else>Potential Transactions</span>
+            <span class="font-normal text-gray-600 dark:text-gray-400">({{ aidList.length }} nations)</span>
+          </span>
+        </UButton>
+      </template>
+
+      <template #item="{ item }">
+        <div class="p-4 space-y-4">
+          <p class="text-gray-700 dark:text-gray-300">
+            Please
+            <span v-if="owesTech">send tech to </span>
+            <span v-else-if="owesCash">send cash to </span>
+            <span v-else-if="expectsCash">accept cash from </span>
+            <span v-else-if="expectsTech">accept tech from </span>
+            <span v-else>Potential Transactions</span>
+            any of the nations in the following list.
+          </p>
+          <p v-if="expectsCash || expectsTech" class="text-red-600 dark:text-red-400 font-medium">
+            IMPORTANT: <strong>Do not use this list to send aid. </strong>
+            It should only be used to verify that nations sending you aid are doing so legitimately.
+          </p>
+
+          <UTable :rows="aidList" :columns="columns">
+            <template #nation-data="{ row }">
+              <a v-if="owesCash || owesTech" :href="getAidNationLink(row.nation)" target="_blank" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+                {{ row.nation.rulerName }} of {{ row.nation.nationName }}
+              </a>
+              <span v-else class="text-gray-900 dark:text-gray-100">
+                {{ row.nation.rulerName }} of {{ row.nation.nationName }}
+              </span>
+            </template>
+
+            <template #alliance-data="{ row }">
+              <div class="flex items-center gap-2">
+                <ChipAllianceAcronym :allianceName="row.nation.allianceName" />
+                <span class="text-gray-700 dark:text-gray-300">{{ row.nation.allianceName }}</span>
+              </div>
+            </template>
+
+            <template #slotsFree-data="{ row }">
+              <UBadge color="blue" variant="soft">{{ row.slotsFree }}</UBadge>
+            </template>
+
+            <template #discord-data="{ row }">
+              <span class="text-gray-700 dark:text-gray-300">{{ row.discord }}</span>
+            </template>
+          </UTable>
+        </div>
+      </template>
+    </UAccordion>
   </div>
 </template>
 
@@ -107,6 +106,20 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const columns = [
+  { key: 'nation', label: 'Nation' },
+  { key: 'alliance', label: 'Alliance' },
+  { key: 'slotsFree', label: 'Slots Free' },
+  { key: 'discord', label: 'Discord Tag' }
+]
+
+const accordionItems = computed(() => [
+  {
+    label: 'Aid List',
+    defaultOpen: true
+  }
+])
 
 const slotsFree = computed(() => {
   return props.account.slotsFull - props.account.slotsUsed

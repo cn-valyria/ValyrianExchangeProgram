@@ -1,0 +1,78 @@
+/* Tailwind CSS v4 imports (Nuxt UI v3 includes Tailwind CSS v4) */
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* Custom styles for Valyrian Exchange Program */
+
+/* Custom utility for alliance images */
+/*
+.alliance-badge {
+  @apply inline-flex items-center gap-1;
+}
+
+.alliance-badge img {
+  @apply h-5 w-5 rounded-sm object-cover;
+}
+*/
+
+/* Custom table styling for compact admin tables */
+/*
+.compact-table {
+  @apply text-sm;
+}
+
+.compact-table th {
+  @apply text-xs font-semibold;
+}
+*/
+
+/* Custom card styling */
+/*
+.stat-card {
+  @apply bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900 dark:to-primary-800;
+}
+*/
+
+/* Hero gradient */
+/*
+.hero-gradient {
+  @apply bg-gradient-to-r from-primary-600 to-purple-600;
+}
+*/
+
+/* Custom animations */
+/*
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+*/
+
+/* Custom scrollbar */
+/*
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+*/

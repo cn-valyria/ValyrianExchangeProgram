@@ -1,8 +1,9 @@
 <template>
   <div>
-    <p class="title">VEP Accounts</p>
-    <div class="content">
-      <!-- <ApexChart width="100%" type="pie" :options="options" :series="series"></ApexChart> -->
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">VEP Accounts</p>
+    <div class="text-gray-600 dark:text-gray-400">
+      <!-- Chart component commented out in original - keeping this minimal -->
+      <p class="text-sm">Chart visualization pending</p>
     </div>
   </div>
 </template>

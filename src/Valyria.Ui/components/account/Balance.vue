@@ -1,28 +1,14 @@
 <template>
-  <nav class="level">
-    <div class="level-item has-text-centered">
-      <div>
-        <p id="balance-subtitle" class="subtitle">Your Current Balance</p>
-        <p id="balance-title" class="title" :class="categoryClass">{{ positivityIndicator }}{{ amount }} {{ balanceType }} ({{ balanceCategory }})</p>
-        <p id="balance-subheading" class="heading">{{ description }}</p>
-      </div>
+  <UCard class="text-center">
+    <div class="space-y-4">
+      <p class="text-lg text-gray-600 dark:text-gray-400">Your Current Balance</p>
+      <p class="text-5xl font-bold" :class="categoryClass">
+        {{ positivityIndicator }}{{ amount }} {{ balanceType }} ({{ balanceCategory }})
+      </p>
+      <p class="text-sm text-gray-600 dark:text-gray-400">{{ description }}</p>
     </div>
-  </nav>
+  </UCard>
 </template>
-
-<style>
-#balance-subtitle {
-  margin-bottom: 1.5rem !important;
-}
-
-#balance-title {
-  margin-top: 0 !important;
-}
-
-#balance-subheading {
-  margin-top: 0.75rem;
-}
-</style>
 
 <script setup lang="ts">
 import { ACCOUNT_ROLE_CODES } from "@/infrastructure/constants"
@@ -94,10 +80,10 @@ const balanceType = computed(() => {
 
 const categoryClass = computed(() => {
   switch (balanceCategory.value) {
-    case "Credit": return "has-text-success"
-    case "Debt": return "has-text-danger"
-    case "Even": return "has-text-success"
-    default: return "has-text-grey-light"
+    case "Credit": return "text-green-600 dark:text-green-400"
+    case "Debt": return "text-red-600 dark:text-red-400"
+    case "Even": return "text-green-600 dark:text-green-400"
+    default: return "text-gray-400 dark:text-gray-500"
   }
 })
 

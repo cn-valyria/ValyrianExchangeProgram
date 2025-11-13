@@ -10,48 +10,18 @@ export default defineNuxtConfig({
   modules: [
     '@pinia/nuxt',
     '@pinia-plugin-persistedstate/nuxt',
-    '@primevue/nuxt-module',
+    '@nuxt/ui',
     '@vueuse/nuxt',
     '@nuxt/icon',
   ],
 
-  // PrimeVue configuration
-  primevue: {
-    options: {
-      ripple: true,
-      inputVariant: 'filled',
-    },
-    components: {
-      include: [
-        'Button',
-        'InputText',
-        'Password',
-        'DataTable',
-        'Column',
-        'Dialog',
-        'Toast',
-        'ConfirmDialog',
-        'Dropdown',
-        'Calendar',
-        'InputNumber',
-        'Textarea',
-        'Checkbox',
-        'Tag',
-        'Card',
-        'Chart',
-        'Divider',
-        'Menu',
-        'ProgressBar',
-        'Toolbar',
-      ],
-    },
-  },
+  // Nuxt UI configuration
+  // ui: {
+  //   icons: ['heroicons', 'lucide'],
+  // },
 
   // Global CSS
-  css: [
-    '@/assets/css/main.scss',
-    'primeicons/primeicons.css',
-  ],
+  css: ['@/assets/css/main.css'],
 
   // App configuration
   app: {
@@ -71,8 +41,8 @@ export default defineNuxtConfig({
         {
           src: 'https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js',
           body: true,
-          tagPosition: 'bodyClose'
-        }
+          tagPosition: 'bodyClose',
+        },
       ],
     },
   },
@@ -91,15 +61,9 @@ export default defineNuxtConfig({
     },
   },
 
-  // Vite configuration
-  vite: {
-    css: {
-      preprocessorOptions: {
-        scss: {
-          api: 'modern-compiler',
-        },
-      },
-    },
+  // Color mode configuration
+  colorMode: {
+    preference: 'light',
   },
 
   // TypeScript configuration

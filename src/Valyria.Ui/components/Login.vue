@@ -1,55 +1,60 @@
 <template>
-  <Dialog v-model:visible="isVisible" modal header="VEP Login Portal" :style="{ width: '50rem' }">
-    <div class="grid">
-      <div class="col-5">
-        <div class="field">
-          <label for="nationId" class="block mb-2">Nation ID</label>
-          <InputText
-            id="nationId"
-            v-model="nationId"
-            type="text"
-            class="w-full"
-            :invalid="nationIdOrRulerNameIsMissing"
-          />
-          <small v-if="nationIdOrRulerNameIsMissing" class="text-red-500">
-            Nation ID or Ruler Name is required.
-          </small>
-        </div>
-      </div>
-      <Divider layout="vertical" class="col-2">OR</Divider>
-      <div class="col-5">
-        <div class="field">
-          <label for="rulerName" class="block mb-2">Ruler Name</label>
-          <InputText
-            id="rulerName"
-            v-model="rulerName"
-            type="text"
-            class="w-full"
-            :invalid="nationIdOrRulerNameIsMissing"
-          />
-          <small v-if="nationIdOrRulerNameIsMissing" class="text-red-500">
-            Nation ID or Ruler Name is required.
-          </small>
-        </div>
-      </div>
-    </div>
-    <div class="field mt-4">
-      <label for="uniqueCode" class="block mb-2">Unique Code</label>
-      <InputText
-        id="uniqueCode"
-        v-model="uniqueCode"
-        type="text"
-        class="w-full"
-        :invalid="uniqueCodeIsMissing"
-      />
-      <small v-if="uniqueCodeIsMissing" class="text-red-500">Unique Code is required.</small>
-    </div>
+  <UModal v-model="isVisible" :ui="{ width: 'sm:max-w-2xl' }">
+    <UCard>
+      <template #header>
+        <h3 class="text-2xl font-bold text-gray-900 dark:text-white">VEP Login Portal</h3>
+      </template>
 
-    <template #footer>
-      <Button label="Close" text @click="closeDialog" />
-      <Button label="Log In" @click="login" />
-    </template>
-  </Dialog>
+      <div class="space-y-6">
+        <!-- Nation ID or Ruler Name Section -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+          <div class="md:col-span-2">
+            <UFormGroup label="Nation ID" :error="nationIdOrRulerNameIsMissing ? 'Nation ID or Ruler Name is required' : undefined">
+              <UInput
+                v-model="nationId"
+                placeholder="Enter Nation ID"
+                :color="nationIdOrRulerNameIsMissing ? 'red' : 'primary'"
+              />
+            </UFormGroup>
+          </div>
+
+          <div class="md:col-span-1 flex items-center justify-center">
+            <span class="text-gray-500 dark:text-gray-400 font-medium">OR</span>
+          </div>
+
+          <div class="md:col-span-2">
+            <UFormGroup label="Ruler Name" :error="nationIdOrRulerNameIsMissing ? 'Nation ID or Ruler Name is required' : undefined">
+              <UInput
+                v-model="rulerName"
+                placeholder="Enter Ruler Name"
+                :color="nationIdOrRulerNameIsMissing ? 'red' : 'primary'"
+              />
+            </UFormGroup>
+          </div>
+        </div>
+
+        <!-- Unique Code Section -->
+        <UFormGroup label="Unique Code" :error="uniqueCodeIsMissing ? 'Unique Code is required' : undefined">
+          <UInput
+            v-model="uniqueCode"
+            placeholder="Enter your unique code"
+            :color="uniqueCodeIsMissing ? 'red' : 'primary'"
+          />
+        </UFormGroup>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <UButton color="gray" variant="ghost" @click="closeDialog">
+            Close
+          </UButton>
+          <UButton color="primary" @click="login">
+            Log In
+          </UButton>
+        </div>
+      </template>
+    </UCard>
+  </UModal>
 </template>
 
 <script setup lang="ts">
@@ -110,20 +115,18 @@ async function login() {
     })
 
     toast.add({
-      severity: 'success',
-      summary: 'Login Successful',
-      detail: 'Welcome back!',
-      life: 3000,
+      title: 'Login Successful',
+      description: 'Welcome back!',
+      color: 'green'
     })
 
     closeDialog()
   } catch (error) {
     console.error('Login failed:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Login Failed',
-      detail: 'Invalid credentials. Please try again.',
-      life: 5000,
+      title: 'Login Failed',
+      description: 'Invalid credentials. Please try again.',
+      color: 'red'
     })
   }
 }

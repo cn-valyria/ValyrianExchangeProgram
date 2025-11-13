@@ -1,277 +1,207 @@
 <template>
-  <Dialog :visible="show" modal :style="{ width: '50rem' }" @update:visible="$emit('close')">
-    <template #header>
-      <h3 v-if="isInUpdateState">{{ accountBeingEdited.rulerName }}'s Account</h3>
-      <h3 v-else>New Account</h3>
-    </template>
+  <USlideover v-model="isOpen" @update:model-value="handleClose">
+    <UCard class="flex flex-col flex-1" :ui="{ body: { base: 'flex-1' }, ring: '', divide: 'divide-y divide-gray-200 dark:divide-gray-700' }">
+      <template #header>
+        <h3 v-if="isInUpdateState" class="text-lg font-semibold text-gray-900 dark:text-white">
+          {{ accountBeingEdited.rulerName }}'s Account
+        </h3>
+        <h3 v-else class="text-lg font-semibold text-gray-900 dark:text-white">
+          New Account
+        </h3>
+      </template>
 
-    <div class="content">
-      <h2>Account Data</h2>
-      <fieldset :disabled="isInUpdateState">
-        <div class="field">
-          <label class="label">Nation ID</label>
-          <div class="control">
-            <InputText v-model="nationIdInput" placeholder="The account's NationID" class="w-full" />
-          </div>
-        </div>
-      </fieldset>
-      <fieldset disabled>
-        <div class="field is-horizontal">
-          <div class="field-body">
-            <div class="field">
-              <label class="label">Nation Name</label>
-              <div class="control">
-                <InputText v-model="accountBeingEdited.nationName" class="w-full" />
-              </div>
+      <div class="space-y-6">
+        <!-- Account Data Section -->
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
+
+          <fieldset :disabled="isInUpdateState" class="space-y-4">
+            <UFormGroup label="Nation ID" :error="propertyHasValidationError('nationId') ? 'Nation ID is required' : undefined">
+              <UInput v-model="nationIdInput" placeholder="The account's NationID" />
+            </UFormGroup>
+          </fieldset>
+
+          <fieldset disabled class="space-y-4 mt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UFormGroup label="Nation Name">
+                <UInput v-model="accountBeingEdited.nationName" />
+              </UFormGroup>
+              <UFormGroup label="Ruler Name">
+                <UInput v-model="accountBeingEdited.rulerName" />
+              </UFormGroup>
             </div>
-            <div class="field">
-              <label class="label">Ruler Name</label>
-              <div class="control">
-                <InputText v-model="accountBeingEdited.rulerName" class="w-full" />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="field">
-          <div class="label">Alliance Name</div>
-          <div class="control">
-            <InputText v-model="accountBeingEdited.allianceName" class="w-full" />
-          </div>
-        </div>
-      </fieldset>
-      <fieldset v-if="isInUpdateState || foundProspectAccount">
-        <div class="field">
-          <label class="label">Role</label>
-          <div class="control is-expanded">
-            <Dropdown
-              v-model="accountBeingEdited.role"
-              :options="roles"
-              optionLabel="description"
-              optionValue="code"
-              placeholder="Select a role"
-              :class="{ 'p-invalid': propertyHasValidationError('role') }"
-              class="w-full"
-            />
-          </div>
-          <small v-if="propertyHasValidationError('role')" class="p-error">
-            Every account must have a role that they are enrolled as
-          </small>
-        </div>
-        <div class="field">
-          <label class="label">Secret Code</label>
-          <div class="p-inputgroup">
-            <InputText
-              v-model="accountBeingEdited.uniqueCode"
-              :class="{ 'p-invalid': propertyHasValidationError('uniqueCode') }"
-            />
-            <Button label="Generate" @click="generateSecretCode()" />
-          </div>
-          <small v-if="propertyHasValidationError('uniqueCode')" class="p-error">
-            Every account must have a unique code provided
-          </small>
-        </div>
-        <div class="field is-horizontal">
-          <div class="field-body">
-            <div class="field">
-              <label class="label">Discord Username</label>
-              <div class="control">
-                <InputText
-                  v-model="accountBeingEdited.discord"
-                  placeholder="e.g. username or username#1234"
-                  class="w-full"
-                />
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Discord User ID</label>
-              <div class="control">
-                <InputText
-                  v-model="accountBeingEdited.discordUniqueId"
-                  placeholder="e.g. 318737615257993226"
-                  class="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="field">
-          <label class="label">Has Foreign Ministry?</label>
-          <div class="flex gap-3">
-            <div class="flex align-items-center">
-              <RadioButton v-model="accountBeingEdited.hasForeignMinistry" inputId="fm-yes" :value="true" />
-              <label for="fm-yes" class="ml-2">Yes</label>
-            </div>
-            <div class="flex align-items-center">
-              <RadioButton v-model="accountBeingEdited.hasForeignMinistry" inputId="fm-no" :value="false" />
-              <label for="fm-no" class="ml-2">No</label>
-            </div>
-          </div>
-          <small v-if="propertyHasValidationError('hasForeignMinistry')" class="p-error">
-            Must indicate if the nation has the FM improvement or not
-          </small>
-        </div>
-        <div class="field">
-          <label class="label">Has Federal Aid Commission?</label>
-          <div class="flex gap-3">
-            <div class="flex align-items-center">
-              <RadioButton v-model="accountBeingEdited.hasFederalAidCommission" inputId="fac-yes" :value="true" />
-              <label for="fac-yes" class="ml-2">Yes</label>
-            </div>
-            <div class="flex align-items-center">
-              <RadioButton v-model="accountBeingEdited.hasFederalAidCommission" inputId="fac-no" :value="false" />
-              <label for="fac-no" class="ml-2">No</label>
-            </div>
-          </div>
-          <small v-if="propertyHasValidationError('hasFederalAidCommission')" class="p-error">
-            Must indicate if the nation has the FAC wonder or not
-          </small>
-        </div>
-        <div class="field">
-          <label class="label">Has Disaster Relief Agency?</label>
-          <div class="flex gap-3">
-            <div class="flex align-items-center">
-              <RadioButton v-model="accountBeingEdited.hasDisasterReliefAgency" inputId="dra-yes" :value="true" />
-              <label for="dra-yes" class="ml-2">Yes</label>
-            </div>
-            <div class="flex align-items-center">
-              <RadioButton v-model="accountBeingEdited.hasDisasterReliefAgency" inputId="dra-no" :value="false" />
-              <label for="dra-no" class="ml-2">No</label>
-            </div>
-          </div>
-          <small v-if="propertyHasValidationError('hasDisasterReliefAgency')" class="p-error">
-            Must indicate if the nation has the DRA wonder or not
-          </small>
-        </div>
-        <div v-if="isInUpdateState">
-          <h2>Transactional Data</h2>
-          <fieldset disabled>
-            <div class="field is-horizontal">
-              <div class="field-body">
-                <div class="field">
-                  <label class="label">Slots Free</label>
-                  <div class="control">
-                    <InputText
-                      :modelValue="accountBeingEdited.slotsFull - accountBeingEdited.slotsUsed"
-                      class="w-full"
-                    />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Slots Full</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.slotsFull" class="w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field is-horizontal">
-              <div class="field-body">
-                <div class="field">
-                  <label class="label">Credit</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.credit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Debt</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.debt" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Balance</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.balance" class="w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field is-horizontal">
-              <div class="field-body">
-                <div class="field">
-                  <label class="label">Cash Sent (Cash)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.cashSentCashCredit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Cash Rec'd (Cash)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.cashReceivedCashCredit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Tech Sent (Cash)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.techSentCashCredit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Tech Rec'd (Cash)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.techReceivedCashCredit" class="w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="field is-horizontal">
-              <div class="field-body">
-                <div class="field">
-                  <label class="label">Cash Sent (Tech)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.cashSentTechCredit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Cash Rec'd (Tech)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.cashReceivedTechCredit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Tech Sent (Tech)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.techSentTechCredit" class="w-full" />
-                  </div>
-                </div>
-                <div class="field">
-                  <label class="label">Tech Rec'd (Tech)</label>
-                  <div class="control">
-                    <InputText :modelValue="accountBeingEdited.techReceivedTechCredit" class="w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <UFormGroup label="Alliance Name">
+              <UInput v-model="accountBeingEdited.allianceName" />
+            </UFormGroup>
           </fieldset>
         </div>
-      </fieldset>
-    </div>
 
-    <template #footer>
-      <Button
-        v-if="isInUpdateState"
-        label="Save"
-        severity="success"
-        :loading="buttonIsLoading"
-        @click="update()"
-      />
-      <Button
-        v-else-if="foundProspectAccount"
-        label="Create"
-        severity="success"
-        :loading="buttonIsLoading"
-        @click="create()"
-      />
-      <Button
-        v-else
-        label="Search"
-        severity="success"
-        :loading="buttonIsLoading"
-        @click="findProspectAccount()"
-      />
-      <Button label="Cancel" severity="secondary" @click="$emit('close')" />
-    </template>
-  </Dialog>
+        <!-- Form Fields Section -->
+        <div v-if="isInUpdateState || foundProspectAccount" class="space-y-4">
+          <UFormGroup
+            label="Role"
+            :error="propertyHasValidationError('role') ? 'Every account must have a role that they are enrolled as' : undefined"
+          >
+            <USelectMenu
+              v-model="accountBeingEdited.role"
+              :options="roles"
+              value-attribute="code"
+              option-attribute="description"
+              placeholder="Select a role"
+            />
+          </UFormGroup>
+
+          <UFormGroup
+            label="Secret Code"
+            :error="propertyHasValidationError('uniqueCode') ? 'Every account must have a unique code provided' : undefined"
+          >
+            <div class="flex gap-2">
+              <UInput v-model="accountBeingEdited.uniqueCode" class="flex-1" />
+              <UButton label="Generate" @click="generateSecretCode()" color="gray" />
+            </div>
+          </UFormGroup>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormGroup label="Discord Username">
+              <UInput
+                v-model="accountBeingEdited.discord"
+                placeholder="e.g. username or username#1234"
+              />
+            </UFormGroup>
+            <UFormGroup label="Discord User ID">
+              <UInput
+                v-model="accountBeingEdited.discordUniqueId"
+                placeholder="e.g. 318737615257993226"
+              />
+            </UFormGroup>
+          </div>
+
+          <UFormGroup
+            label="Has Foreign Ministry?"
+            :error="propertyHasValidationError('hasForeignMinistry') ? 'Must indicate if the nation has the FM improvement or not' : undefined"
+          >
+            <URadioGroup
+              v-model="accountBeingEdited.hasForeignMinistry"
+              :options="[
+                { value: true, label: 'Yes' },
+                { value: false, label: 'No' }
+              ]"
+            />
+          </UFormGroup>
+
+          <UFormGroup
+            label="Has Federal Aid Commission?"
+            :error="propertyHasValidationError('hasFederalAidCommission') ? 'Must indicate if the nation has the FAC wonder or not' : undefined"
+          >
+            <URadioGroup
+              v-model="accountBeingEdited.hasFederalAidCommission"
+              :options="[
+                { value: true, label: 'Yes' },
+                { value: false, label: 'No' }
+              ]"
+            />
+          </UFormGroup>
+
+          <UFormGroup
+            label="Has Disaster Relief Agency?"
+            :error="propertyHasValidationError('hasDisasterReliefAgency') ? 'Must indicate if the nation has the DRA wonder or not' : undefined"
+          >
+            <URadioGroup
+              v-model="accountBeingEdited.hasDisasterReliefAgency"
+              :options="[
+                { value: true, label: 'Yes' },
+                { value: false, label: 'No' }
+              ]"
+            />
+          </UFormGroup>
+
+          <!-- Transactional Data Section -->
+          <div v-if="isInUpdateState">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transactional Data</h2>
+            <fieldset disabled class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <UFormGroup label="Slots Free">
+                  <UInput :model-value="accountBeingEdited.slotsFull - accountBeingEdited.slotsUsed" />
+                </UFormGroup>
+                <UFormGroup label="Slots Full">
+                  <UInput :model-value="accountBeingEdited.slotsFull" />
+                </UFormGroup>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <UFormGroup label="Credit">
+                  <UInput :model-value="accountBeingEdited.credit" />
+                </UFormGroup>
+                <UFormGroup label="Debt">
+                  <UInput :model-value="accountBeingEdited.debt" />
+                </UFormGroup>
+                <UFormGroup label="Balance">
+                  <UInput :model-value="accountBeingEdited.balance" />
+                </UFormGroup>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <UFormGroup label="Cash Sent (Cash)">
+                  <UInput :model-value="accountBeingEdited.cashSentCashCredit" />
+                </UFormGroup>
+                <UFormGroup label="Cash Rec'd (Cash)">
+                  <UInput :model-value="accountBeingEdited.cashReceivedCashCredit" />
+                </UFormGroup>
+                <UFormGroup label="Tech Sent (Cash)">
+                  <UInput :model-value="accountBeingEdited.techSentCashCredit" />
+                </UFormGroup>
+                <UFormGroup label="Tech Rec'd (Cash)">
+                  <UInput :model-value="accountBeingEdited.techReceivedCashCredit" />
+                </UFormGroup>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <UFormGroup label="Cash Sent (Tech)">
+                  <UInput :model-value="accountBeingEdited.cashSentTechCredit" />
+                </UFormGroup>
+                <UFormGroup label="Cash Rec'd (Tech)">
+                  <UInput :model-value="accountBeingEdited.cashReceivedTechCredit" />
+                </UFormGroup>
+                <UFormGroup label="Tech Sent (Tech)">
+                  <UInput :model-value="accountBeingEdited.techSentTechCredit" />
+                </UFormGroup>
+                <UFormGroup label="Tech Rec'd (Tech)">
+                  <UInput :model-value="accountBeingEdited.techReceivedTechCredit" />
+                </UFormGroup>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3 justify-end">
+          <UButton label="Cancel" color="gray" @click="handleClose" />
+          <UButton
+            v-if="isInUpdateState"
+            label="Save"
+            color="green"
+            :loading="buttonIsLoading"
+            @click="update()"
+          />
+          <UButton
+            v-else-if="foundProspectAccount"
+            label="Create"
+            color="green"
+            :loading="buttonIsLoading"
+            @click="create()"
+          />
+          <UButton
+            v-else
+            label="Search"
+            color="primary"
+            :loading="buttonIsLoading"
+            @click="findProspectAccount()"
+          />
+        </div>
+      </template>
+    </UCard>
+  </USlideover>
 </template>
 
 <script setup lang="ts">
@@ -326,6 +256,7 @@ const config = useRuntimeConfig()
 const toast = useToast()
 const adminAccountsStore = useAdminAccountsStore()
 
+const isOpen = ref(false)
 const buttonIsLoading = ref(false)
 const accountBeingEdited = ref<Account>({} as Account)
 const roles = accountRoles
@@ -352,9 +283,17 @@ const foundProspectAccount = computed(() => {
   return accountBeingEdited.value !== undefined && accountBeingEdited.value.rulerName !== undefined
 })
 
+watch(() => props.show, (val) => {
+  isOpen.value = val
+})
+
 watch(() => props.account, (val) => {
   accountBeingEdited.value = { ...val }
 })
+
+const handleClose = () => {
+  emit('close')
+}
 
 const findProspectAccount = async () => {
   buttonIsLoading.value = true

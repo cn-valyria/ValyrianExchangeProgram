@@ -1,148 +1,131 @@
 <template>
-  <Dialog :visible="show" modal :style="{ width: '50rem' }" @update:visible="handleClose()">
-    <template #header>
-      <h3>{{ transactionBeingEdited.id !== undefined ? "Update" : "New"}} Manual Transaction</h3>
-    </template>
+  <UModal v-model="isOpen" @update:model-value="handleClose">
+    <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-200 dark:divide-gray-700' }">
+      <template #header>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          {{ transactionBeingEdited.id !== undefined ? "Update" : "New"}} Manual Transaction
+        </h3>
+      </template>
 
-    <div class="content">
-      <h2>Manual Data</h2>
-      <fieldset :disabled="isInUpdateState">
-        <div class="field">
-          <label class="label">Account</label>
-          <AutoComplete
-            v-model="accountTextbox"
-            :suggestions="filteredAccounts"
-            field="rulerName"
-            placeholder="No account selected"
-            :class="{ 'p-invalid': validator.propertyHasValidationError('nation') }"
-            @complete="searchAccounts"
-            @item-select="onAccountSelect"
-            class="w-full"
-          />
-          <small v-if="validator.propertyHasValidationError('nation')" class="p-error">
-            Cannot create a transaction without an assigned account
-          </small>
-        </div>
-      </fieldset>
-      <fieldset disabled>
-        <div class="field is-horizontal">
-          <div class="field-body">
-            <div class="field">
-              <label class="label">Nation Name</label>
-              <div class="control">
-                <InputText v-model="transactionNation.nationName" class="w-full" />
-              </div>
+      <div class="space-y-6">
+        <!-- Manual Data Section -->
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Manual Data</h2>
+
+          <fieldset :disabled="isInUpdateState" class="space-y-4">
+            <UFormGroup
+              label="Account"
+              :error="validator.propertyHasValidationError('nation') ? 'Cannot create a transaction without an assigned account' : undefined"
+            >
+              <USelectMenu
+                v-model="selectedAccount"
+                :options="props.accounts"
+                searchable
+                searchable-placeholder="Search accounts..."
+                placeholder="No account selected"
+                value-attribute="nationId"
+                option-attribute="rulerName"
+                by="nationId"
+              >
+                <template #label>
+                  <span v-if="selectedAccount">{{ selectedAccount.rulerName }}</span>
+                  <span v-else class="text-gray-400">No account selected</span>
+                </template>
+              </USelectMenu>
+            </UFormGroup>
+          </fieldset>
+
+          <fieldset disabled class="space-y-4 mt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UFormGroup label="Nation Name">
+                <UInput v-model="transactionNation.nationName" />
+              </UFormGroup>
+              <UFormGroup label="Ruler Name">
+                <UInput v-model="transactionNation.rulerName" />
+              </UFormGroup>
             </div>
-            <div class="field">
-              <label class="label">Ruler Name</label>
-              <div class="control">
-                <InputText v-model="transactionNation.rulerName" class="w-full" />
-              </div>
-            </div>
-          </div>
+            <UFormGroup label="Alliance Name">
+              <UInput v-model="transactionNation.allianceName" />
+            </UFormGroup>
+          </fieldset>
         </div>
-        <div class="field">
-          <div class="label">Alliance Name</div>
-          <div class="control">
-            <InputText v-model="transactionNation.allianceName" class="w-full" />
-          </div>
-        </div>
-      </fieldset>
-      <fieldset>
-        <div class="field">
-          <label class="label">Adjustment Type</label>
-          <div class="control is-expanded">
-            <Dropdown
+
+        <!-- Transaction Fields Section -->
+        <div class="space-y-4">
+          <UFormGroup
+            label="Adjustment Type"
+            :error="validator.propertyHasValidationError('adjustmentType') ? 'Every manual transaction must be either credit or debt' : undefined"
+          >
+            <USelectMenu
               v-model="transactionBeingEdited.adjustmentType"
               :options="adjustmentTypes"
               placeholder="Select adjustment type"
-              :class="{ 'p-invalid': validator.propertyHasValidationError('adjustmentType') }"
-              class="w-full"
             />
-            <small v-if="validator.propertyHasValidationError('adjustmentType')" class="p-error">
-              Every manual transaction must be either credit or debt
-            </small>
-          </div>
-        </div>
-      </fieldset>
-      <div class="field">
-        <label class="label">Reason</label>
-        <div class="control">
-          <InputText v-model="transactionBeingEdited.reason" class="w-full" />
-        </div>
-      </div>
-      <h2>Transaction Metadata</h2>
-      <div class="field is-horizontal">
-        <div class="field-body">
-          <div class="field">
-            <label class="label">Classification</label>
-            <div class="control">
-              <Dropdown
-                v-model="transactionBeingEdited.classification"
-                :options="classifications"
-                optionLabel="description"
-                optionValue="id"
-                placeholder="Select classification"
-                :class="{ 'p-invalid': validator.propertyHasValidationError('classification') }"
-                class="w-full"
-              />
-              <small v-if="validator.propertyHasValidationError('classification')" class="p-error">
-                Every transaction must be given a classification
-              </small>
-            </div>
-          </div>
-          <div class="field">
-            <label class="label">Rate</label>
-            <div class="control">
-              <InputNumber
-                v-model="transactionBeingEdited.rate"
-                :class="{ 'p-invalid': validator.propertyHasValidationError('rate') }"
-                class="w-full"
-              />
-            </div>
-            <small v-if="validator.propertyHasValidationError('rate')" class="p-error">
-              Please define a valid rate for the transaction credits
-            </small>
-          </div>
-        </div>
-      </div>
-      <fieldset disabled>
-        <div class="field is-horizontal">
-          <div class="field-body">
-            <div class="field">
-              <label class="label">Cash Moved <br />(Cash)</label>
-              <div class="control">
-                <InputText v-model="transactionBeingEdited.cashMovedCashCredit" class="w-full" />
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Cash Moved <br />(Tech)</label>
-              <div class="control">
-                <InputText v-model="transactionBeingEdited.cashMovedTechCredit" class="w-full" />
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Tech Moved <br />(Cash)</label>
-              <div class="control">
-                <InputText v-model="transactionBeingEdited.techMovedCashCredit" class="w-full" />
-              </div>
-            </div>
-            <div class="field">
-              <label class="label">Tech Moved <br />(Tech)</label>
-              <div class="control">
-                <InputText v-model="transactionBeingEdited.techMovedTechCredit" class="w-full" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </fieldset>
-    </div>
+          </UFormGroup>
 
-    <template #footer>
-      <Button label="Save" severity="success" :loading="buttonIsLoading" @click="save()" />
-      <Button label="Cancel" severity="secondary" @click="handleClose()" />
-    </template>
-  </Dialog>
+          <UFormGroup label="Reason">
+            <UInput v-model="transactionBeingEdited.reason" />
+          </UFormGroup>
+        </div>
+
+        <!-- Transaction Metadata Section -->
+        <div>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transaction Metadata</h2>
+
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UFormGroup
+                label="Classification"
+                :error="validator.propertyHasValidationError('classification') ? 'Every transaction must be given a classification' : undefined"
+              >
+                <USelectMenu
+                  v-model="transactionBeingEdited.classification"
+                  :options="classifications"
+                  value-attribute="id"
+                  option-attribute="description"
+                  placeholder="Select classification"
+                />
+              </UFormGroup>
+
+              <UFormGroup
+                label="Rate"
+                :error="validator.propertyHasValidationError('rate') ? 'Please define a valid rate for the transaction credits' : undefined"
+              >
+                <UInput
+                  v-model="transactionBeingEdited.rate"
+                  type="number"
+                />
+              </UFormGroup>
+            </div>
+
+            <fieldset disabled>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <UFormGroup label="Cash Moved (Cash)">
+                  <UInput v-model="transactionBeingEdited.cashMovedCashCredit" />
+                </UFormGroup>
+                <UFormGroup label="Cash Moved (Tech)">
+                  <UInput v-model="transactionBeingEdited.cashMovedTechCredit" />
+                </UFormGroup>
+                <UFormGroup label="Tech Moved (Cash)">
+                  <UInput v-model="transactionBeingEdited.techMovedCashCredit" />
+                </UFormGroup>
+                <UFormGroup label="Tech Moved (Tech)">
+                  <UInput v-model="transactionBeingEdited.techMovedTechCredit" />
+                </UFormGroup>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-3 justify-end">
+          <UButton label="Cancel" color="gray" @click="handleClose()" />
+          <UButton label="Save" color="green" :loading="buttonIsLoading" @click="save()" />
+        </div>
+      </template>
+    </UCard>
+  </UModal>
 </template>
 
 <script setup lang="ts">
@@ -199,10 +182,9 @@ const emit = defineEmits<Emits>()
 const toast = useToast()
 const adminTransactionsStore = useAdminTransactionsStore()
 
+const isOpen = ref(false)
 const buttonIsLoading = ref(false)
 const transactionBeingEdited = ref<Transaction>({} as Transaction)
-const accountTextbox = ref("")
-const filteredAccounts = ref<Account[]>([])
 const adjustmentTypes = [ADJUSTMENT_TYPES.credit, ADJUSTMENT_TYPES.debt]
 const classifications = transactionClassifications
 
@@ -244,25 +226,13 @@ const isInUpdateState = computed(() => {
   return transactionBeingEdited.value !== undefined && transactionBeingEdited.value.id !== undefined
 })
 
-const searchAccounts = (event: any) => {
-  const query = event.query.toLowerCase()
-  filteredAccounts.value = props.accounts.filter(account =>
-    account.rulerName.toLowerCase().includes(query)
-  )
-}
-
-const onAccountSelect = (event: any) => {
-  selectedAccount.value = event.value
-}
+watch(() => props.show, (val) => {
+  isOpen.value = val
+})
 
 watch(() => props.transaction, (val) => {
   transactionBeingEdited.value = { ...val }
   validator.value = new Validator(transactionBeingEdited.value)
-
-  // Update the account textbox if the loaded transaction already has an account defined
-  if (selectedAccount.value !== undefined) {
-    accountTextbox.value = selectedAccount.value.rulerName
-  }
 
   // Recalculate the credits when the transaction changes, since they're always readonly
   recalculateCredits()
@@ -275,6 +245,10 @@ watch(() => transactionBeingEdited.value.adjustmentType, () => {
 watch(() => transactionBeingEdited.value.rate, () => {
   recalculateCredits()
 })
+
+const handleClose = () => {
+  emit("close")
+}
 
 const transactionIsValid = () => {
   validator.value.validateProperty("nation", (val: any) => val === undefined || val === null)
@@ -323,11 +297,6 @@ const save = async () => {
   }
 
   buttonIsLoading.value = false
-}
-
-const handleClose = () => {
-  accountTextbox.value = ""
-  emit("close")
 }
 
 const recalculateCredits = () => {
