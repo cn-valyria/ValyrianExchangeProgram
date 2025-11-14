@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Valyria.Api.Auth;
 using Valyria.Core.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -26,97 +28,197 @@ public class UserController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// OAuth 2.0 style token endpoint supporting password and refresh_token grant types
+    /// </summary>
+    [HttpPost("token")]
+    public async Task<IActionResult> Token([FromBody] TokenRequest request)
+    {
+        _logger.LogInformation("Token endpoint called with grant_type: {GrantType}", request.GrantType);
+
+        try
+        {
+            return request.GrantType?.ToLower() switch
+            {
+                "password" => await HandlePasswordGrant(request),
+                "refresh_token" => await HandleRefreshTokenGrant(request),
+                _ => BadRequest(new { error = "unsupported_grant_type", error_description = "The grant_type must be 'password' or 'refresh_token'" })
+            };
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Unexpected error occurred while processing token request");
+            return StatusCode(500, new { error = "server_error", error_description = e.Message });
+        }
+    }
+
+    /// <summary>
+    /// Legacy endpoint for backward compatibility - redirects to OAuth token endpoint
+    /// </summary>
     [HttpPost("authenticate")]
     public async Task<IActionResult> Authenticate([FromBody] AuthorizeUserRequest account)
     {
-        _logger.LogInformation($"Beginning execution for {nameof(Authenticate)} method...");
+        _logger.LogInformation("Legacy authenticate endpoint called, redirecting to token endpoint");
 
-        if (string.IsNullOrEmpty(account.UniqueCode))
-            return BadRequest("Must provide a uniqueCode parameter in the request");
-
-        if (string.IsNullOrEmpty(account.NationId) && string.IsNullOrEmpty(account.RulerName))
-            return BadRequest("Must provide either a nationId or rulerName parameter in the request");
-
-        try
+        var tokenRequest = new TokenRequest
         {
-            if (!await _authenticationProvider.IsAuthenticated(account))
-                return Unauthorized();
+            GrantType = "password",
+            NationId = account.NationId,
+            RulerName = account.RulerName,
+            Password = account.UniqueCode
+        };
 
-            _logger.LogInformation($"Account (NationId: {account.NationId}, RulerName: {account.RulerName}, UniqueCode: {account.UniqueCode}) was authenticated");
-
-            return Ok(GenerateTokenResponse(account));
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(Authenticate)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
+        return await Token(tokenRequest);
     }
 
+    /// <summary>
+    /// Legacy refresh endpoint for backward compatibility
+    /// </summary>
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken([FromBody] Dictionary<string, string> body)
     {
-        _logger.LogInformation($"Beginning execution for {nameof(RefreshToken)} method...");
+        _logger.LogInformation("Legacy refresh endpoint called, redirecting to token endpoint");
 
-        try
+        if (!body.TryGetValue("refresh_token", out var refreshToken))
+            return BadRequest(new { error = "invalid_request", error_description = "refresh_token is required" });
+
+        var tokenRequest = new TokenRequest
         {
-            if (!body.TryGetValue("refresh_token", out var refreshToken))
-                return Unauthorized();
+            GrantType = "refresh_token",
+            RefreshToken = refreshToken
+        };
 
-            var account = _tokenProvider.ReadToken(refreshToken);
-            if (account is null)
-                return Unauthorized();
-
-            _logger.LogInformation($"Account (NationId: {account.NationId}, RulerName: {account.RulerName}, UniqueCode: {account.UniqueCode}) was authenticated");
-
-            return Ok(GenerateTokenResponse(account));
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(RefreshToken)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
+        return await Token(tokenRequest);
     }
 
+    private async Task<IActionResult> HandlePasswordGrant(TokenRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Password))
+            return BadRequest(new { error = "invalid_request", error_description = "password is required" });
+
+        if (string.IsNullOrEmpty(request.NationId) && string.IsNullOrEmpty(request.RulerName))
+            return BadRequest(new { error = "invalid_request", error_description = "Either nation_id or ruler_name is required" });
+
+        var authRequest = new AuthorizeUserRequest
+        {
+            NationId = request.NationId,
+            RulerName = request.RulerName,
+            UniqueCode = request.Password
+        };
+
+        if (!await _authenticationProvider.IsAuthenticated(authRequest))
+        {
+            _logger.LogWarning("Authentication failed for NationId: {NationId}, RulerName: {RulerName}",
+                request.NationId, request.RulerName);
+            return Unauthorized(new { error = "invalid_grant", error_description = "Invalid credentials" });
+        }
+
+        _logger.LogInformation("User authenticated successfully. NationId: {NationId}, RulerName: {RulerName}",
+            request.NationId, request.RulerName);
+
+        return Ok(GenerateTokenResponse(authRequest));
+    }
+
+    private async Task<IActionResult> HandleRefreshTokenGrant(TokenRequest request)
+    {
+        if (string.IsNullOrEmpty(request.RefreshToken))
+            return BadRequest(new { error = "invalid_request", error_description = "refresh_token is required" });
+
+        var account = _tokenProvider.ReadToken(request.RefreshToken);
+        if (account is null)
+        {
+            _logger.LogWarning("Invalid or expired refresh token");
+            return Unauthorized(new { error = "invalid_grant", error_description = "Invalid or expired refresh token" });
+        }
+
+        // Validate that the user still exists in the database
+        if (!await _authenticationProvider.IsAuthenticated(account))
+        {
+            _logger.LogWarning("User no longer exists. NationId: {NationId}, RulerName: {RulerName}",
+                account.NationId, account.RulerName);
+            return Unauthorized(new { error = "invalid_grant", error_description = "User account no longer valid" });
+        }
+
+        _logger.LogInformation("Refresh token validated. NationId: {NationId}, RulerName: {RulerName}",
+            account.NationId, account.RulerName);
+
+        return Ok(GenerateTokenResponse(account));
+    }
+
+    /// <summary>
+    /// Get the authenticated user's account information
+    /// </summary>
     [HttpGet("account")]
-    [ServiceFilter(typeof(ApiAuthorizeAttribute))]
+    [Authorize]
     public async Task<IActionResult> GetAuthorizedAccount()
     {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAuthorizedAccount)} method...");
+        _logger.LogInformation("GetAuthorizedAccount endpoint called");
 
         try
         {
-            var authHeader = Request.Headers["Authorization"].ToString();
-            var token = authHeader.StartsWith("Bearer ") ? authHeader.Substring(7) : authHeader;
+            // Get the AccountId from claims (added by CustomJwtBearerEvents)
+            var accountIdClaim = User.FindFirst("AccountId")?.Value;
 
-            var originalAuthRequest = _tokenProvider.ReadToken(token);
-            if (originalAuthRequest is null)
-                return Unauthorized();
+            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out var accountId))
+            {
+                _logger.LogWarning("AccountId claim not found or invalid in authenticated user");
 
-            var authorizedAccount = await _authenticationProvider.GetAuthorizedAccount(originalAuthRequest);
+                // Fallback: read from token manually
+                var authHeader = Request.Headers["Authorization"].ToString();
+                var token = authHeader.StartsWith("Bearer ") ? authHeader.Substring(7) : authHeader;
 
-            _logger.LogInformation($"Account (Id: {authorizedAccount.AccountId}, Roles: {string.Join(',', authorizedAccount.Roles)}) was fetched");
+                var originalAuthRequest = _tokenProvider.ReadToken(token);
+                if (originalAuthRequest is null)
+                    return Unauthorized(new { error = "invalid_token", error_description = "Token is invalid" });
 
-            return Ok(authorizedAccount);
+                var authorizedAccount = await _authenticationProvider.GetAuthorizedAccount(originalAuthRequest);
+                if (authorizedAccount == null)
+                    return Unauthorized(new { error = "invalid_token", error_description = "User not found" });
+
+                _logger.LogInformation("Account fetched (fallback). AccountId: {AccountId}", authorizedAccount.AccountId);
+                return Ok(authorizedAccount);
+            }
+
+            // Reconstruct the auth request from claims
+            var nationIdClaim = User.FindFirst(TokenClaims.NationId)?.Value;
+            var rulerNameClaim = User.FindFirst(TokenClaims.RulerName)?.Value;
+            var uniqueCodeClaim = User.FindFirst(TokenClaims.UniqueCode)?.Value;
+
+            if (string.IsNullOrEmpty(uniqueCodeClaim))
+                return Unauthorized(new { error = "invalid_token", error_description = "Token missing required claims" });
+
+            var authRequest = new AuthorizeUserRequest
+            {
+                NationId = nationIdClaim,
+                RulerName = rulerNameClaim,
+                UniqueCode = uniqueCodeClaim
+            };
+
+            var account = await _authenticationProvider.GetAuthorizedAccount(authRequest);
+            if (account == null)
+                return Unauthorized(new { error = "invalid_token", error_description = "User not found" });
+
+            _logger.LogInformation("Account fetched. AccountId: {AccountId}", account.AccountId);
+            return Ok(account);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAuthorizedAccount)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+            _logger.LogError(e, "Error occurred while fetching authorized account");
+            return StatusCode(500, new { error = "server_error", error_description = e.Message });
         }
     }
 
-    private object GenerateTokenResponse(AuthorizeUserRequest account)
+    private TokenResponse GenerateTokenResponse(AuthorizeUserRequest account)
     {
         var accessToken = _tokenProvider.GenerateAccessToken(account);
-        var newRefreshToken = _tokenProvider.GenerateRefreshToken(account);
-        return new
+        var refreshToken = _tokenProvider.GenerateRefreshToken(account);
+
+        return new TokenResponse
         {
-            access_token = accessToken,
-            refresh_token = newRefreshToken
+            AccessToken = accessToken,
+            TokenType = "Bearer",
+            ExpiresIn = 86400, // 1 day in seconds
+            RefreshToken = refreshToken
         };
     }
 }

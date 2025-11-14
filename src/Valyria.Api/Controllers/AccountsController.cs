@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Valyria.Core.Interfaces;
@@ -15,6 +16,7 @@ namespace Valyria.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class AccountsController : ControllerBase
 {
     private readonly IAccountsRepository _accountsRepository;

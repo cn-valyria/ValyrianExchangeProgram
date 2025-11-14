@@ -1,6 +1,7 @@
 using Valyria.Core.Enums;
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Valyria.Core.Interfaces;
@@ -15,6 +16,7 @@ namespace Valyria.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class TransactionsController : ControllerBase
 {
     private readonly ITransactionsRepository _transactionsRepository;
