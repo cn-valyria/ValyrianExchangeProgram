@@ -1,51 +1,53 @@
 <template>
-  <UModal v-model="isVisible" :ui="{ width: 'sm:max-w-2xl' }">
+  <UModal v-model="isVisible">
     <UCard>
       <template #header>
         <h3 class="text-2xl font-bold text-gray-900 dark:text-white">VEP Login Portal</h3>
       </template>
 
-      <div class="space-y-6">
-        <!-- Nation ID or Ruler Name Section -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
-          <div class="md:col-span-2">
-            <UFormGroup label="Nation ID" :error="nationIdOrRulerNameIsMissing ? 'Nation ID or Ruler Name is required' : undefined">
-              <UInput
-                v-model="nationId"
-                placeholder="Enter Nation ID"
-                :color="nationIdOrRulerNameIsMissing ? 'red' : 'primary'"
-              />
-            </UFormGroup>
+      <template #body>
+        <div class="space-y-6">
+          <!-- Nation ID or Ruler Name Section -->
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+            <div class="md:col-span-2">
+              <UFormGroup label="Nation ID" :error="nationIdOrRulerNameIsMissing ? 'Nation ID or Ruler Name is required' : undefined">
+                <UInput
+                  v-model="nationId"
+                  placeholder="Enter Nation ID"
+                  :color="nationIdOrRulerNameIsMissing ? 'error' : 'primary'"
+                />
+              </UFormGroup>
+            </div>
+
+            <div class="md:col-span-1 flex items-center justify-center">
+              <span class="text-gray-500 dark:text-gray-400 font-medium">OR</span>
+            </div>
+
+            <div class="md:col-span-2">
+              <UFormGroup label="Ruler Name" :error="nationIdOrRulerNameIsMissing ? 'Nation ID or Ruler Name is required' : undefined">
+                <UInput
+                  v-model="rulerName"
+                  placeholder="Enter Ruler Name"
+                  :color="nationIdOrRulerNameIsMissing ? 'error' : 'primary'"
+                />
+              </UFormGroup>
+            </div>
           </div>
 
-          <div class="md:col-span-1 flex items-center justify-center">
-            <span class="text-gray-500 dark:text-gray-400 font-medium">OR</span>
-          </div>
-
-          <div class="md:col-span-2">
-            <UFormGroup label="Ruler Name" :error="nationIdOrRulerNameIsMissing ? 'Nation ID or Ruler Name is required' : undefined">
-              <UInput
-                v-model="rulerName"
-                placeholder="Enter Ruler Name"
-                :color="nationIdOrRulerNameIsMissing ? 'red' : 'primary'"
-              />
-            </UFormGroup>
-          </div>
+          <!-- Unique Code Section -->
+          <UFormGroup label="Unique Code" :error="uniqueCodeIsMissing ? 'Unique Code is required' : undefined">
+            <UInput
+              v-model="uniqueCode"
+              placeholder="Enter your unique code"
+              :color="uniqueCodeIsMissing ? 'error' : 'primary'"
+            />
+          </UFormGroup>
         </div>
-
-        <!-- Unique Code Section -->
-        <UFormGroup label="Unique Code" :error="uniqueCodeIsMissing ? 'Unique Code is required' : undefined">
-          <UInput
-            v-model="uniqueCode"
-            placeholder="Enter your unique code"
-            :color="uniqueCodeIsMissing ? 'red' : 'primary'"
-          />
-        </UFormGroup>
-      </div>
+      </template>
 
       <template #footer>
         <div class="flex justify-end gap-3">
-          <UButton color="gray" variant="ghost" @click="closeDialog">
+          <UButton color="neutral" variant="ghost" @click="closeDialog">
             Close
           </UButton>
           <UButton color="primary" @click="login">
@@ -117,7 +119,7 @@ async function login() {
     toast.add({
       title: 'Login Successful',
       description: 'Welcome back!',
-      color: 'green'
+      color: 'success'
     })
 
     closeDialog()
@@ -126,7 +128,7 @@ async function login() {
     toast.add({
       title: 'Login Failed',
       description: 'Invalid credentials. Please try again.',
-      color: 'red'
+      color: 'error'
     })
   }
 }

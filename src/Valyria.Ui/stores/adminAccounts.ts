@@ -1,24 +1,47 @@
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
+import type { NationalWarStatus, RecentActivity } from './shared/enums'
 
-interface Account {
+export interface AdminAccount {
   id: number
   nationId: number
+  nationName: string
   rulerName: string
-  role: string
-  allianceId: number
-  allianceAcronym: string
+  allianceName: string
+  discord: string
+  discordUniqueId: number
   uniqueCode: string
-  discord: string | null
-  discordUniqueId: string | null
+  role: string
+  activity: RecentActivity
+  strength: number
+  infra: number
+  tech: number
+  warStatus: NationalWarStatus
   hasForeignMinistry: boolean
   hasFederalAidCommission: boolean
   hasDisasterReliefAgency: boolean
+  slotsUsed: number
+  slotsFull: number
+  totalCashSent: number
+  totalCashReceived: number
+  totalTechSent: number
+  totalTechReceived: number
+  credit: number
+  debt: number
+  cashSentTechCredit: number
+  cashReceivedTechCredit: number
+  cashSentCashCredit: number
+  cashReceivedCashCredit: number
+  techSentCashCredit: number
+  techReceivedCashCredit: number
+  techSentTechCredit: number
+  techReceivedTechCredit: number
+  previousListOrder: number
 }
 
 export const useAdminAccountsStore = defineStore('adminAccounts', {
   state: () => ({
-    accounts: [] as Account[],
+    accounts: [] as AdminAccount[],
   }),
 
   actions: {
@@ -38,11 +61,11 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
       }
 
       if (data.value) {
-        this.accounts = data.value as Account[]
+        this.accounts = data.value as AdminAccount[]
       }
     },
 
-    async createAccount(payload: Partial<Account>) {
+    async createAccount(payload: Partial<AdminAccount>) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 
@@ -60,11 +83,11 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
       }
 
       if (data.value) {
-        this.accounts.push(data.value as Account)
+        this.accounts.push(data.value as AdminAccount)
       }
     },
 
-    async updateAccount(payload: Partial<Account> & { id: number }) {
+    async updateAccount(payload: Partial<AdminAccount> & { id: number }) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 
@@ -93,7 +116,7 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
           hasFederalAidCommission: payload.hasFederalAidCommission,
           hasDisasterReliefAgency: payload.hasDisasterReliefAgency,
         }
-        this.accounts[index] = updatedAccount as Account
+        this.accounts[index] = updatedAccount as AdminAccount
       }
     },
 

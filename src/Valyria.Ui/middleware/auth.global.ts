@@ -17,17 +17,17 @@ export default defineNuxtRouteMiddleware((to) => {
   const isAdminRoute = adminRoutes.some((route) => to.path.startsWith(route))
 
   if (isAdminRoute && authStore.user) {
-    const userRole = authStore.user.role
+    const userRoles = authStore.user.roles.map((r) => r.name)
     const allowedRoles = ['Admin', 'Admin - Lists']
 
     // For lists page, both Admin and Admin - Lists are allowed
     if (to.path === '/admin/lists') {
-      if (!allowedRoles.includes(userRole)) {
+      if (!userRoles.some((role) => allowedRoles.includes(role))) {
         return navigateTo('/')
       }
     } else {
       // For other admin pages, only Admin is allowed
-      if (userRole !== 'Admin') {
+      if (!userRoles.includes('Admin')) {
         return navigateTo('/')
       }
     }

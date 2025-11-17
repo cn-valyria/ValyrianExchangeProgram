@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-1">
     <UBadge :color="codeColor" variant="solid" size="md">{{ code }}</UBadge>
-    <UBadge color="gray" variant="soft" size="md">{{ roleDescription }}</UBadge>
+    <UBadge color="neutral" variant="soft" size="md">{{ roleDescription }}</UBadge>
   </div>
 </template>
 
@@ -22,19 +22,19 @@ const codeColor = computed(() => {
     case 'B': // Buyer
     case 'D': // Donor
     case 'W': // Temp Receiver
-      return 'yellow'
+      return 'warning'
     case 'S': // Seller
     case 'F': // Farm
     case 'N': // Probationary Seller
     case 'Q': // Temp Collector
-      return 'red'
+      return 'error'
     case 'C': // Collector
     case 'R': // Receiver
     case 'P': // Temp Donor
     case 'V': // Temp Farm
-      return 'blue'
+      return 'info'
     default: // Unknown
-      return 'gray'
+      return 'neutral'
   }
 })
 </script>

@@ -6,7 +6,7 @@ export default class Validator<T extends Record<string, any>> {
   private objectBeingValidated: T
   private validationErrors: ValidationError[]
 
-  constructor(objectBeingValidated: T) {
+  init(objectBeingValidated: T): void {
     this.objectBeingValidated = objectBeingValidated
     this.validationErrors = []
   }

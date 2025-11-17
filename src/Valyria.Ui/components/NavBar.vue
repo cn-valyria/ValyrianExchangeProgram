@@ -23,11 +23,11 @@
           </a>
 
           <!-- Account Dropdown (Authenticated) -->
-          <UDropdown v-if="isAuthenticated" :items="accountMenuItems" :popper="{ placement: 'bottom-end' }">
-            <UButton color="white" variant="ghost" trailing-icon="i-heroicons-chevron-down-20-solid">
+          <UDropdownMenu v-if="isAuthenticated" :items="accountMenuItems" :popper="{ placement: 'bottom-end' }">
+            <UButton color="neutral" variant="ghost" trailing-icon="i-heroicons-chevron-down-20-solid">
               Account
             </UButton>
-          </UDropdown>
+          </UDropdownMenu>
 
           <!-- Login Button (Not Authenticated) -->
           <UButton v-else @click="loginFormIsVisible = true" color="primary">
@@ -39,7 +39,7 @@
         <div class="md:hidden">
           <UButton
             @click="mobileMenuOpen = !mobileMenuOpen"
-            color="white"
+            color="neutral"
             variant="ghost"
             :icon="mobileMenuOpen ? 'i-heroicons-x-mark-20-solid' : 'i-heroicons-bars-3-20-solid'"
           />
@@ -95,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { useAuthStore } from '~/stores/auth'
 
 const mobileMenuOpen = ref(false)
@@ -118,7 +119,7 @@ const accountCanSeeLists = computed(() => {
 })
 
 const accountMenuItems = computed(() => {
-  const items = [
+  const items: DropdownMenuItem[][] = [
     [{
       label: 'My Account',
       icon: 'i-heroicons-user-circle',

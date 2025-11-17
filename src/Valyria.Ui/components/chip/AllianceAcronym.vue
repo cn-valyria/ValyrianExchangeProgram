@@ -1,6 +1,6 @@
 <template>
   <div class="flex gap-1 items-center">
-    <UBadge color="gray" variant="soft" size="md" class="flex items-center gap-1">
+    <UBadge color="neutral" variant="soft" size="md" class="flex items-center gap-1">
       <img :src="allianceImage" height="18" width="18" alt="Alliance" class="rounded" />
       <span>{{ allianceAcronym }}</span>
     </UBadge>

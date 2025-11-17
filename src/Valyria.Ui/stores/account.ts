@@ -1,74 +1,68 @@
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
+import type { AidStatus, NationalWarStatus, RecentActivity } from './shared/enums'
+import type { NationSimplified } from './shared/nationSimplified'
+import type { Transaction } from './shared/transaction'
 
-interface Account {
+export interface Account {
+  id: number
   nationId: number
+  nationName: string
   rulerName: string
+  allianceName: string
+  discord: string
+  discordUniqueId: number
+  uniqueCode: string
   role: string
-  allianceId: number
-  allianceAcronym: string
-  discord: string | null
-  discordUniqueId: string | null
+  activity: RecentActivity
+  strength: number
+  infra: number
+  tech: number
+  warStatus: NationalWarStatus
   hasForeignMinistry: boolean
   hasFederalAidCommission: boolean
   hasDisasterReliefAgency: boolean
+  slotsUsed: number
+  slotsFull: number
+  totalCashSent: number
+  totalCashReceived: number
+  totalTechSent: number
+  totalTechReceived: number
+  credit: number
+  debt: number
+  cashSentTechCredit: number
+  cashReceivedTechCredit: number
+  cashSentCashCredit: number
+  cashReceivedCashCredit: number
+  techSentCashCredit: number
+  techReceivedCashCredit: number
+  techSentTechCredit: number
+  techReceivedTechCredit: number
+  previousListOrder: number
 }
 
-interface AidItem {
+export interface AidItem {
+  nation: NationSimplified
+  slotsFree: number
+  credit: number
+  debt: number
+  recentActivity: RecentActivity
+  discord: string
+}
+
+export interface TransactionCode {
+  sendingRole: string | null
+  receivingRole: string | null
+}
+
+export interface CreditHistoryItem {
   id: number
-  nationId: number
-  rulerName: string
-  allianceId: number
-  allianceAcronym: string
+  otherNation: NationSimplified | null
+  type: string
+  status: AidStatus
+  rate: number
   money: number
   technology: number
-}
-
-interface Transaction {
-  id: number
-  aidId: number | null
-  sentBy: {
-    nationId: number
-    rulerName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  receivedBy: {
-    nationId: number
-    rulerName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  status: string
-  rate: number
-  money: number | null
-  technology: number | null
-  reason: string | null
-  classification: string | null
-  code: {
-    sendingRole?: string
-    receivingRole?: string
-  } | null
-  cashMovedTechCredit: number
-  cashMovedCashCredit: number
-  techMovedCashCredit: number
-  techMovedTechCredit: number
-  startsOn: string
-}
-
-interface CreditHistoryItem {
-  id: number
-  otherNation: {
-    nationId: number
-    rulerName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  type: string
-  status: string
-  rate: number
-  money: number | null
-  technology: number | null
   balanceChangeType: string
   sentOn: string
 }
@@ -94,10 +88,10 @@ export const useAccountStore = defineStore('account', {
         type: buildTransactionType(txn, account),
         status: txn.status,
         rate: txn.rate,
-        money: txn.aidId === null ? null : txn.money,
-        technology: txn.aidId === null ? null : txn.technology,
+        money: txn.money,
+        technology: txn.technology,
         balanceChangeType: buildBalanceChangeType(txn, account),
-        sentOn: txn.startsOn,
+        sentOn: txn.startsOn || '',
       }))
     },
   },

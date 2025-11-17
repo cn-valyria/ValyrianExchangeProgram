@@ -114,34 +114,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { useAdminAccountsStore } from '~/stores/adminAccounts'
+import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
 import { accountRoles } from '~/infrastructure/dataLists'
-
-interface Account {
-  id: number
-  nationId: number
-  rulerName: string
-  nationName: string
-  role: string
-  allianceId: number
-  allianceName: string
-  allianceAcronym: string
-  uniqueCode: string
-  discord: string | null
-  discordUniqueId: string | null
-  credit: number
-  debt: number
-  slotsUsed: number
-  slotsFull: number
-  hasForeignMinistry: boolean
-  hasFederalAidCommission: boolean
-  hasDisasterReliefAgency: boolean
-}
-
-definePageMeta({
-  middleware: 'auth'
-})
 
 const router = useRouter()
 const toast = useToast()
@@ -153,7 +128,7 @@ const { accounts } = storeToRefs(adminAccountsStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const editDialogIsVisible = ref<boolean>(false)
-const accountBeingEdited = ref<Account | undefined>(undefined)
+const accountBeingEdited = ref<AdminAccount | undefined>(undefined)
 const accountIdBeingDeleted = ref<number>(0)
 const roles = accountRoles
 
@@ -164,13 +139,13 @@ const getRoleDescription = (roleCode: string): string => {
 }
 
 // Filter function for nation search (ruler or nation name)
-const filterByNation = (row: Account, input: string): boolean => {
+const filterByNation = (row: AdminAccount, input: string): boolean => {
   return row.rulerName.toLowerCase().includes(input.toLowerCase())
     || row.nationName.toLowerCase().includes(input.toLowerCase())
 }
 
 // Filter function for role search
-const filterByRole = (row: Account, input: string): boolean => {
+const filterByRole = (row: AdminAccount, input: string): boolean => {
   const rolesMatchingInput = roles
     .filter(role => role.description.toLowerCase().includes(input.toLowerCase()))
     .map(role => role.code)
@@ -180,12 +155,12 @@ const filterByRole = (row: Account, input: string): boolean => {
 
 // Create new account
 const createAccount = (): void => {
-  accountBeingEdited.value = {} as Account
+  accountBeingEdited.value = {} as AdminAccount
   editDialogIsVisible.value = true
 }
 
 // Edit existing account
-const editAccount = (account: Account): void => {
+const editAccount = (account: AdminAccount): void => {
   accountBeingEdited.value = account
   editDialogIsVisible.value = true
 }
@@ -197,18 +172,18 @@ const deleteAccountById = async (accountId: number): Promise<void> => {
   try {
     await adminAccountsStore.deleteAccount(accountId)
     toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Account deleted successfully.',
-      life: 3000
+      color: 'success',
+      title: 'Success',
+      description: 'Account deleted successfully.',
+      duration: 3000
     })
   } catch (error) {
     console.error('Failed to delete account:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'VEP encountered an error while deleting the account. Please try again, or contact @lilweirdward if the error persists.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'VEP encountered an error while deleting the account. Please try again, or contact @lilweirdward if the error persists.',
+      duration: 5000
     })
   } finally {
     accountIdBeingDeleted.value = 0
@@ -227,10 +202,10 @@ onMounted(async () => {
   if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
     console.warn('Tried to access an admin page without the admin role.')
     toast.add({
-      severity: 'error',
-      summary: 'Access Denied',
-      detail: 'You do not have permission to access this page.',
-      life: 5000
+      color: 'error',
+      title: 'Access Denied',
+      description: 'You do not have permission to access this page.',
+      duration: 5000
     })
     await router.push('/')
     return
@@ -242,10 +217,10 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load accounts:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load accounts. Please try again.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load accounts. Please try again.',
+      duration: 5000
     })
   }
 })

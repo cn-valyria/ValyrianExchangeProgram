@@ -36,11 +36,6 @@
 import { storeToRefs } from 'pinia'
 import { useAccountStore } from '~/stores/account'
 import { useAuthStore } from '~/stores/auth'
-import { accountRoles } from '~/infrastructure/dataLists'
-
-definePageMeta({
-  middleware: 'auth'
-})
 
 const route = useRoute()
 const router = useRouter()
@@ -54,7 +49,6 @@ const { creditHistory } = accountStore
 const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref<boolean>(true)
-const roles = accountRoles
 
 // Parse account ID from route params
 const accountId = computed<number>(() => {
@@ -69,10 +63,10 @@ onMounted(async () => {
   // Check if user is accessing their own account
   if (loggedInUser.value && loggedInUser.value.accountId !== accountId.value) {
     toast.add({
-      severity: 'error',
-      summary: 'Access Denied',
-      detail: "You're not logged into the account that you tried to access.",
-      life: 5000
+      color: 'error',
+      title: 'Access Denied',
+      description: "You're not logged into the account that you tried to access.",
+      duration: 5000
     })
     await router.push('/')
     return
@@ -85,10 +79,10 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load account data:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load account data. Please try again.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load account data. Please try again.',
+      duration: 5000
     })
   } finally {
     loading.value = false

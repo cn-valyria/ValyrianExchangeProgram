@@ -1,6 +1,6 @@
 <template>
   <USlideover v-model="isOpen" @update:model-value="handleClose">
-    <UCard class="flex flex-col flex-1" :ui="{ body: { base: 'flex-1' }, ring: '', divide: 'divide-y divide-gray-200 dark:divide-gray-700' }">
+    <UCard class="flex flex-col flex-1">
       <template #header>
         <h3 v-if="isInUpdateState" class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ accountBeingEdited.rulerName }}'s Account
@@ -57,7 +57,7 @@
           >
             <div class="flex gap-2">
               <UInput v-model="accountBeingEdited.uniqueCode" class="flex-1" />
-              <UButton label="Generate" @click="generateSecretCode()" color="gray" />
+              <UButton label="Generate" @click="generateSecretCode()" color="neutral" />
             </div>
           </UFormGroup>
 
@@ -81,10 +81,10 @@
             :error="propertyHasValidationError('hasForeignMinistry') ? 'Must indicate if the nation has the FM improvement or not' : undefined"
           >
             <URadioGroup
-              v-model="accountBeingEdited.hasForeignMinistry"
-              :options="[
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' }
+              v-model="hasForeignMinistryInput"
+              :items="[
+                { value: 'Y', label: 'Yes' },
+                { value: 'N', label: 'No' }
               ]"
             />
           </UFormGroup>
@@ -94,10 +94,10 @@
             :error="propertyHasValidationError('hasFederalAidCommission') ? 'Must indicate if the nation has the FAC wonder or not' : undefined"
           >
             <URadioGroup
-              v-model="accountBeingEdited.hasFederalAidCommission"
-              :options="[
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' }
+              v-model="hasFederalAidCommissionInput"
+              :items="[
+                { value: 'Y', label: 'Yes' },
+                { value: 'N', label: 'No' }
               ]"
             />
           </UFormGroup>
@@ -107,10 +107,10 @@
             :error="propertyHasValidationError('hasDisasterReliefAgency') ? 'Must indicate if the nation has the DRA wonder or not' : undefined"
           >
             <URadioGroup
-              v-model="accountBeingEdited.hasDisasterReliefAgency"
-              :options="[
-                { value: true, label: 'Yes' },
-                { value: false, label: 'No' }
+              v-model="hasDisasterReliefAgencyInput"
+              :items="[
+                { value: 'Y', label: 'Yes' },
+                { value: 'N', label: 'No' }
               ]"
             />
           </UFormGroup>
@@ -136,7 +136,7 @@
                   <UInput :model-value="accountBeingEdited.debt" />
                 </UFormGroup>
                 <UFormGroup label="Balance">
-                  <UInput :model-value="accountBeingEdited.balance" />
+                  <UInput :model-value="null" />
                 </UFormGroup>
               </div>
 
@@ -176,18 +176,18 @@
 
       <template #footer>
         <div class="flex gap-3 justify-end">
-          <UButton label="Cancel" color="gray" @click="handleClose" />
+          <UButton label="Cancel" color="neutral" @click="handleClose" />
           <UButton
             v-if="isInUpdateState"
             label="Save"
-            color="green"
+            color="success"
             :loading="buttonIsLoading"
             @click="update()"
           />
           <UButton
             v-else-if="foundProspectAccount"
             label="Create"
-            color="green"
+            color="success"
             :loading="buttonIsLoading"
             @click="create()"
           />
@@ -205,41 +205,13 @@
 </template>
 
 <script setup lang="ts">
-import { useAdminAccountsStore } from '~/stores/adminAccounts'
+import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
 import { accountRoles } from '~/infrastructure/dataLists'
 
-interface Account {
-  id?: number
-  nationId: number | string
-  nationName?: string
-  rulerName?: string
-  allianceName?: string
-  role?: string
-  uniqueCode?: string
-  discord?: string
-  discordUniqueId?: string
-  hasForeignMinistry?: boolean
-  hasFederalAidCommission?: boolean
-  hasDisasterReliefAgency?: boolean
-  slotsFull?: number
-  slotsUsed?: number
-  credit?: number
-  debt?: number
-  balance?: number
-  cashSentCashCredit?: number
-  cashReceivedCashCredit?: number
-  techSentCashCredit?: number
-  techReceivedCashCredit?: number
-  cashSentTechCredit?: number
-  cashReceivedTechCredit?: number
-  techSentTechCredit?: number
-  techReceivedTechCredit?: number
-}
-
 interface Props {
   show: boolean
-  account?: Account
+  account?: AdminAccount
 }
 
 interface Emits {
@@ -247,7 +219,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  account: () => ({} as Account)
+  account: () => ({} as AdminAccount)
 })
 
 const emit = defineEmits<Emits>()
@@ -258,7 +230,7 @@ const adminAccountsStore = useAdminAccountsStore()
 
 const isOpen = ref(false)
 const buttonIsLoading = ref(false)
-const accountBeingEdited = ref<Account>({} as Account)
+const accountBeingEdited = ref<AdminAccount>({} as AdminAccount)
 const roles = accountRoles
 const validationErrors = ref<Array<{ prop: string }>>([])
 
@@ -270,7 +242,46 @@ const nationIdInput = computed({
     if (val !== "" && !isNaN(parseInt(val))) {
       accountBeingEdited.value.nationId = parseInt(val)
     } else {
-      accountBeingEdited.value.nationId = ""
+      accountBeingEdited.value.nationId = null;
+    }
+  }
+})
+
+const hasForeignMinistryInput = computed({
+  get() {
+    return (accountBeingEdited.value.hasForeignMinistry ?? false) ? 'Y' : 'N';
+  },
+  set(val: string) {
+    if (val === "Y" || val === "N") {
+      accountBeingEdited.value.hasForeignMinistry = val === "Y";
+    } else {
+      accountBeingEdited.value.hasForeignMinistry = null;
+    }
+  }
+})
+
+const hasDisasterReliefAgencyInput = computed({
+  get() {
+    return (accountBeingEdited.value.hasDisasterReliefAgency ?? false) ? 'Y' : 'N';
+  },
+  set(val: string) {
+    if (val === "Y" || val === "N") {
+      accountBeingEdited.value.hasDisasterReliefAgency = val === "Y";
+    } else {
+      accountBeingEdited.value.hasDisasterReliefAgency = null;
+    }
+  }
+})
+
+const hasFederalAidCommissionInput = computed({
+  get() {
+    return (accountBeingEdited.value.hasFederalAidCommission ?? false) ? 'Y' : 'N';
+  },
+  set(val: string) {
+    if (val === "Y" || val === "N") {
+      accountBeingEdited.value.hasFederalAidCommission = val === "Y";
+    } else {
+      accountBeingEdited.value.hasFederalAidCommission = null;
     }
   }
 })
@@ -310,9 +321,9 @@ const findProspectAccount = async () => {
   } catch (e: any) {
     console.error(e)
     if (e.response) {
-      toast.add({ severity: 'error', summary: 'Error', detail: e.response.data, life: 3000 })
+      toast.add({ color: 'error', title: 'Error', description: e.response.data, duration: 3000 })
     } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.", life: 3000 })
+      toast.add({ color: 'error', title: 'Error', description: "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.", duration: 3000 })
     }
   }
 
@@ -323,11 +334,11 @@ const update = async () => {
   buttonIsLoading.value = true
   try {
     await adminAccountsStore.updateAccount(accountBeingEdited.value as any)
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Account updated successfully!', life: 3000 })
+    toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
     emit('close')
   } catch (e) {
     console.error(e)
-    toast.add({ severity: 'error', summary: 'Error', detail: ERROR_MESSAGES.default, life: 3000 })
+    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
   }
 
   buttonIsLoading.value = false
@@ -342,11 +353,11 @@ const create = async () => {
   buttonIsLoading.value = true
   try {
     await adminAccountsStore.createAccount(accountBeingEdited.value)
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Account created successfully!', life: 3000 })
+    toast.add({ color: 'success', title: 'Success', description: 'Account created successfully!', duration: 3000 })
     emit('close')
   } catch (e) {
     console.error(e)
-    toast.add({ severity: 'error', summary: 'Error', detail: ERROR_MESSAGES.default, life: 3000 })
+    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
   }
 
   buttonIsLoading.value = false

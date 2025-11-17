@@ -1,13 +1,20 @@
 import { defineStore } from 'pinia'
 
+interface AccountRole {
+  id: number
+  name: string
+}
+
 interface User {
-  nationId: number
-  rulerName: string
-  role: string
-  allianceId: number
-  allianceAcronym: string
-  discord: string | null
-  discordUniqueId: string | null
+  accountId: number
+  roles: AccountRole[]
+}
+
+interface TokenResponse {
+  accessToken: string
+  tokenType: string
+  expiresIn: number
+  refreshToken: string
 }
 
 interface AuthState {
@@ -42,10 +49,10 @@ export const useAuthStore = defineStore('auth', {
         throw new Error(error.value.message || 'Authentication failed')
       }
 
-      if (data.value?.data) {
-        const authData = data.value.data
-        this.accessToken = authData.access_token
-        this.refreshToken = authData.refresh_token
+      if (data.value) {
+        const authData = data.value as TokenResponse
+        this.accessToken = authData.accessToken
+        this.refreshToken = authData.refreshToken
         await this.fetchUser()
       }
     },
@@ -66,8 +73,8 @@ export const useAuthStore = defineStore('auth', {
         return
       }
 
-      if (data.value?.data) {
-        this.user = data.value.data
+      if (data.value) {
+        this.user = data.value as User
         this.isAuthenticated = true
       }
     },
@@ -89,9 +96,10 @@ export const useAuthStore = defineStore('auth', {
         return false
       }
 
-      if (data.value?.data) {
-        this.accessToken = data.value.data.access_token
-        this.refreshToken = data.value.data.refresh_token
+      if (data.value) {
+        const authData = data.value as TokenResponse
+        this.accessToken = authData.accessToken
+        this.refreshToken = authData.refreshToken
         return true
       }
 
@@ -113,10 +121,5 @@ export const useAuthStore = defineStore('auth', {
         await this.fetchUser()
       }
     },
-  },
-
-  persist: {
-    storage: persistedState.localStorage,
-    paths: ['accessToken', 'refreshToken'],
   },
 })

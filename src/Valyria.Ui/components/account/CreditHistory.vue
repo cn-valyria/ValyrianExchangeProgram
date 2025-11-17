@@ -1,22 +1,6 @@
 <template>
   <UAccordion :items="accordionItems">
-    <template #default="{ item, open }">
-      <UButton color="gray" variant="ghost" class="w-full" :ui="{ rounded: 'rounded-none rounded-t-lg', padding: { sm: 'p-3' } }">
-        <template #leading>
-          <div class="w-5 h-5 rounded-full" :class="[open ? 'bg-primary-500' : 'bg-gray-400']" />
-        </template>
-
-        <span class="truncate text-lg font-semibold">
-          Credit History
-          <span class="font-normal text-gray-600 dark:text-gray-400">
-            +{{ creditHistory.filter(txn => txn.balanceChangeType === "Credit").length }} out,
-            -{{ creditHistory.filter(txn => txn.balanceChangeType === "Debt").length }} in
-          </span>
-        </span>
-      </UButton>
-    </template>
-
-    <template #item="{ item }">
+    <template #credit-history>
       <div class="p-4 space-y-4">
         <p class="text-gray-700 dark:text-gray-300">
           Your entire history of credit changes, as recorded in the VEP. This history includes both aid-based transactions, as well as manually-
@@ -24,8 +8,8 @@
           concerns about your credit history.
         </p>
 
-        <UTable :rows="creditHistory" :columns="columns">
-          <template #otherNation-data="{ row }">
+        <UTable :data="props.creditHistory" :columns="columns">
+          <!-- <template #otherNation-data="{ row }">
             <span class="text-gray-900 dark:text-gray-100">
               {{ row.otherNation !== null ? `${row.otherNation.rulerName} of ${row.otherNation.nationName}` : "VEP Management" }}
             </span>
@@ -57,7 +41,7 @@
 
           <template #sentOn-data="{ row }">
             <span class="text-gray-700 dark:text-gray-300">{{ row.sentOn !== null ? row.sentOn.split('T')[0] : "N/A" }}</span>
-          </template>
+          </template> -->
         </UTable>
       </div>
     </template>
@@ -65,23 +49,10 @@
 </template>
 
 <script setup lang="ts">
+import type { TableColumn, TableRow } from '@nuxt/ui';
 import { ACCOUNT_ROLE_CODES } from '~/infrastructure/constants'
-
-interface Nation {
-  nationName: string
-  rulerName: string
-}
-
-interface CreditHistoryItem {
-  otherNation: Nation | null
-  type: string
-  status: number
-  money: number | null
-  technology: number | null
-  balanceChangeType: string
-  sentOn: string | null
-  rate: number
-}
+import type { CreditHistoryItem } from '~/stores/account';
+import type { NationSimplified } from '~/stores/shared/nationSimplified';
 
 interface Props {
   accountRole: string
@@ -90,20 +61,51 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const columns = [
-  { key: 'otherNation', label: 'Other Nation' },
-  { key: 'type', label: 'Type' },
-  { key: 'status', label: 'Status' },
-  { key: 'money', label: 'Money' },
-  { key: 'technology', label: 'Tech' },
-  { key: 'balanceChangeType', label: 'Credit Change' },
-  { key: 'sentOn', label: 'Sent On' }
+const columns: TableColumn<CreditHistoryItem>[] = [
+  {
+    accessorKey: 'otherNation',
+    header: 'Other Nation',
+    cell: ({ row }) => {
+      const otherNation = row.getValue('otherNation') as NationSimplified;
+      return otherNation !== null ? `${otherNation.rulerName} of ${otherNation.nationName}` : "VEP Management";
+    }
+  },
+  {
+    accessorKey: 'type',
+    header: 'Type'
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => row.getValue('otherNation') !== null ? toAidStatusDescription(row.getValue<number>('status')) : "Active"
+  },
+  {
+    accessorKey: 'money',
+    header: 'Money',
+    cell: ({ row }) => row.getValue('money') !== null ? row.getValue('money') : "N/A"
+  },
+  {
+    accessorKey: 'technology',
+    header: 'Tech',
+    cell: ({ row }) => row.getValue('technology') !== null ? row.getValue('technology') : "N/A"
+  },
+  {
+    accessorKey: 'balanceChangeType',
+    header: 'Credit Change',
+    cell: ({ row }) => toCreditChange(row)
+  },
+  {
+    accessorKey: 'sentOn',
+    header: 'Sent On',
+    cell: ({ row }) => row.getValue('sentOn') !== null ? row.getValue<string>('sentOn').split('T')[0] : "N/A"
+  }
 ]
 
 const accordionItems = computed(() => [
   {
-    label: 'Credit History',
-    defaultOpen: false
+    label: `Credit History (+${props.creditHistory.filter((txn: CreditHistoryItem) => txn.balanceChangeType === "Credit").length} out, -${props.creditHistory.filter((txn: CreditHistoryItem) => txn.balanceChangeType === "Debt").length} in)`,
+    defaultOpen: false,
+    slot: 'credit-history'
   }
 ])
 
@@ -127,7 +129,14 @@ const getStatusColor = (statusId: number): string => {
   }
 }
 
-const toCreditChange = (txn: CreditHistoryItem): string => {
+const toCreditChange = (row: TableRow<CreditHistoryItem>): string => {
+  const txn = {
+    money: row.getValue<number>("money"),
+    type: row.getValue<string>("type"),
+    rate: row.getValue<number>("rate"),
+    balanceChangeType: row.getValue("balanceChangeType")
+  };
+
   const positivityIndicator = txn.balanceChangeType === "Credit" ? "+" : "-"
   let cashOrTech: string
   let receivedOrSent: string

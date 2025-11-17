@@ -73,40 +73,10 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { useAdminListsStore } from '~/stores/adminLists'
+import { useAdminListsStore, type AidList } from '~/stores/adminLists'
 import { useAuthStore } from '~/stores/auth'
 import { recentActivityValues } from '~/infrastructure/dataLists'
-
-interface Nation {
-  nationId: number
-  rulerName: string
-  nationName: string
-  allianceId: number
-  allianceAcronym: string
-}
-
-interface Recipient {
-  id: number
-  nation: Nation
-  slotsFree: number
-  credit?: number
-  debt?: number
-  recentActivity: number
-  discord: string | null
-}
-
-interface AidList {
-  id: number
-  name: string
-  description: string
-  subject: string
-  message: string
-  recipients: Recipient[]
-}
-
-definePageMeta({
-  middleware: 'auth'
-})
+import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
 const router = useRouter()
 const toast = useToast()
@@ -134,7 +104,7 @@ const getRulerList = (aidList: AidList): string => {
 }
 
 // Helper function to get nation message link
-const getNationMessageLink = (nation: Nation): string => {
+const getNationMessageLink = (nation: NationSimplified): string => {
   return `https://www.cybernations.net/send_message.asp?Nation_ID=${nation.nationId}`
 }
 
@@ -154,10 +124,10 @@ onMounted(async () => {
   if (!hasAccess) {
     console.warn('Tried to access an admin page without the admin role.')
     toast.add({
-      severity: 'error',
-      summary: 'Access Denied',
-      detail: 'You do not have permission to access this page.',
-      life: 5000
+      color: 'error',
+      title: 'Access Denied',
+      description: 'You do not have permission to access this page.',
+      duration: 5000
     })
     await router.push('/')
     return
@@ -169,10 +139,10 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load lists:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load aid lists. Please try again.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load aid lists. Please try again.',
+      duration: 5000
     })
   } finally {
     isLoading.value = false

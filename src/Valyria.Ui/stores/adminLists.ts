@@ -1,11 +1,23 @@
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
+import type { RecentActivity } from './shared/enums'
+import type { NationSimplified } from './shared/nationSimplified'
 
-interface AidList {
+export interface ListRecipient {
+  nation: NationSimplified
+  slotsFree: number
+  credit: number
+  debt: number
+  recentActivity: RecentActivity
+  discord: string
+}
+
+export interface AidList {
   id: number
   name: string
-  description: string
-  // Add other properties as needed based on your API response
+  subject: string
+  message: string
+  recipients: ListRecipient[]
 }
 
 export const useAdminListsStore = defineStore('adminLists', {

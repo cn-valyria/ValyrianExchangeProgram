@@ -1,6 +1,6 @@
 <template>
   <UModal v-model="isOpen" @update:model-value="handleClose">
-    <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-200 dark:divide-gray-700' }">
+    <UCard>
       <template #header>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           Update Transaction
@@ -114,7 +114,7 @@
 
       <template #footer>
         <div class="flex justify-end">
-          <UButton label="Close" color="gray" @click="handleClose" />
+          <UButton label="Close" color="neutral" @click="handleClose" />
         </div>
       </template>
     </UCard>
@@ -123,30 +123,7 @@
 
 <script setup lang="ts">
 import { transactionClassifications } from '~/infrastructure/dataLists'
-
-interface Nation {
-  nationName: string
-  rulerName: string
-}
-
-interface Transaction {
-  aidId?: string
-  sentBy?: Nation
-  receivedBy?: Nation
-  status?: string
-  money?: string
-  technology?: string
-  soldiers?: string
-  startsOn?: string
-  endsOn?: string
-  reason?: string
-  classification?: number
-  rate?: string
-  cashMovedCashCredit?: string
-  cashMovedTechCredit?: string
-  techMovedCashCredit?: string
-  techMovedTechCredit?: string
-}
+import type { Transaction } from '~/stores/shared/transaction'
 
 interface Props {
   show: boolean

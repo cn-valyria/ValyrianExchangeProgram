@@ -1,6 +1,6 @@
 <template>
   <UModal v-model="isOpen" @update:model-value="handleClose">
-    <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-200 dark:divide-gray-700' }">
+    <UCard>
       <template #header>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           {{ transactionBeingEdited.id !== undefined ? "Update" : "New"}} Manual Transaction
@@ -27,7 +27,7 @@
                 option-attribute="rulerName"
                 by="nationId"
               >
-                <template #label>
+                <template #default>
                   <span v-if="selectedAccount">{{ selectedAccount.rulerName }}</span>
                   <span v-else class="text-gray-400">No account selected</span>
                 </template>
@@ -120,8 +120,8 @@
 
       <template #footer>
         <div class="flex gap-3 justify-end">
-          <UButton label="Cancel" color="gray" @click="handleClose()" />
-          <UButton label="Save" color="green" :loading="buttonIsLoading" @click="save()" />
+          <UButton label="Cancel" color="neutral" @click="handleClose()" />
+          <UButton label="Save" color="success" :loading="buttonIsLoading" @click="save()" />
         </div>
       </template>
     </UCard>
@@ -232,7 +232,7 @@ watch(() => props.show, (val) => {
 
 watch(() => props.transaction, (val) => {
   transactionBeingEdited.value = { ...val }
-  validator.value = new Validator(transactionBeingEdited.value)
+  validator.value.init(transactionBeingEdited.value)
 
   // Recalculate the credits when the transaction changes, since they're always readonly
   recalculateCredits()
@@ -289,11 +289,11 @@ const save = async () => {
       await adminTransactionsStore.createTransaction(payload)
     }
 
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Transaction saved successfully!', life: 3000 })
+    toast.add({ color: 'success', title: 'Success', description: 'Transaction saved successfully!', duration: 3000 })
     emit('close')
   } catch (e) {
     console.error(e)
-    toast.add({ severity: 'error', summary: 'Error', detail: ERROR_MESSAGES.default, life: 3000 })
+    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
   }
 
   buttonIsLoading.value = false

@@ -81,10 +81,6 @@ import { storeToRefs } from 'pinia'
 import { useAdminStore } from '~/stores/admin'
 import { useAuthStore } from '~/stores/auth'
 
-definePageMeta({
-  middleware: 'auth'
-})
-
 const router = useRouter()
 const toast = useToast()
 
@@ -108,10 +104,10 @@ onMounted(async () => {
   if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
     console.warn('Tried to access an admin page without the admin role.')
     toast.add({
-      severity: 'error',
-      summary: 'Access Denied',
-      detail: 'You do not have permission to access this page.',
-      life: 5000
+      color: 'error',
+      title: 'Access Denied',
+      description: 'You do not have permission to access this page.',
+      duration: 5000
     })
     await router.push('/')
     return
@@ -122,10 +118,10 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load dashboard:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load dashboard data. Please try again.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load dashboard data. Please try again.',
+      duration: 5000
     })
   }
 })

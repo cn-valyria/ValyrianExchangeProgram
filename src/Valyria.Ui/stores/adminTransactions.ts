@@ -1,63 +1,28 @@
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
 import { ADJUSTMENT_TYPES } from '~/infrastructure/constants'
+import type { NationSimplified } from './shared/nationSimplified'
+import type { Transaction } from './shared/transaction'
 
-interface Transaction {
-  id: number
-  aidId: number | null
-  sentBy: {
-    nationId: number
-    rulerName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  receivedBy: {
-    nationId: number
-    rulerName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  status: string
-  rate: number
-  money: number | null
-  technology: number | null
-  reason: string | null
-  classification: string | null
-  code: {
-    sendingRole?: string
-    receivingRole?: string
-  } | null
-  cashMovedTechCredit: number
-  cashMovedCashCredit: number
-  techMovedCashCredit: number
-  techMovedTechCredit: number
-  startsOn: string
-}
-
-interface TransactionsPage {
+export interface TransactionsPage {
   totalCount: number
   data: Transaction[]
 }
 
-interface TransactionFilter {
+export interface TransactionFilter {
   sentBy?: number
   receivedBy?: number
   sentSince?: Date
   sentUntil?: Date
 }
 
-interface ManualTransaction {
+export interface ManualTransaction {
   id: number
-  nation: {
-    nationId: number
-    rulerName: string
-    allianceId: number
-    allianceAcronym: string
-  }
+  nation: NationSimplified
   adjustmentType: string
-  reason: string | null
+  reason: string
   accountCode: string
-  classification: string | null
+  classification: number
   rate: number
   cashMovedTechCredit: number
   cashMovedCashCredit: number
@@ -74,7 +39,7 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
   }),
 
   getters: {
-    aidBasedTransactions: (state): Transaction[] => {
+    aidBasedTransactions: (state): AidTransaction[] => {
       const data = state.currentTransactionsPage.data
       return data.some((txn) => txn.aidId === null) ? [] : data
     },
@@ -126,13 +91,13 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
       }
 
       if (data.value) {
-        const response = data.value as { results: Transaction[]; totalCount: number }
+        const response = data.value as { results: AidTransaction[]; totalCount: number }
         this.currentTransactionsPage.data = response.results
         this.currentTransactionsPage.totalCount = response.totalCount
       }
     },
 
-    async createTransaction(payload: Partial<Transaction>) {
+    async createTransaction(payload: Partial<AidTransaction>) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 
@@ -152,7 +117,7 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
       console.log('Transaction created:', data.value)
     },
 
-    async updateTransaction(payload: Partial<Transaction> & { id: number }) {
+    async updateTransaction(payload: Partial<AidTransaction> & { id: number }) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 

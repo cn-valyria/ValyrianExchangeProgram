@@ -191,52 +191,12 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { useAdminTransactionsStore } from '~/stores/adminTransactions'
+import { useAdminTransactionsStore, type TransactionFilter } from '~/stores/adminTransactions'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
 import { TRANSACTION_TYPES } from '~/infrastructure/constants'
 import { transactionClassifications } from '~/infrastructure/dataLists'
-
-interface Transaction {
-  id: number
-  aidId: number | null
-  sentBy: {
-    nationId: number
-    rulerName: string
-    nationName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  receivedBy: {
-    nationId: number
-    rulerName: string
-    nationName: string
-    allianceId: number
-    allianceAcronym: string
-  } | null
-  status: string
-  rate: number
-  money: number | null
-  technology: number | null
-  reason: string | null
-  classification: string | null
-  code: {
-    sendingRole?: string
-    receivingRole?: string
-  } | null
-  startsOn: string
-}
-
-interface TransactionFilter {
-  sentBy: string | null
-  receivedBy: string | null
-  sentSince: Date | null
-  sentUntil: Date | null
-}
-
-definePageMeta({
-  middleware: 'auth'
-})
+import type { Transaction } from '~/stores/shared/transaction'
 
 const router = useRouter()
 const toast = useToast()
@@ -304,8 +264,8 @@ const changePage = async (newPageNumber: number): Promise<void> => {
     await adminTransactionsStore.reloadCurrentTransactionsPage({
       type: currentTab.value,
       filter: {
-        sentBy: filters.value.sentBy || undefined,
-        receivedBy: filters.value.receivedBy || undefined,
+        sentBy: filters.value.sentBy ? Number(filters.value.sentBy) : undefined,
+        receivedBy: filters.value.receivedBy ? Number(filters.value.receivedBy) : undefined,
         sentSince: filters.value.sentSince || undefined,
         sentUntil: filters.value.sentUntil || undefined
       },
@@ -315,10 +275,10 @@ const changePage = async (newPageNumber: number): Promise<void> => {
   } catch (error) {
     console.error('Failed to load transactions:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'The current page failed to load',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'The current page failed to load',
+      duration: 5000
     })
   } finally {
     tableIsLoading.value = false
@@ -371,19 +331,19 @@ const deleteTransactionById = async (id: number): Promise<void> => {
   try {
     await adminTransactionsStore.deleteTransaction(id)
     toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Transaction deleted successfully.',
-      life: 3000
+      color: 'success',
+      title: 'Success',
+      description: 'Transaction deleted successfully.',
+      duration: 3000
     })
     await changePage(currentPage.value)
   } catch (error) {
     console.error('Failed to delete transaction:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'VEP encountered an error while deleting the transaction. Please try again, or contact @lilweirdward if the error persists.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'VEP encountered an error while deleting the transaction. Please try again, or contact @lilweirdward if the error persists.',
+      duration: 5000
     })
   } finally {
     transactionIdBeingDeleted.value = 0
@@ -408,10 +368,10 @@ onMounted(async () => {
   if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
     console.warn('Tried to access an admin page without the admin role.')
     toast.add({
-      severity: 'error',
-      summary: 'Access Denied',
-      detail: 'You do not have permission to access this page.',
-      life: 5000
+      color: 'error',
+      title: 'Access Denied',
+      description: 'You do not have permission to access this page.',
+      duration: 5000
     })
     await router.push('/')
     return
@@ -426,10 +386,10 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load page data:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load page data. Please try again.',
-      life: 5000
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load page data. Please try again.',
+      duration: 5000
     })
   }
 })
