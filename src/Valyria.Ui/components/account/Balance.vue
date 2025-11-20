@@ -1,11 +1,29 @@
 <template>
-  <UCard class="text-center">
-    <div class="space-y-4">
-      <p class="text-lg text-gray-600 dark:text-gray-400">Your Current Balance</p>
-      <p class="text-5xl font-bold" :class="categoryClass">
-        {{ positivityIndicator }}{{ amount }} {{ balanceType }} ({{ balanceCategory }})
+  <UCard>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Current Balance</h2>
+        <UBadge :color="badgeColor" size="lg" variant="subtle">
+          {{ balanceCategory }}
+        </UBadge>
+      </div>
+    </template>
+
+    <div class="space-y-6">
+      <div class="text-center py-8">
+        <div class="text-6xl font-bold mb-2" :class="categoryClass">
+          {{ positivityIndicator }}{{ amount }}
+        </div>
+        <div class="text-2xl font-medium text-gray-600 dark:text-gray-400">
+          {{ balanceType }}
+        </div>
+      </div>
+
+      <UDivider />
+
+      <p class="text-center text-base text-gray-700 dark:text-gray-300">
+        {{ description }}
       </p>
-      <p class="text-sm text-gray-600 dark:text-gray-400">{{ description }}</p>
     </div>
   </UCard>
 </template>
@@ -84,6 +102,15 @@ const categoryClass = computed(() => {
     case "Debt": return "text-red-600 dark:text-red-400"
     case "Even": return "text-green-600 dark:text-green-400"
     default: return "text-gray-400 dark:text-gray-500"
+  }
+})
+
+const badgeColor = computed(() => {
+  switch (balanceCategory.value) {
+    case "Credit": return "success"
+    case "Debt": return "error"
+    case "Even": return "success"
+    default: return "neutral"
   }
 })
 

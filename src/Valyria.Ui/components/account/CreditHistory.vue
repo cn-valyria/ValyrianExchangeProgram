@@ -1,51 +1,30 @@
 <template>
-  <UAccordion :items="accordionItems">
-    <template #credit-history>
-      <div class="p-4 space-y-4">
-        <p class="text-gray-700 dark:text-gray-300">
-          Your entire history of credit changes, as recorded in the VEP. This history includes both aid-based transactions, as well as manually-
-          configured credits or debts that may have been added to your account by an admin. Please contact VEP Management if you have any
-          concerns about your credit history.
-        </p>
-
-        <UTable :data="props.creditHistory" :columns="columns">
-          <!-- <template #otherNation-data="{ row }">
-            <span class="text-gray-900 dark:text-gray-100">
-              {{ row.otherNation !== null ? `${row.otherNation.rulerName} of ${row.otherNation.nationName}` : "VEP Management" }}
-            </span>
-          </template>
-
-          <template #type-data="{ row }">
-            <span class="text-gray-700 dark:text-gray-300">{{ row.type }}</span>
-          </template>
-
-          <template #status-data="{ row }">
-            <UBadge :color="getStatusColor(row.status)" variant="soft">
-              {{ row.otherNation !== null ? toAidStatusDescription(row.status) : "Active" }}
-            </UBadge>
-          </template>
-
-          <template #money-data="{ row }">
-            <span class="text-gray-700 dark:text-gray-300">{{ row.money !== null ? row.money : "N/A" }}</span>
-          </template>
-
-          <template #technology-data="{ row }">
-            <span class="text-gray-700 dark:text-gray-300">{{ row.technology !== null ? row.technology : "N/A" }}</span>
-          </template>
-
-          <template #balanceChangeType-data="{ row }">
-            <span :class="row.balanceChangeType === 'Credit' ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold'">
-              {{ toCreditChange(row) }}
-            </span>
-          </template>
-
-          <template #sentOn-data="{ row }">
-            <span class="text-gray-700 dark:text-gray-300">{{ row.sentOn !== null ? row.sentOn.split('T')[0] : "N/A" }}</span>
-          </template> -->
-        </UTable>
+  <UCard>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Credit History</h2>
+        <div class="flex gap-2">
+          <UBadge color="success" size="lg" variant="subtle">
+            +{{ creditCount }} out
+          </UBadge>
+          <UBadge color="error" size="lg" variant="subtle">
+            -{{ debtCount }} in
+          </UBadge>
+        </div>
       </div>
     </template>
-  </UAccordion>
+
+    <div class="space-y-4">
+      <UAlert
+        color="info"
+        icon="i-heroicons-information-circle"
+        title="About Your Credit History"
+        description="Your entire history of credit changes, as recorded in the VEP. This history includes both aid-based transactions, as well as manually-configured credits or debts that may have been added to your account by an admin. Please contact VEP Management if you have any concerns about your credit history."
+      />
+
+      <UTable :data="props.creditHistory" :columns="columns" />
+    </div>
+  </UCard>
 </template>
 
 <script setup lang="ts">
@@ -80,6 +59,15 @@ const columns: TableColumn<CreditHistoryItem>[] = [
     cell: ({ row }) => row.getValue('otherNation') !== null ? toAidStatusDescription(row.getValue<number>('status')) : "Active"
   },
   {
+    accessorKey: 'rate',
+    meta: {
+      class: {
+        th: "hidden",
+        td: "hidden"
+      }
+    }
+  },
+  {
     accessorKey: 'money',
     header: 'Money',
     cell: ({ row }) => row.getValue('money') !== null ? row.getValue('money') : "N/A"
@@ -101,13 +89,13 @@ const columns: TableColumn<CreditHistoryItem>[] = [
   }
 ]
 
-const accordionItems = computed(() => [
-  {
-    label: `Credit History (+${props.creditHistory.filter((txn: CreditHistoryItem) => txn.balanceChangeType === "Credit").length} out, -${props.creditHistory.filter((txn: CreditHistoryItem) => txn.balanceChangeType === "Debt").length} in)`,
-    defaultOpen: false,
-    slot: 'credit-history'
-  }
-])
+const creditCount = computed(() =>
+  props.creditHistory.filter((txn: CreditHistoryItem) => txn.balanceChangeType === "Credit").length
+)
+
+const debtCount = computed(() =>
+  props.creditHistory.filter((txn: CreditHistoryItem) => txn.balanceChangeType === "Debt").length
+)
 
 const toAidStatusDescription = (statusId: number): string => {
   switch (statusId) {

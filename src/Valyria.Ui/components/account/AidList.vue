@@ -1,61 +1,40 @@
 <template>
-  <div>
-    <UCard v-if="slotsFree === 0" class="text-center">
-      <template #header>
-        <h5 class="text-xl font-semibold text-gray-900 dark:text-white">You are not expected to interact with VEP today</h5>
-      </template>
-      <p class="text-gray-600 dark:text-gray-400">
-        Your nation does not have any free foreign aid slots, so you are not expected to send or receive any transactions today. Please check
-        again tomorrow for the updated status of your nation.
+  <UCard>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+          {{ headerTitle }}
+        </h2>
+        <UBadge v-if="slotsFree > 0" color="primary" size="lg" variant="subtle">
+          {{ props.aidList.length }} nations
+        </UBadge>
+      </div>
+    </template>
+
+    <!-- No Slots Free Message -->
+    <div v-if="slotsFree === 0" class="text-center py-8 space-y-4">
+      <UIcon name="i-heroicons-check-circle" class="w-16 h-16 text-green-500 mx-auto" />
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        You are not expected to interact with VEP today
+      </h3>
+      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Your nation does not have any free foreign aid slots, so you are not expected to send or receive any transactions today.
+        Please check again tomorrow for the updated status of your nation.
       </p>
-    </UCard>
+    </div>
 
-    <UAccordion v-else :items="accordionItems">
-      <template #aid-list>
-        <div class="p-4 space-y-4">
-          <p class="text-gray-700 dark:text-gray-300">
-            Please
-            <span v-if="owesTech">send tech to </span>
-            <span v-else-if="owesCash">send cash to </span>
-            <span v-else-if="expectsCash">accept cash from </span>
-            <span v-else-if="expectsTech">accept tech from </span>
-            <span v-else>Potential Transactions</span>
-            any of the nations in the following list.
-          </p>
-          <p v-if="expectsCash || expectsTech" class="text-red-600 dark:text-red-400 font-medium">
-            IMPORTANT: <strong>Do not use this list to send aid. </strong>
-            It should only be used to verify that nations sending you aid are doing so legitimately.
-          </p>
+    <!-- Aid List Content -->
+    <div v-else class="space-y-4">
+      <UAlert
+        :color="alertColor"
+        :icon="alertIcon"
+        :title="alertTitle"
+        :description="alertDescription"
+      />
 
-          <UTable :data="props.aidList" :columns="columns">
-            <!-- <template #nation-data="{ row }">
-              <a v-if="owesCash || owesTech" :href="getAidNationLink(row.nation)" target="_blank" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
-                {{ row.nation.rulerName }} of {{ row.nation.nationName }}
-              </a>
-              <span v-else class="text-gray-900 dark:text-gray-100">
-                {{ row.nation.rulerName }} of {{ row.nation.nationName }}
-              </span>
-            </template>
-
-            <template #alliance-data="{ row }">
-              <div class="flex items-center gap-2">
-                <ChipAllianceAcronym :allianceName="row.nation.allianceName" />
-                <span class="text-gray-700 dark:text-gray-300">{{ row.nation.allianceName }}</span>
-              </div>
-            </template>
-
-            <template #slotsFree-data="{ row }">
-              <UBadge color="blue" variant="soft">{{ row.slotsFree }}</UBadge>
-            </template>
-
-            <template #discord-data="{ row }">
-              <span class="text-gray-700 dark:text-gray-300">{{ row.discord }}</span>
-            </template> -->
-          </UTable>
-        </div>
-      </template>
-    </UAccordion>
-  </div>
+      <UTable :data="props.aidList" :columns="columns" />
+    </div>
+  </UCard>
 </template>
 
 <script setup lang="ts">
@@ -103,21 +82,47 @@ const columns: TableColumn<AidItem>[] = [
   }
 ]
 
-const accordionItems = computed(() => {
-  let listType = ''
-  if (owesTech.value) listType = 'Tech Targets'
-  else if (owesCash.value) listType = 'Cash Targets'
-  else if (expectsCash.value) listType = 'Incoming Cash'
-  else if (expectsTech.value) listType = 'Incoming Tech'
-  else listType = 'Potential Transactions'
+const headerTitle = computed(() => {
+  if (owesTech.value) return 'Tech Targets'
+  else if (owesCash.value) return 'Cash Targets'
+  else if (expectsCash.value) return 'Incoming Cash'
+  else if (expectsTech.value) return 'Incoming Tech'
+  else return 'Aid List'
+})
 
-  return [
-    {
-      label: `${listType} (${props.aidList.length} nations)`,
-      defaultOpen: true,
-      slot: 'aid-list'
-    }
-  ]
+const alertColor = computed(() => {
+  if (expectsCash.value || expectsTech.value) return 'error'
+  else if (owesCash.value || owesTech.value) return 'primary'
+  else return 'info'
+})
+
+const alertIcon = computed(() => {
+  if (expectsCash.value || expectsTech.value) return 'i-heroicons-exclamation-triangle'
+  else if (owesCash.value || owesTech.value) return 'i-heroicons-paper-airplane'
+  else return 'i-heroicons-information-circle'
+})
+
+const alertTitle = computed(() => {
+  if (owesTech.value) return 'Send tech to these nations'
+  else if (owesCash.value) return 'Send cash to these nations'
+  else if (expectsCash.value) return 'Accept cash from these nations'
+  else if (expectsTech.value) return 'Accept tech from these nations'
+  else return 'Potential Transactions'
+})
+
+const alertDescription = computed(() => {
+  let baseMessage = 'Please '
+  if (owesTech.value) baseMessage += 'send tech to '
+  else if (owesCash.value) baseMessage += 'send cash to '
+  else if (expectsCash.value) baseMessage += 'accept cash from '
+  else if (expectsTech.value) baseMessage += 'accept tech from '
+  baseMessage += 'any of the nations in the following list.'
+
+  if (expectsCash.value || expectsTech.value) {
+    baseMessage += ' IMPORTANT: Do not use this list to send aid. It should only be used to verify that nations sending you aid are doing so legitimately.'
+  }
+
+  return baseMessage
 })
 
 const slotsFree = computed(() => {

@@ -1,34 +1,38 @@
 <template>
-  <div style="position: relative">
-    <ProgressSpinner v-if="loading" style="width: 50px; height: 50px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;" />
-    <section class="hero is-light is-medium">
-      <div class="hero-body">
-        <p class="title">
-          <span class="has-text-weight-bold">{{ account.rulerName }}</span> of {{ account.nationName }}
-        </p>
-        <p class="subtitle">
-          <div class="flex gap-2">
-            <ChipAccountRole :code="account.role"></ChipAccountRole>
-            <ChipAllianceAcronym :allianceName="account.allianceName"></ChipAllianceAcronym>
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Loading Overlay -->
+    <div v-if="loading" class="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
+      <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-primary-500 animate-spin" />
+    </div>
+
+    <!-- Header Section -->
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <UContainer class="py-8">
+        <div class="space-y-4">
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+            <span class="font-extrabold">{{ account.rulerName }}</span> of {{ account.nationName }}
+          </h1>
+          <div class="flex flex-wrap gap-2">
+            <ChipAccountRole :code="account.role" />
+            <ChipAllianceAcronym :allianceName="account.allianceName" />
           </div>
-        </p>
-      </div>
-    </section>
-    <div class="container">
-      <div class="section">
-        <AccountBalance :credit="account.credit" :debt="account.debt" :role="account.role"></AccountBalance>
-      </div>
+        </div>
+      </UContainer>
     </div>
-    <div class="container">
-      <div class="section">
-        <AccountAidList :account="account" :aidList="aidList"></AccountAidList>
+
+    <!-- Main Content -->
+    <UContainer class="py-8">
+      <div class="space-y-6">
+        <!-- Balance Card -->
+        <AccountBalance :credit="account.credit" :debt="account.debt" :role="account.role" />
+
+        <!-- Aid List Card -->
+        <AccountAidList :account="account" :aidList="aidList" />
+
+        <!-- Credit History Card -->
+        <AccountCreditHistory :accountRole="account.role" :creditHistory="creditHistory" />
       </div>
-    </div>
-    <div class="container">
-      <div class="section">
-        <AccountCreditHistory :accountRole="account.role" :creditHistory="creditHistory"></AccountCreditHistory>
-      </div>
-    </div>
+    </UContainer>
   </div>
 </template>
 
@@ -44,8 +48,7 @@ const toast = useToast()
 const accountStore = useAccountStore()
 const authStore = useAuthStore()
 
-const { account, aidList } = storeToRefs(accountStore)
-const { creditHistory } = accountStore
+const { account, aidList, creditHistory } = storeToRefs(accountStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref<boolean>(true)
@@ -89,12 +92,3 @@ onMounted(async () => {
   }
 })
 </script>
-
-<style scoped>
-/* Override loading overlay background if needed */
-:deep(.p-progress-spinner) {
-  background: hsla(0, 0%, 100%, 0.8);
-  border-radius: 50%;
-  padding: 1rem;
-}
-</style>
