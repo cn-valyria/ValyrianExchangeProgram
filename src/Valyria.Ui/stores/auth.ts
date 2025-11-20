@@ -38,7 +38,7 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    async login(credentials: { nationId?: number; rulerName?: string; uniqueCode: string }) {
+    async login(credentials: { nationId?: string; rulerName?: string; uniqueCode: string }) {
       const config = useRuntimeConfig()
       const { data, error } = await useFetch(`${config.public.apiUrl}/api/user/authenticate`, {
         method: 'POST',

@@ -7,71 +7,71 @@
         </h3>
       </template>
 
-      <div v-if="transactionBeingEdited !== undefined" class="space-y-6">
+      <div v-if="state !== undefined" class="space-y-6">
         <!-- Aid-Based Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Aid-Based Data</h2>
 
           <fieldset disabled class="space-y-4">
-            <UFormGroup label="Aid ID">
+            <UFormField label="Aid ID">
               <UInput
-                v-model="transactionBeingEdited.aidId"
+                v-model="state.aidId"
                 placeholder="The CN-generated ID for the aid between two nations"
               />
-            </UFormGroup>
+            </UFormField>
 
             <div>
               <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Sent By</h5>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <UFormGroup label="Nation Name">
-                  <UInput :model-value="transactionBeingEdited.sentBy?.nationName ?? ''" />
-                </UFormGroup>
-                <UFormGroup label="Ruler Name">
-                  <UInput :model-value="transactionBeingEdited.sentBy?.rulerName ?? ''" />
-                </UFormGroup>
+                <UFormField label="Nation Name">
+                  <UInput :model-value="state.sentBy?.nationName ?? ''" />
+                </UFormField>
+                <UFormField label="Ruler Name">
+                  <UInput :model-value="state.sentBy?.rulerName ?? ''" />
+                </UFormField>
               </div>
             </div>
 
             <div>
               <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Received By</h5>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <UFormGroup label="Nation Name">
-                  <UInput :model-value="transactionBeingEdited.receivedBy?.nationName ?? ''" />
-                </UFormGroup>
-                <UFormGroup label="Ruler Name">
-                  <UInput :model-value="transactionBeingEdited.receivedBy?.rulerName ?? ''" />
-                </UFormGroup>
+                <UFormField label="Nation Name">
+                  <UInput :model-value="state.receivedBy?.nationName ?? ''" />
+                </UFormField>
+                <UFormField label="Ruler Name">
+                  <UInput :model-value="state.receivedBy?.rulerName ?? ''" />
+                </UFormField>
               </div>
             </div>
 
-            <UFormGroup label="Status">
-              <UInput v-model="transactionBeingEdited.status" />
-            </UFormGroup>
+            <UFormField label="Status">
+              <UInput v-model="state.status" />
+            </UFormField>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <UFormGroup label="Money">
-                <UInput v-model="transactionBeingEdited.money" />
-              </UFormGroup>
-              <UFormGroup label="Technology">
-                <UInput v-model="transactionBeingEdited.technology" />
-              </UFormGroup>
-              <UFormGroup label="Soldiers">
-                <UInput v-model="transactionBeingEdited.soldiers" />
-              </UFormGroup>
+              <UFormField label="Money">
+                <UInput v-model="state.money" />
+              </UFormField>
+              <UFormField label="Technology">
+                <UInput v-model="state.technology" />
+              </UFormField>
+              <UFormField label="Soldiers">
+                <UInput v-model="state.soldiers" />
+              </UFormField>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormGroup label="Starts On">
-                <UInput v-model="transactionBeingEdited.startsOn" />
-              </UFormGroup>
-              <UFormGroup label="Ends On">
-                <UInput v-model="transactionBeingEdited.endsOn" />
-              </UFormGroup>
+              <UFormField label="Starts On">
+                <UInput v-model="state.startsOn" />
+              </UFormField>
+              <UFormField label="Ends On">
+                <UInput v-model="state.endsOn" />
+              </UFormField>
             </div>
 
-            <UFormGroup label="Reason">
-              <UInput v-model="transactionBeingEdited.reason" />
-            </UFormGroup>
+            <UFormField label="Reason">
+              <UInput v-model="state.reason" />
+            </UFormField>
           </fieldset>
         </div>
 
@@ -81,32 +81,32 @@
 
           <fieldset disabled class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormGroup label="Classification">
+              <UFormField label="Classification">
                 <USelectMenu
-                  v-model="transactionBeingEdited.classification"
+                  v-model="state.classification"
                   :options="classifications"
                   value-attribute="id"
                   option-attribute="description"
                 />
-              </UFormGroup>
-              <UFormGroup label="Rate">
-                <UInput v-model="transactionBeingEdited.rate" />
-              </UFormGroup>
+              </UFormField>
+              <UFormField label="Rate">
+                <UInput v-model="state.rate" />
+              </UFormField>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <UFormGroup label="Cash Moved (Cash)">
-                <UInput v-model="transactionBeingEdited.cashMovedCashCredit" />
-              </UFormGroup>
-              <UFormGroup label="Cash Moved (Tech)">
-                <UInput v-model="transactionBeingEdited.cashMovedTechCredit" />
-              </UFormGroup>
-              <UFormGroup label="Tech Moved (Cash)">
-                <UInput v-model="transactionBeingEdited.techMovedCashCredit" />
-              </UFormGroup>
-              <UFormGroup label="Tech Moved (Tech)">
-                <UInput v-model="transactionBeingEdited.techMovedTechCredit" />
-              </UFormGroup>
+              <UFormField label="Cash Moved (Cash)">
+                <UInput v-model="state.cashMovedCashCredit" />
+              </UFormField>
+              <UFormField label="Cash Moved (Tech)">
+                <UInput v-model="state.cashMovedTechCredit" />
+              </UFormField>
+              <UFormField label="Tech Moved (Cash)">
+                <UInput v-model="state.techMovedCashCredit" />
+              </UFormField>
+              <UFormField label="Tech Moved (Tech)">
+                <UInput v-model="state.techMovedTechCredit" />
+              </UFormField>
             </div>
           </fieldset>
         </div>
@@ -141,7 +141,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>()
 
 const isOpen = ref(false)
-const transactionBeingEdited = ref<Transaction>({} as Transaction)
+const state = reactive<Transaction>({} as Transaction)
 const classifications = transactionClassifications
 
 watch(() => props.show, (val) => {
@@ -149,7 +149,7 @@ watch(() => props.show, (val) => {
 })
 
 watch(() => props.transaction, (val) => {
-  transactionBeingEdited.value = { ...val }
+  Object.assign(state, val)
 })
 
 const handleClose = () => {

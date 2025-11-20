@@ -3,83 +3,74 @@
     <UCard class="flex flex-col flex-1">
       <template #header>
         <h3 v-if="isInUpdateState" class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ accountBeingEdited.rulerName }}'s Account
+          {{ state.rulerName }}'s Account
         </h3>
         <h3 v-else class="text-lg font-semibold text-gray-900 dark:text-white">
           New Account
         </h3>
       </template>
 
-      <div class="space-y-6">
+      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
         <!-- Account Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
 
           <fieldset :disabled="isInUpdateState" class="space-y-4">
-            <UFormGroup label="Nation ID" :error="propertyHasValidationError('nationId') ? 'Nation ID is required' : undefined">
+            <UFormField label="Nation ID" name="nationId">
               <UInput v-model="nationIdInput" placeholder="The account's NationID" />
-            </UFormGroup>
+            </UFormField>
           </fieldset>
 
           <fieldset disabled class="space-y-4 mt-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormGroup label="Nation Name">
-                <UInput v-model="accountBeingEdited.nationName" />
-              </UFormGroup>
-              <UFormGroup label="Ruler Name">
-                <UInput v-model="accountBeingEdited.rulerName" />
-              </UFormGroup>
+              <UFormField label="Nation Name">
+                <UInput v-model="state.nationName" />
+              </UFormField>
+              <UFormField label="Ruler Name">
+                <UInput v-model="state.rulerName" />
+              </UFormField>
             </div>
-            <UFormGroup label="Alliance Name">
-              <UInput v-model="accountBeingEdited.allianceName" />
-            </UFormGroup>
+            <UFormField label="Alliance Name">
+              <UInput v-model="state.allianceName" />
+            </UFormField>
           </fieldset>
         </div>
 
         <!-- Form Fields Section -->
         <div v-if="isInUpdateState || foundProspectAccount" class="space-y-4">
-          <UFormGroup
-            label="Role"
-            :error="propertyHasValidationError('role') ? 'Every account must have a role that they are enrolled as' : undefined"
-          >
+          <UFormField label="Role" name="role">
             <USelectMenu
-              v-model="accountBeingEdited.role"
+              v-model="state.role"
               :options="roles"
               value-attribute="code"
               option-attribute="description"
               placeholder="Select a role"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup
-            label="Secret Code"
-            :error="propertyHasValidationError('uniqueCode') ? 'Every account must have a unique code provided' : undefined"
-          >
+          <UFormField label="Secret Code" name="uniqueCode">
             <div class="flex gap-2">
-              <UInput v-model="accountBeingEdited.uniqueCode" class="flex-1" />
+              <UInput v-model="state.uniqueCode" class="flex-1" />
               <UButton label="Generate" @click="generateSecretCode()" color="neutral" />
             </div>
-          </UFormGroup>
+          </UFormField>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormGroup label="Discord Username">
+            <UFormField label="Discord Username">
               <UInput
-                v-model="accountBeingEdited.discord"
+                v-model="state.discord"
                 placeholder="e.g. username or username#1234"
               />
-            </UFormGroup>
-            <UFormGroup label="Discord User ID">
+            </UFormField>
+            <UFormField label="Discord User ID">
               <UInput
-                v-model="accountBeingEdited.discordUniqueId"
+                v-model="state.discordUniqueId"
                 placeholder="e.g. 318737615257993226"
               />
-            </UFormGroup>
+            </UFormField>
           </div>
 
-          <UFormGroup
-            label="Has Foreign Ministry?"
-            :error="propertyHasValidationError('hasForeignMinistry') ? 'Must indicate if the nation has the FM improvement or not' : undefined"
-          >
+          <UFormField label="Has Foreign Ministry?" name="hasForeignMinistry">
             <URadioGroup
               v-model="hasForeignMinistryInput"
               :items="[
@@ -87,12 +78,9 @@
                 { value: 'N', label: 'No' }
               ]"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup
-            label="Has Federal Aid Commission?"
-            :error="propertyHasValidationError('hasFederalAidCommission') ? 'Must indicate if the nation has the FAC wonder or not' : undefined"
-          >
+          <UFormField label="Has Federal Aid Commission?" name="hasFederalAidCommission">
             <URadioGroup
               v-model="hasFederalAidCommissionInput"
               :items="[
@@ -100,12 +88,9 @@
                 { value: 'N', label: 'No' }
               ]"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup
-            label="Has Disaster Relief Agency?"
-            :error="propertyHasValidationError('hasDisasterReliefAgency') ? 'Must indicate if the nation has the DRA wonder or not' : undefined"
-          >
+          <UFormField label="Has Disaster Relief Agency?" name="hasDisasterReliefAgency">
             <URadioGroup
               v-model="hasDisasterReliefAgencyInput"
               :items="[
@@ -113,66 +98,69 @@
                 { value: 'N', label: 'No' }
               ]"
             />
-          </UFormGroup>
+          </UFormField>
 
           <!-- Transactional Data Section -->
           <div v-if="isInUpdateState">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transactional Data</h2>
             <fieldset disabled class="space-y-4">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <UFormGroup label="Slots Free">
-                  <UInput :model-value="accountBeingEdited.slotsFull - accountBeingEdited.slotsUsed" />
-                </UFormGroup>
-                <UFormGroup label="Slots Full">
-                  <UInput :model-value="accountBeingEdited.slotsFull" />
-                </UFormGroup>
+                <UFormField label="Slots Free">
+                  <UInput :model-value="state.slotsFull - state.slotsUsed" />
+                </UFormField>
+                <UFormField label="Slots Full">
+                  <UInput :model-value="state.slotsFull" />
+                </UFormField>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <UFormGroup label="Credit">
-                  <UInput :model-value="accountBeingEdited.credit" />
-                </UFormGroup>
-                <UFormGroup label="Debt">
-                  <UInput :model-value="accountBeingEdited.debt" />
-                </UFormGroup>
-                <UFormGroup label="Balance">
+                <UFormField label="Credit">
+                  <UInput :model-value="state.credit" />
+                </UFormField>
+                <UFormField label="Debt">
+                  <UInput :model-value="state.debt" />
+                </UFormField>
+                <UFormField label="Balance">
                   <UInput :model-value="null" />
-                </UFormGroup>
+                </UFormField>
               </div>
 
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormGroup label="Cash Sent (Cash)">
-                  <UInput :model-value="accountBeingEdited.cashSentCashCredit" />
-                </UFormGroup>
-                <UFormGroup label="Cash Rec'd (Cash)">
-                  <UInput :model-value="accountBeingEdited.cashReceivedCashCredit" />
-                </UFormGroup>
-                <UFormGroup label="Tech Sent (Cash)">
-                  <UInput :model-value="accountBeingEdited.techSentCashCredit" />
-                </UFormGroup>
-                <UFormGroup label="Tech Rec'd (Cash)">
-                  <UInput :model-value="accountBeingEdited.techReceivedCashCredit" />
-                </UFormGroup>
+                <UFormField label="Cash Sent (Cash)">
+                  <UInput :model-value="state.cashSentCashCredit" />
+                </UFormField>
+                <UFormField label="Cash Rec'd (Cash)">
+                  <UInput :model-value="state.cashReceivedCashCredit" />
+                </UFormField>
+                <UFormField label="Tech Sent (Cash)">
+                  <UInput :model-value="state.techSentCashCredit" />
+                </UFormField>
+                <UFormField label="Tech Rec'd (Cash)">
+                  <UInput :model-value="state.techReceivedCashCredit" />
+                </UFormField>
               </div>
 
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormGroup label="Cash Sent (Tech)">
-                  <UInput :model-value="accountBeingEdited.cashSentTechCredit" />
-                </UFormGroup>
-                <UFormGroup label="Cash Rec'd (Tech)">
-                  <UInput :model-value="accountBeingEdited.cashReceivedTechCredit" />
-                </UFormGroup>
-                <UFormGroup label="Tech Sent (Tech)">
-                  <UInput :model-value="accountBeingEdited.techSentTechCredit" />
-                </UFormGroup>
-                <UFormGroup label="Tech Rec'd (Tech)">
-                  <UInput :model-value="accountBeingEdited.techReceivedTechCredit" />
-                </UFormGroup>
+                <UFormField label="Cash Sent (Tech)">
+                  <UInput :model-value="state.cashSentTechCredit" />
+                </UFormField>
+                <UFormField label="Cash Rec'd (Tech)">
+                  <UInput :model-value="state.cashReceivedTechCredit" />
+                </UFormField>
+                <UFormField label="Tech Sent (Tech)">
+                  <UInput :model-value="state.techSentTechCredit" />
+                </UFormField>
+                <UFormField label="Tech Rec'd (Tech)">
+                  <UInput :model-value="state.techReceivedTechCredit" />
+                </UFormField>
               </div>
             </fieldset>
           </div>
         </div>
-      </div>
+
+        <!-- Hidden submit button for form submission -->
+        <button type="submit" class="hidden" ref="submitButton"></button>
+      </UForm>
 
       <template #footer>
         <div class="flex gap-3 justify-end">
@@ -182,14 +170,14 @@
             label="Save"
             color="success"
             :loading="buttonIsLoading"
-            @click="update()"
+            @click="submitForm()"
           />
           <UButton
             v-else-if="foundProspectAccount"
             label="Create"
             color="success"
             :loading="buttonIsLoading"
-            @click="create()"
+            @click="submitForm()"
           />
           <UButton
             v-else
@@ -205,6 +193,7 @@
 </template>
 
 <script setup lang="ts">
+import { z } from 'zod'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
 import { accountRoles } from '~/infrastructure/dataLists'
@@ -230,68 +219,117 @@ const adminAccountsStore = useAdminAccountsStore()
 
 const isOpen = ref(false)
 const buttonIsLoading = ref(false)
-const accountBeingEdited = ref<AdminAccount>({} as AdminAccount)
+const submitButton = ref<HTMLButtonElement>()
 const roles = accountRoles
-const validationErrors = ref<Array<{ prop: string }>>([])
+
+// Define the form state
+const state = reactive<AdminAccount>({} as AdminAccount)
+
+// Define the Zod schema - only validates when creating
+const schema = z.object({
+  nationId: z.number().nullable(),
+  role: z.string().optional(),
+  uniqueCode: z.string().min(1, 'Every account must have a unique code provided').optional(),
+  hasForeignMinistry: z.boolean().nullable(),
+  hasFederalAidCommission: z.boolean().nullable(),
+  hasDisasterReliefAgency: z.boolean().nullable(),
+  discord: z.string().optional(),
+  discordUniqueId: z.number().optional(),
+  nationName: z.string().optional(),
+  rulerName: z.string().optional(),
+  allianceName: z.string().optional()
+}).superRefine((data, ctx) => {
+  // Only validate these fields when creating (foundProspectAccount)
+  if (data.rulerName && !data.nationId) {
+    if (!data.role) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Every account must have a role that they are enrolled as',
+        path: ['role']
+      })
+    }
+    if (data.hasForeignMinistry === null || data.hasForeignMinistry === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Must indicate if the nation has the FM improvement or not',
+        path: ['hasForeignMinistry']
+      })
+    }
+    if (data.hasFederalAidCommission === null || data.hasFederalAidCommission === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Must indicate if the nation has the FAC wonder or not',
+        path: ['hasFederalAidCommission']
+      })
+    }
+    if (data.hasDisasterReliefAgency === null || data.hasDisasterReliefAgency === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Must indicate if the nation has the DRA wonder or not',
+        path: ['hasDisasterReliefAgency']
+      })
+    }
+  }
+})
 
 const nationIdInput = computed({
   get() {
-    return accountBeingEdited.value.nationId?.toString() ?? ''
+    return state.nationId?.toString() ?? ''
   },
   set(val: string) {
     if (val !== "" && !isNaN(parseInt(val))) {
-      accountBeingEdited.value.nationId = parseInt(val)
+      state.nationId = parseInt(val)
     } else {
-      accountBeingEdited.value.nationId = null;
+      state.nationId = null
     }
   }
 })
 
 const hasForeignMinistryInput = computed({
   get() {
-    return (accountBeingEdited.value.hasForeignMinistry ?? false) ? 'Y' : 'N';
+    return (state.hasForeignMinistry ?? false) ? 'Y' : 'N'
   },
   set(val: string) {
     if (val === "Y" || val === "N") {
-      accountBeingEdited.value.hasForeignMinistry = val === "Y";
+      state.hasForeignMinistry = val === "Y"
     } else {
-      accountBeingEdited.value.hasForeignMinistry = null;
+      state.hasForeignMinistry = null
     }
   }
 })
 
 const hasDisasterReliefAgencyInput = computed({
   get() {
-    return (accountBeingEdited.value.hasDisasterReliefAgency ?? false) ? 'Y' : 'N';
+    return (state.hasDisasterReliefAgency ?? false) ? 'Y' : 'N'
   },
   set(val: string) {
     if (val === "Y" || val === "N") {
-      accountBeingEdited.value.hasDisasterReliefAgency = val === "Y";
+      state.hasDisasterReliefAgency = val === "Y"
     } else {
-      accountBeingEdited.value.hasDisasterReliefAgency = null;
+      state.hasDisasterReliefAgency = null
     }
   }
 })
 
 const hasFederalAidCommissionInput = computed({
   get() {
-    return (accountBeingEdited.value.hasFederalAidCommission ?? false) ? 'Y' : 'N';
+    return (state.hasFederalAidCommission ?? false) ? 'Y' : 'N'
   },
   set(val: string) {
     if (val === "Y" || val === "N") {
-      accountBeingEdited.value.hasFederalAidCommission = val === "Y";
+      state.hasFederalAidCommission = val === "Y"
     } else {
-      accountBeingEdited.value.hasFederalAidCommission = null;
+      state.hasFederalAidCommission = null
     }
   }
 })
 
 const isInUpdateState = computed(() => {
-  return accountBeingEdited.value !== undefined && accountBeingEdited.value.id !== undefined
+  return state !== undefined && state.id !== undefined
 })
 
 const foundProspectAccount = computed(() => {
-  return accountBeingEdited.value !== undefined && accountBeingEdited.value.rulerName !== undefined
+  return state !== undefined && state.rulerName !== undefined
 })
 
 watch(() => props.show, (val) => {
@@ -299,25 +337,29 @@ watch(() => props.show, (val) => {
 })
 
 watch(() => props.account, (val) => {
-  accountBeingEdited.value = { ...val }
+  Object.assign(state, val)
 })
 
 const handleClose = () => {
   emit('close')
 }
 
+const submitForm = () => {
+  submitButton.value?.click()
+}
+
 const findProspectAccount = async () => {
   buttonIsLoading.value = true
   try {
-    const response = await $fetch(`${config.public.apiUrl}/accounts/prospect?nationId=${accountBeingEdited.value.nationId}`)
+    const response = await $fetch(`${config.public.apiUrl}/accounts/prospect?nationId=${state.nationId}`)
     const prospectAccount = response as any
 
-    accountBeingEdited.value = {
-      ...accountBeingEdited.value,
+    Object.assign(state, {
+      ...state,
       nationName: prospectAccount.nationName,
       rulerName: prospectAccount.rulerName,
       allianceName: prospectAccount.allianceName
-    }
+    })
   } catch (e: any) {
     console.error(e)
     if (e.response) {
@@ -330,10 +372,18 @@ const findProspectAccount = async () => {
   buttonIsLoading.value = false
 }
 
+const onSubmit = async () => {
+  if (isInUpdateState.value) {
+    await update()
+  } else {
+    await create()
+  }
+}
+
 const update = async () => {
   buttonIsLoading.value = true
   try {
-    await adminAccountsStore.updateAccount(accountBeingEdited.value as any)
+    await adminAccountsStore.updateAccount(state as any)
     toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
     emit('close')
   } catch (e) {
@@ -345,14 +395,9 @@ const update = async () => {
 }
 
 const create = async () => {
-  if (!accountIsValid()) {
-    console.error("Account form is invalid and will not be submitted to the API")
-    return
-  }
-
   buttonIsLoading.value = true
   try {
-    await adminAccountsStore.createAccount(accountBeingEdited.value)
+    await adminAccountsStore.createAccount(state)
     toast.add({ color: 'success', title: 'Success', description: 'Account created successfully!', duration: 3000 })
     emit('close')
   } catch (e) {
@@ -369,31 +414,6 @@ const randomIntFromInterval = (min: number, max: number) => {
 
 const generateSecretCode = () => {
   const newCode = String(randomIntFromInterval(1, 99999)).padStart(5, "0")
-  accountBeingEdited.value.uniqueCode = newCode
-}
-
-const accountIsValid = () => {
-  validateProperty("role")
-  validateProperty("uniqueCode", (val: any) => val === undefined || val === "")
-  validateProperty("hasForeignMinistry")
-  validateProperty("hasFederalAidCommission")
-  validateProperty("hasDisasterReliefAgency")
-
-  return validationErrors.value.length === 0
-}
-
-const validateProperty = (prop: string, propIsInvalidFunc: (val: any) => boolean = (val: any) => val === undefined) => {
-  const validationIndex = validationErrors.value.findIndex(e => e.prop === prop)
-  const propIsInvalid = propIsInvalidFunc((accountBeingEdited.value as any)[prop])
-  const propAlreadyHasError = validationIndex > -1
-  if (propIsInvalid && !propAlreadyHasError) {
-    validationErrors.value.push({ prop })
-  } else if (!propIsInvalid && propAlreadyHasError) {
-    validationErrors.value.splice(validationIndex, 1)
-  }
-}
-
-const propertyHasValidationError = (prop: string) => {
-  return validationErrors.value.some(e => e.prop === prop)
+  state.uniqueCode = newCode
 }
 </script>

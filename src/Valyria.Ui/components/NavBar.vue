@@ -30,9 +30,7 @@
           </UDropdownMenu>
 
           <!-- Login Button (Not Authenticated) -->
-          <UButton v-else @click="loginFormIsVisible = true" color="primary">
-            Log In
-          </UButton>
+          <Login :show="loginFormIsVisible" @close="loginFormIsVisible = false" />
         </div>
 
         <!-- Mobile Menu Button -->
@@ -89,8 +87,6 @@
         </template>
       </div>
     </div>
-
-    <Login :show="loginFormIsVisible" @close="loginFormIsVisible = false" />
   </nav>
 </template>
 

@@ -3,20 +3,17 @@
     <UCard>
       <template #header>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ transactionBeingEdited.id !== undefined ? "Update" : "New"}} Manual Transaction
+          {{ state.id !== undefined ? "Update" : "New"}} Manual Transaction
         </h3>
       </template>
 
-      <div class="space-y-6">
+      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
         <!-- Manual Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Manual Data</h2>
 
           <fieldset :disabled="isInUpdateState" class="space-y-4">
-            <UFormGroup
-              label="Account"
-              :error="validator.propertyHasValidationError('nation') ? 'Cannot create a transaction without an assigned account' : undefined"
-            >
+            <UFormField label="Account" name="nation">
               <USelectMenu
                 v-model="selectedAccount"
                 :options="props.accounts"
@@ -32,40 +29,37 @@
                   <span v-else class="text-gray-400">No account selected</span>
                 </template>
               </USelectMenu>
-            </UFormGroup>
+            </UFormField>
           </fieldset>
 
           <fieldset disabled class="space-y-4 mt-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormGroup label="Nation Name">
+              <UFormField label="Nation Name">
                 <UInput v-model="transactionNation.nationName" />
-              </UFormGroup>
-              <UFormGroup label="Ruler Name">
+              </UFormField>
+              <UFormField label="Ruler Name">
                 <UInput v-model="transactionNation.rulerName" />
-              </UFormGroup>
+              </UFormField>
             </div>
-            <UFormGroup label="Alliance Name">
+            <UFormField label="Alliance Name">
               <UInput v-model="transactionNation.allianceName" />
-            </UFormGroup>
+            </UFormField>
           </fieldset>
         </div>
 
         <!-- Transaction Fields Section -->
         <div class="space-y-4">
-          <UFormGroup
-            label="Adjustment Type"
-            :error="validator.propertyHasValidationError('adjustmentType') ? 'Every manual transaction must be either credit or debt' : undefined"
-          >
+          <UFormField label="Adjustment Type" name="adjustmentType">
             <USelectMenu
-              v-model="transactionBeingEdited.adjustmentType"
+              v-model="state.adjustmentType"
               :options="adjustmentTypes"
               placeholder="Select adjustment type"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup label="Reason">
-            <UInput v-model="transactionBeingEdited.reason" />
-          </UFormGroup>
+          <UFormField label="Reason">
+            <UInput v-model="state.reason" />
+          </UFormField>
         </div>
 
         <!-- Transaction Metadata Section -->
@@ -74,54 +68,51 @@
 
           <div class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormGroup
-                label="Classification"
-                :error="validator.propertyHasValidationError('classification') ? 'Every transaction must be given a classification' : undefined"
-              >
+              <UFormField label="Classification" name="classification">
                 <USelectMenu
-                  v-model="transactionBeingEdited.classification"
+                  v-model="state.classification"
                   :options="classifications"
                   value-attribute="id"
                   option-attribute="description"
                   placeholder="Select classification"
                 />
-              </UFormGroup>
+              </UFormField>
 
-              <UFormGroup
-                label="Rate"
-                :error="validator.propertyHasValidationError('rate') ? 'Please define a valid rate for the transaction credits' : undefined"
-              >
+              <UFormField label="Rate" name="rate">
                 <UInput
-                  v-model="transactionBeingEdited.rate"
+                  v-model="state.rate"
                   type="number"
                 />
-              </UFormGroup>
+              </UFormField>
             </div>
 
             <fieldset disabled>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormGroup label="Cash Moved (Cash)">
-                  <UInput v-model="transactionBeingEdited.cashMovedCashCredit" />
-                </UFormGroup>
-                <UFormGroup label="Cash Moved (Tech)">
-                  <UInput v-model="transactionBeingEdited.cashMovedTechCredit" />
-                </UFormGroup>
-                <UFormGroup label="Tech Moved (Cash)">
-                  <UInput v-model="transactionBeingEdited.techMovedCashCredit" />
-                </UFormGroup>
-                <UFormGroup label="Tech Moved (Tech)">
-                  <UInput v-model="transactionBeingEdited.techMovedTechCredit" />
-                </UFormGroup>
+                <UFormField label="Cash Moved (Cash)">
+                  <UInput v-model="state.cashMovedCashCredit" />
+                </UFormField>
+                <UFormField label="Cash Moved (Tech)">
+                  <UInput v-model="state.cashMovedTechCredit" />
+                </UFormField>
+                <UFormField label="Tech Moved (Cash)">
+                  <UInput v-model="state.techMovedCashCredit" />
+                </UFormField>
+                <UFormField label="Tech Moved (Tech)">
+                  <UInput v-model="state.techMovedTechCredit" />
+                </UFormField>
               </div>
             </fieldset>
           </div>
         </div>
-      </div>
+
+        <!-- Hidden submit button for form submission -->
+        <button type="submit" class="hidden" ref="submitButton"></button>
+      </UForm>
 
       <template #footer>
         <div class="flex gap-3 justify-end">
           <UButton label="Cancel" color="neutral" @click="handleClose()" />
-          <UButton label="Save" color="success" :loading="buttonIsLoading" @click="save()" />
+          <UButton label="Save" color="success" :loading="buttonIsLoading" @click="submitForm()" />
         </div>
       </template>
     </UCard>
@@ -129,10 +120,10 @@
 </template>
 
 <script setup lang="ts">
+import { z } from 'zod'
 import { useAdminTransactionsStore } from '~/stores/adminTransactions'
 import { ADJUSTMENT_TYPES, ERROR_MESSAGES } from '~/infrastructure/constants'
 import { transactionClassifications } from '~/infrastructure/dataLists'
-import Validator from '~/infrastructure/validator'
 
 interface Nation {
   nationId: number
@@ -184,26 +175,54 @@ const adminTransactionsStore = useAdminTransactionsStore()
 
 const isOpen = ref(false)
 const buttonIsLoading = ref(false)
-const transactionBeingEdited = ref<Transaction>({} as Transaction)
+const submitButton = ref<HTMLButtonElement>()
 const adjustmentTypes = [ADJUSTMENT_TYPES.credit, ADJUSTMENT_TYPES.debt]
 const classifications = transactionClassifications
 
-const validator = ref(new Validator())
+// Define the form state
+const state = reactive<Transaction>({} as Transaction)
+
+// Define the Zod schema
+const schema = z.object({
+  nation: z.object({
+    nationId: z.number(),
+    nationName: z.string(),
+    rulerName: z.string(),
+    allianceName: z.string()
+  }).nullable().refine((val) => val !== null && val !== undefined, {
+    message: 'Cannot create a transaction without an assigned account'
+  }),
+  adjustmentType: z.string().min(1, 'Every manual transaction must be either credit or debt'),
+  reason: z.string().optional(),
+  classification: z.number().nullable().refine((val) => val !== null && val !== undefined, {
+    message: 'Every transaction must be given a classification'
+  }),
+  rate: z.union([z.number(), z.string()]).refine((val) => {
+    if (typeof val === 'string') {
+      return val !== '' && !isNaN(Number(val))
+    }
+    return true
+  }, {
+    message: 'Please define a valid rate for the transaction credits'
+  }),
+  cashMovedCashCredit: z.number().optional(),
+  cashMovedTechCredit: z.number().optional(),
+  techMovedCashCredit: z.number().optional(),
+  techMovedTechCredit: z.number().optional()
+})
 
 const selectedAccount = computed({
   get() {
-    const txn = transactionBeingEdited.value
-    if (txn.nation === undefined || txn.nation === null) {
+    if (state.nation === undefined || state.nation === null) {
       return undefined
     }
-
-    return props.accounts.find(account => account.nationId === txn.nation!.nationId)
+    return props.accounts.find(account => account.nationId === state.nation!.nationId)
   },
   set(val: Account | undefined) {
     if (val === undefined || val === null) {
-      transactionBeingEdited.value.nation = null
+      state.nation = null
     } else {
-      transactionBeingEdited.value.nation = {
+      state.nation = {
         nationId: val.nationId,
         nationName: val.nationName,
         rulerName: val.rulerName,
@@ -215,15 +234,15 @@ const selectedAccount = computed({
 })
 
 const transactionNation = computed(() => {
-  if (transactionBeingEdited.value.nation) {
-    return transactionBeingEdited.value.nation
+  if (state.nation) {
+    return state.nation
   } else {
     return {} as Nation
   }
 })
 
 const isInUpdateState = computed(() => {
-  return transactionBeingEdited.value !== undefined && transactionBeingEdited.value.id !== undefined
+  return state !== undefined && state.id !== undefined
 })
 
 watch(() => props.show, (val) => {
@@ -231,18 +250,16 @@ watch(() => props.show, (val) => {
 })
 
 watch(() => props.transaction, (val) => {
-  transactionBeingEdited.value = { ...val }
-  validator.value.init(transactionBeingEdited.value)
-
+  Object.assign(state, val)
   // Recalculate the credits when the transaction changes, since they're always readonly
   recalculateCredits()
 })
 
-watch(() => transactionBeingEdited.value.adjustmentType, () => {
+watch(() => state.adjustmentType, () => {
   recalculateCredits()
 })
 
-watch(() => transactionBeingEdited.value.rate, () => {
+watch(() => state.rate, () => {
   recalculateCredits()
 })
 
@@ -250,41 +267,30 @@ const handleClose = () => {
   emit("close")
 }
 
-const transactionIsValid = () => {
-  validator.value.validateProperty("nation", (val: any) => val === undefined || val === null)
-  validator.value.validateProperty("adjustmentType")
-  validator.value.validateProperty("classification")
-  validator.value.validateProperty("rate", (val: any) => val === undefined || val === "")
-
-  return validator.value.isValid
+const submitForm = () => {
+  submitButton.value?.click()
 }
 
-const save = async () => {
-  if (!transactionIsValid()) {
-    console.error("Transaction form is invalid and will not be submitted to the API")
-    return
-  }
-
+const onSubmit = async () => {
   buttonIsLoading.value = true
-  const txn = transactionBeingEdited.value
 
   try {
     const payload = {
       aidId: null,
-      sendingNationId: txn.adjustmentType === ADJUSTMENT_TYPES.credit ? txn.nation!.nationId : null,
-      receivingNationId: txn.adjustmentType === ADJUSTMENT_TYPES.debt ? txn.nation!.nationId : null,
-      reasonOverride: txn.reason,
+      sendingNationId: state.adjustmentType === ADJUSTMENT_TYPES.credit ? state.nation!.nationId : null,
+      receivingNationId: state.adjustmentType === ADJUSTMENT_TYPES.debt ? state.nation!.nationId : null,
+      reasonOverride: state.reason,
       lu: selectedAccount.value!.role,
-      classification: parseInt(txn.classification as any),
-      rate: parseInt(txn.rate as any),
-      cashMovedCashCredit: txn.cashMovedCashCredit,
-      cashMovedTechCredit: txn.cashMovedTechCredit,
-      techMovedCashCredit: txn.techMovedCashCredit,
-      techMovedTechCredit: txn.techMovedTechCredit
+      classification: parseInt(state.classification as any),
+      rate: parseInt(state.rate as any),
+      cashMovedCashCredit: state.cashMovedCashCredit,
+      cashMovedTechCredit: state.cashMovedTechCredit,
+      techMovedCashCredit: state.techMovedCashCredit,
+      techMovedTechCredit: state.techMovedTechCredit
     }
 
-    if (txn.id !== undefined) {
-      await adminTransactionsStore.updateTransaction({ ...payload, id: txn.id })
+    if (state.id !== undefined) {
+      await adminTransactionsStore.updateTransaction({ ...payload, id: state.id })
     } else {
       await adminTransactionsStore.createTransaction(payload)
     }
@@ -300,63 +306,62 @@ const save = async () => {
 }
 
 const recalculateCredits = () => {
-  const txn = transactionBeingEdited.value
-  if (txn.nation === undefined || txn.nation === null) {
-    zeroOutCredits(txn)
+  if (state.nation === undefined || state.nation === null) {
+    zeroOutCredits()
     return
   }
 
   if (selectedAccount.value === undefined) {
-    zeroOutCredits(txn)
+    zeroOutCredits()
     return
   }
 
-  const rate = parseInt(txn.rate as any)
+  const rate = parseInt(state.rate as any)
   if (isNaN(rate) || rate === 0) {
-    zeroOutCredits(txn)
-  } else if (txn.adjustmentType === ADJUSTMENT_TYPES.credit) {
+    zeroOutCredits()
+  } else if (state.adjustmentType === ADJUSTMENT_TYPES.credit) {
     switch (selectedAccount.value.role) {
       case "B":
       case "W":
-        updateCredits(txn, rate, rate / 9 * 100, 0, 0)
+        updateCredits(rate, rate / 9 * 100, 0, 0)
         break
       case "S":
       case "N":
       case "Q":
-        updateCredits(txn, 0, 0, rate, rate / 9 * 100)
+        updateCredits(0, 0, rate, rate / 9 * 100)
         break
       default:
-        zeroOutCredits(txn)
+        zeroOutCredits()
         break
     }
-  } else if (txn.adjustmentType === ADJUSTMENT_TYPES.debt) {
+  } else if (state.adjustmentType === ADJUSTMENT_TYPES.debt) {
     switch (selectedAccount.value.role) {
       case "B":
       case "W":
-        updateCredits(txn, 0, 0, rate, rate / 9 * 100)
+        updateCredits(0, 0, rate, rate / 9 * 100)
         break
       case "S":
       case "N":
       case "Q":
-        updateCredits(txn, rate, rate / 9 * 100, 0, 0)
+        updateCredits(rate, rate / 9 * 100, 0, 0)
         break
       default:
-        zeroOutCredits(txn)
+        zeroOutCredits()
         break
     }
   } else {
-    zeroOutCredits(txn)
+    zeroOutCredits()
   }
 }
 
-const updateCredits = (txn: Transaction, cc: number, ct: number, tc: number, tt: number) => {
-  txn.cashMovedCashCredit = cc
-  txn.cashMovedTechCredit = ct
-  txn.techMovedCashCredit = tc
-  txn.techMovedTechCredit = tt
+const updateCredits = (cc: number, ct: number, tc: number, tt: number) => {
+  state.cashMovedCashCredit = cc
+  state.cashMovedTechCredit = ct
+  state.techMovedCashCredit = tc
+  state.techMovedTechCredit = tt
 }
 
-const zeroOutCredits = (txn: Transaction) => {
-  updateCredits(txn, 0, 0, 0, 0)
+const zeroOutCredits = () => {
+  updateCredits(0, 0, 0, 0)
 }
 </script>
