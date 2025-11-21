@@ -1,79 +1,65 @@
 <template>
-  <div>
-    <div class="container">
-      <div class="section">
-        <h1 class="title">VEP Dashboard</h1>
+  <UContainer>
+    <div class="py-8 space-y-8">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Dashboard</h1>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <UCard>
+          <div class="text-center space-y-2">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Total Accounts</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ dashboard.totalAccounts }}</p>
+          </div>
+        </UCard>
+        <UCard>
+          <div class="text-center space-y-2">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Buyer to Seller Ratio</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ buyerSellerRatio }}</p>
+          </div>
+        </UCard>
+        <UCard>
+          <div class="text-center space-y-2">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Total Aid Transactions</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ dashboard.totalTransactions }}</p>
+          </div>
+        </UCard>
+        <UCard>
+          <div class="text-center space-y-2">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Total Unused Credit</p>
+            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ dashboard.unusedCredit }}</p>
+          </div>
+        </UCard>
+      </div>
+
+      <!-- Dashboard Tiles - Row 1 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <UCard>
+          <AdminDashboardTotalTransactionsTile :data="dashboard.transactionsPerDay" />
+        </UCard>
+        <UCard>
+          <AdminDashboardPendingCreditTile :data="dashboard.pendingCreditByAlliance" />
+        </UCard>
+        <UCard>
+          <AdminDashboardAccountsByRole :data="dashboard.accountsPerRole" />
+        </UCard>
+      </div>
+
+      <!-- Dashboard Tiles - Row 2 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <UCard>
+          <AdminDashboardTotalSlotsByRole :data="dashboard.totalSlotsPerRole" />
+        </UCard>
+        <UCard>
+          <AdminDashboardFreeSlotsByList :data="dashboard.freeSlotsPerList" />
+        </UCard>
+        <UCard>
+          <AdminDashboardAccountsByAlliance :data="dashboard.accountsPerAlliance" />
+        </UCard>
       </div>
     </div>
-    <div class="container">
-      <div class="section">
-        <nav class="level">
-          <div class="level-item has-text-centered">
-            <div>
-              <p class="heading">Total Accounts</p>
-              <p class="title">{{ dashboard.totalAccounts }}</p>
-            </div>
-          </div>
-          <div class="level-item has-text-centered">
-            <div>
-              <p class="heading">Buyer to Seller Ratio</p>
-              <p class="title">{{ buyerSellerRatio }}</p>
-            </div>
-          </div>
-          <div class="level-item has-text-centered">
-            <div>
-              <p class="heading">Total Aid Transactions</p>
-              <p class="title">{{ dashboard.totalTransactions }}</p>
-            </div>
-          </div>
-          <div class="level-item has-text-centered">
-            <div>
-              <p class="heading">Total Unused Credit</p>
-              <p class="title">{{ dashboard.unusedCredit }}</p>
-            </div>
-          </div>
-        </nav>
-      </div>
-    </div>
-    <div class="container">
-      <div class="section">
-        <div class="tile is-ancestor">
-          <div class="tile is-parent">
-            <article class="tile is-child box">
-              <AdminDashboardTotalTransactionsTile :data="dashboard.transactionsPerDay" />
-            </article>
-          </div>
-          <div class="tile is-parent">
-            <article class="tile is-child box">
-              <AdminDashboardPendingCreditTile :data="dashboard.pendingCreditByAlliance" />
-            </article>
-          </div>
-          <div class="tile is-parent">
-            <article class="tile is-child box">
-              <AdminDashboardAccountsByRole :data="dashboard.accountsPerRole" />
-            </article>
-          </div>
-        </div>
-        <div class="tile is-ancestor">
-          <div class="tile is-parent">
-            <article class="tile is-child box">
-              <AdminDashboardTotalSlotsByRole :data="dashboard.totalSlotsPerRole" />
-            </article>
-          </div>
-          <div class="tile is-parent">
-            <article class="tile is-child box">
-              <AdminDashboardFreeSlotsByList :data="dashboard.freeSlotsPerList" />
-            </article>
-          </div>
-          <div class="tile is-parent">
-            <article class="tile is-child box">
-              <AdminDashboardAccountsByAlliance :data="dashboard.accountsPerAlliance" />
-            </article>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  </UContainer>
 </template>
 
 <script setup lang="ts">

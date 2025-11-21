@@ -1,9 +1,9 @@
 <template>
   <div>
     <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Total Transactions</p>
-    <div class="text-gray-600 dark:text-gray-400">
-      <!-- Chart component commented out in original - keeping this minimal -->
-      <p class="text-sm">Chart visualization pending</p>
+    <div class="space-y-3">
+      <!-- Chart component pending - using skeleton placeholder -->
+      <USkeleton class="h-48 w-full" />
     </div>
   </div>
 </template>

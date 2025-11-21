@@ -39,7 +39,7 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
   }),
 
   getters: {
-    aidBasedTransactions: (state): AidTransaction[] => {
+    aidBasedTransactions: (state): Transaction[] => {
       const data = state.currentTransactionsPage.data
       return data.some((txn) => txn.aidId === null) ? [] : data
     },
@@ -91,13 +91,13 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
       }
 
       if (data.value) {
-        const response = data.value as { results: AidTransaction[]; totalCount: number }
+        const response = data.value as { results: Transaction[]; totalCount: number }
         this.currentTransactionsPage.data = response.results
         this.currentTransactionsPage.totalCount = response.totalCount
       }
     },
 
-    async createTransaction(payload: Partial<AidTransaction>) {
+    async createTransaction(payload: Partial<Transaction>) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 
@@ -117,7 +117,7 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
       console.log('Transaction created:', data.value)
     },
 
-    async updateTransaction(payload: Partial<AidTransaction> & { id: number }) {
+    async updateTransaction(payload: Partial<Transaction> & { id: number }) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 

@@ -1,178 +1,94 @@
 <template>
-  <div>
-    <div class="container">
-      <div class="section">
-        <h1 class="title">VEP Transactions</h1>
-        <h2 class="subtitle">Manage every transaction that VEP tracks, as well as manual balance adjustments</h2>
+  <UContainer>
+    <div class="py-8 space-y-8">
+      <!-- Header -->
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Transactions</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">Manage every transaction that VEP tracks, as well as manual balance adjustments</p>
       </div>
-    </div>
-    <div class="container">
-      <div class="section">
-        <div class="p-fluid grid">
-          <div class="col-12 md:col-3">
-            <label for="sentBy" class="block mb-2">Sent By</label>
-            <InputText id="sentBy" v-model="filters.sentBy" />
+
+      <!-- Filters Card -->
+      <UCard>
+        <div class="space-y-4">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Filters</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <UFormField label="Sent By">
+              <UInput v-model="filters.sentBy" placeholder="Nation ID" />
+            </UFormField>
+            <UFormField label="Received By">
+              <UInput v-model="filters.receivedBy" placeholder="Nation ID" />
+            </UFormField>
+            <UFormField label="Since">
+              <UInput v-model="dateFilters.sentSince" type="date" />
+            </UFormField>
+            <UFormField label="Until">
+              <UInput v-model="dateFilters.sentUntil" type="date" />
+            </UFormField>
           </div>
-          <div class="col-12 md:col-3">
-            <label for="receivedBy" class="block mb-2">Received By</label>
-            <InputText id="receivedBy" v-model="filters.receivedBy" />
-          </div>
-          <div class="col-12 md:col-3">
-            <label for="sentSince" class="block mb-2">Since</label>
-            <Calendar id="sentSince" v-model="filters.sentSince" showIcon />
-          </div>
-          <div class="col-12 md:col-3">
-            <label for="sentUntil" class="block mb-2">Until</label>
-            <Calendar id="sentUntil" v-model="filters.sentUntil" showIcon />
+          <div class="flex justify-end">
+            <UButton label="Apply Filters" color="primary" @click="changePage(1)" />
           </div>
         </div>
-        <div class="mt-3">
-          <Button label="Filter" severity="primary" @click="changePage(1)" />
-        </div>
+      </UCard>
 
-        <TabView v-model:activeIndex="activeTabIndex" class="mt-4">
-          <TabPanel header="Aid-Based">
-            <DataTable
-              :value="aidBasedTransactions"
-              :loading="tableIsLoading"
-              :totalRecords="currentTransactionsPage.totalCount"
-              lazy
-              paginator
-              :rows="limit"
-              @page="onPageChange"
-            >
-              <Column field="id" header="Actions" style="width: 140px">
-                <template #body="slotProps">
-                  <div class="flex gap-2">
-                    <Button
-                      label="View"
-                      severity="info"
-                      size="small"
-                      @click="editTransaction(slotProps.data, TRANSACTION_TYPES.aidBased)"
-                    />
-                    <Button
-                      label="Delete"
-                      severity="danger"
-                      size="small"
-                      :loading="transactionIdBeingDeleted === slotProps.data.id"
-                      @click="deleteTransactionById(slotProps.data.id)"
-                    />
-                  </div>
-                </template>
-              </Column>
-              <Column field="sentBy" header="Sent By">
-                <template #body="slotProps">
-                  {{ slotProps.data.sentBy.rulerName }} of {{ slotProps.data.sentBy.nationName }}
-                </template>
-              </Column>
-              <Column field="receivedBy" header="Received By">
-                <template #body="slotProps">
-                  {{ slotProps.data.receivedBy.rulerName }} of {{ slotProps.data.receivedBy.nationName }}
-                </template>
-              </Column>
-              <Column field="code" header="Role Pairing">
-                <template #body="slotProps">
-                  {{ slotProps.data.code.sendingRole }}{{ slotProps.data.code.receivingRole }}
-                </template>
-              </Column>
-              <Column field="status" header="Status">
-                <template #body="slotProps">
-                  {{ toAidStatusDescription(slotProps.data.status) }}
-                </template>
-              </Column>
-              <Column field="money" header="Money">
-                <template #body="slotProps">
-                  {{ slotProps.data.money }}
-                </template>
-              </Column>
-              <Column field="technology" header="Tech">
-                <template #body="slotProps">
-                  {{ slotProps.data.technology }}
-                </template>
-              </Column>
-              <Column field="reason" header="Reason">
-                <template #body="slotProps">
-                  {{ slotProps.data.reason }}
-                </template>
-              </Column>
-              <Column field="startsOn" header="Sent On">
-                <template #body="slotProps">
-                  {{ formatDate(slotProps.data.startsOn) }}
-                </template>
-              </Column>
-              <template #empty>
-                <div class="text-center">No transactions currently loaded</div>
-              </template>
-            </DataTable>
-          </TabPanel>
+      <!-- Tabs and Tables -->
+      <UTabs v-model="activeTabIndex" :items="tabs" class="w-full">
+        <!-- Aid-Based Tab -->
+        <template #aid-based>
+          <UCard>
+            <div class="space-y-4">
+              <UTable
+                :data="aidBasedTransactions"
+                :columns="aidBasedColumns"
+                :loading="tableIsLoading"
+              />
 
-          <TabPanel header="Manual">
-            <Button label="Create" severity="success" @click="createTransaction()" class="mb-3" />
-            <DataTable
-              :value="manualTransactions"
-              :loading="tableIsLoading"
-              :totalRecords="currentTransactionsPage.totalCount"
-              lazy
-              paginator
-              :rows="limit"
-              @page="onPageChange"
-            >
-              <Column field="id" header="Actions" style="width: 140px">
-                <template #body="slotProps">
-                  <div class="flex gap-2">
-                    <Button
-                      label="Edit"
-                      severity="info"
-                      size="small"
-                      @click="editTransaction(slotProps.data, TRANSACTION_TYPES.manual)"
-                    />
-                    <Button
-                      label="Delete"
-                      severity="danger"
-                      size="small"
-                      :loading="transactionIdBeingDeleted === slotProps.data.id"
-                      @click="deleteTransactionById(slotProps.data.id)"
-                    />
-                  </div>
-                </template>
-              </Column>
-              <Column field="nation" header="Account">
-                <template #body="slotProps">
-                  {{ slotProps.data.nation.rulerName }} of {{ slotProps.data.nation.nationName }}
-                </template>
-              </Column>
-              <Column field="adjustmentType" header="Adjustment Type">
-                <template #body="slotProps">
-                  {{ slotProps.data.adjustmentType }}
-                </template>
-              </Column>
-              <Column field="reason" header="Reason">
-                <template #body="slotProps">
-                  {{ slotProps.data.reason }}
-                </template>
-              </Column>
-              <Column field="accountCode" header="Role">
-                <template #body="slotProps">
-                  {{ slotProps.data.accountCode }}
-                </template>
-              </Column>
-              <Column field="classification" header="Classification">
-                <template #body="slotProps">
-                  {{ getClassificationDescription(slotProps.data.classification) }}
-                </template>
-              </Column>
-              <Column field="rate" header="Rate">
-                <template #body="slotProps">
-                  {{ slotProps.data.rate }}
-                </template>
-              </Column>
-              <template #empty>
-                <div class="text-center">No transactions currently loaded</div>
-              </template>
-            </DataTable>
-          </TabPanel>
-        </TabView>
-      </div>
+              <!-- Pagination -->
+              <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                  Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
+                </div>
+                <UPagination
+                  v-model="currentPage"
+                  :total="currentTransactionsPage.totalCount"
+                  :page-count="limit"
+                  @update:model-value="changePage"
+                />
+              </div>
+            </div>
+          </UCard>
+        </template>
+
+        <!-- Manual Tab -->
+        <template #manual>
+          <UCard>
+            <div class="space-y-4">
+              <div class="flex justify-end">
+                <UButton label="Create Transaction" color="success" @click="createTransaction()" />
+              </div>
+
+              <UTable
+                :data="manualTransactions"
+                :columns="manualColumns"
+                :loading="tableIsLoading"
+              />
+
+              <!-- Pagination -->
+              <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                  Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
+                </div>
+                <UPagination
+                  v-model="currentPage"
+                  :total="currentTransactionsPage.totalCount"
+                  :page-count="limit"
+                  @update:model-value="changePage"
+                />
+              </div>
+            </div>
+          </UCard>
+        </template>
+      </UTabs>
     </div>
 
     <AdminAidBasedTransactionDialog
@@ -186,12 +102,13 @@
       :accounts="accounts"
       @close="closeDialog(TRANSACTION_TYPES.manual)"
     />
-  </div>
+  </UContainer>
 </template>
 
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
-import { useAdminTransactionsStore, type TransactionFilter } from '~/stores/adminTransactions'
+import { useAdminTransactionsStore, type TransactionFilter, type ManualTransaction } from '~/stores/adminTransactions'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
 import { TRANSACTION_TYPES } from '~/infrastructure/constants'
@@ -219,12 +136,184 @@ const transactionBeingEdited = ref<Transaction | undefined>(undefined)
 const transactionIdBeingDeleted = ref<number>(0)
 const classifications = transactionClassifications
 
+// Date filter strings (for UInput compatibility)
+const dateFilters = ref({
+  sentSince: '',
+  sentUntil: ''
+})
+
 const filters = ref<TransactionFilter>({
   sentBy: null,
   receivedBy: null,
   sentSince: null,
   sentUntil: null
 })
+
+// Tab configuration for UTabs component
+const tabs = [
+  {
+    key: 'aid-based',
+    label: 'Aid-Based',
+    slot: 'aid-based'
+  },
+  {
+    key: 'manual',
+    label: 'Manual',
+    slot: 'manual'
+  }
+]
+
+// Column definitions for aid-based transactions table
+const aidBasedColumns: TableColumn<Transaction>[] = [
+  {
+    accessorKey: 'id',
+    header: 'Actions',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h('div', { class: 'flex gap-2' }, [
+        h(resolveComponent('UButton'), {
+          label: 'View',
+          color: 'primary',
+          size: 'xs',
+          onClick: () => editTransaction(transaction, TRANSACTION_TYPES.aidBased)
+        }),
+        h(resolveComponent('UButton'), {
+          label: 'Delete',
+          color: 'error',
+          size: 'xs',
+          loading: transactionIdBeingDeleted.value === transaction.id,
+          onClick: () => deleteTransactionById(transaction.id)
+        })
+      ])
+    }
+  },
+  {
+    accessorKey: 'sentBy',
+    header: 'Sent By',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h('span', { class: 'text-gray-900 dark:text-white' },
+        `${transaction.sentBy?.rulerName || ''} of ${transaction.sentBy?.nationName || ''}`)
+    }
+  },
+  {
+    accessorKey: 'receivedBy',
+    header: 'Received By',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h('span', { class: 'text-gray-900 dark:text-white' },
+        `${transaction.receivedBy?.rulerName || ''} of ${transaction.receivedBy?.nationName || ''}`)
+    }
+  },
+  {
+    accessorKey: 'code',
+    header: 'Role Pairing',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h('span', { class: 'text-gray-900 dark:text-white' },
+        `${transaction.code?.sendingRole || ''}${transaction.code?.receivingRole || ''}`)
+    }
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h(resolveComponent('UBadge'), {
+        color: getStatusColor(transaction.status),
+        variant: 'subtle'
+      }, () => toAidStatusDescription(transaction.status))
+    }
+  },
+  {
+    accessorKey: 'money',
+    header: 'Money',
+    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.money)
+  },
+  {
+    accessorKey: 'technology',
+    header: 'Tech',
+    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.technology)
+  },
+  {
+    accessorKey: 'reason',
+    header: 'Reason',
+    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.reason || '')
+  },
+  {
+    accessorKey: 'startsOn',
+    header: 'Sent On',
+    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' },
+      formatDate(row.original.startsOn || ''))
+  }
+]
+
+// Column definitions for manual transactions table
+const manualColumns: TableColumn<ManualTransaction>[] = [
+  {
+    accessorKey: 'id',
+    header: 'Actions',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h('div', { class: 'flex gap-2' }, [
+        h(resolveComponent('UButton'), {
+          label: 'Edit',
+          color: 'primary',
+          size: 'xs',
+          onClick: () => editTransaction(transaction as any, TRANSACTION_TYPES.manual)
+        }),
+        h(resolveComponent('UButton'), {
+          label: 'Delete',
+          color: 'error',
+          size: 'xs',
+          loading: transactionIdBeingDeleted.value === transaction.id,
+          onClick: () => deleteTransactionById(transaction.id)
+        })
+      ])
+    }
+  },
+  {
+    accessorKey: 'nation',
+    header: 'Account',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h('span', { class: 'text-gray-900 dark:text-white' },
+        `${transaction.nation?.rulerName || ''} of ${transaction.nation?.nationName || ''}`)
+    }
+  },
+  {
+    accessorKey: 'adjustmentType',
+    header: 'Adjustment Type',
+    cell: ({ row }) => {
+      const transaction = row.original
+      return h(resolveComponent('UBadge'), {
+        color: transaction.adjustmentType === 'Credit' ? 'success' : 'error',
+        variant: 'subtle'
+      }, () => transaction.adjustmentType)
+    }
+  },
+  {
+    accessorKey: 'reason',
+    header: 'Reason',
+    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.reason || '')
+  },
+  {
+    accessorKey: 'accountCode',
+    header: 'Role',
+    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.accountCode || '')
+  },
+  {
+    accessorKey: 'classification',
+    header: 'Classification',
+    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' },
+      getClassificationDescription(row.original.classification))
+  },
+  {
+    accessorKey: 'rate',
+    header: 'Rate',
+    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.rate)
+  }
+]
 
 // Computed property for current transaction type based on active tab
 const currentTab = computed<string>(() => {
@@ -252,6 +341,18 @@ const toAidStatusDescription = (statusId: string | number): string => {
     case 3: return 'Cancelled'
     case 4: return 'Expired'
     default: return 'Unknown'
+  }
+}
+
+// Helper function to get status color for badges
+const getStatusColor = (statusId: string | number): 'primary' | 'success' | 'error' | 'neutral' | 'warning' => {
+  const status = typeof statusId === 'string' ? parseInt(statusId) : statusId
+  switch (status) {
+    case 1: return 'warning' // Pending
+    case 2: return 'success' // Approved
+    case 3: return 'error' // Cancelled
+    case 4: return 'neutral' // Expired
+    default: return 'neutral'
   }
 }
 
@@ -285,22 +386,14 @@ const changePage = async (newPageNumber: number): Promise<void> => {
   }
 }
 
-// Page change event handler for DataTable
-const onPageChange = (event: any): void => {
-  const newPage = event.page + 1 // PrimeVue pages are 0-indexed
-  changePage(newPage)
-}
+// Watch for date filter changes and convert to Date objects
+watch(() => dateFilters.value.sentSince, (newValue) => {
+  filters.value.sentSince = newValue ? new Date(newValue) : null
+})
 
-// Change tab handler
-const changeTab = async (tabIndex: number): Promise<void> => {
-  if (activeTabIndex.value === tabIndex) {
-    console.warn('The same tab that is already active was clicked, so nothing will happen.')
-    return
-  }
-
-  activeTabIndex.value = tabIndex
-  await changePage(1)
-}
+watch(() => dateFilters.value.sentUntil, (newValue) => {
+  filters.value.sentUntil = newValue ? new Date(newValue) : null
+})
 
 // Watch for tab changes
 watch(activeTabIndex, async (newIndex) => {

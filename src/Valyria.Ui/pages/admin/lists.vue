@@ -1,77 +1,81 @@
 <template>
-  <div>
-    <div class="container">
-      <div class="section">
-        <h1 class="title">VEP Lists</h1>
-        <h2 class="subtitle">View and manage the lists of nations that should be sending or receiving aid</h2>
+  <UContainer>
+    <div class="py-8 space-y-6">
+      <!-- Header -->
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Lists</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">View and manage the lists of nations that should be sending or receiving aid</p>
       </div>
-    </div>
-    <div class="container" style="position: relative">
-      <ProgressSpinner v-if="isLoading" style="width: 50px; height: 50px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000;" />
-      <div class="section">
-        <TabView v-if="!isLoading">
-          <TabPanel v-for="list in lists" :key="list.id" :header="list.name">
-            <div class="content">
-              <h3>Message Template</h3>
-              <div class="field">
-                <label class="label">Carbon Copy Rulers</label>
-                <Textarea readonly :value="getRulerList(list)" :autoResize="true" rows="5" />
+
+      <!-- Loading State -->
+      <div v-if="isLoading" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+      </div>
+
+      <!-- Lists Tabs -->
+      <div v-else>
+        <UTabs v-model="selectedTab" :items="tabItems" class="w-full" />
+
+        <div v-if="selectedList" class="mt-6 space-y-6">
+          <!-- Message Template Section -->
+          <UCard>
+            <template #header>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Message Template</h3>
+            </template>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Carbon Copy Rulers</label>
+                <UTextarea
+                  :model-value="getRulerList(selectedList)"
+                  readonly
+                  :rows="5"
+                  autoresize
+                  class="font-mono text-sm w-full"
+                />
               </div>
-              <div class="field">
-                <label class="label">Subject</label>
-                <InputText readonly :value="list.subject.replace('{{date}}', todayFormatted)" class="w-full" />
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subject</label>
+                <UInput
+                  :model-value="selectedList.subject.replace('{{date}}', todayFormatted)"
+                  readonly
+                  class="w-full"
+                />
               </div>
-              <div class="field">
-                <label class="label">Message</label>
-                <Textarea readonly :value="list.message" :autoResize="true" rows="10" />
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Message</label>
+                <UTextarea
+                  :model-value="selectedList.message"
+                  readonly
+                  :rows="10"
+                  autoresize
+                  class="font-mono text-sm w-full"
+                />
               </div>
-              <h3>Data</h3>
-              <DataTable :value="list.recipients" paginator :rows="25">
-                <Column field="nation" header="Nation">
-                  <template #body="slotProps">
-                    {{ slotProps.data.nation.rulerName }} of {{ slotProps.data.nation.nationName }}
-                  </template>
-                </Column>
-                <Column field="slotsFree" header="Slots Free">
-                  <template #body="slotProps">
-                    {{ slotProps.data.slotsFree }}
-                  </template>
-                </Column>
-                <Column v-if="list.name.includes('Incoming')" field="credit" header="Credit">
-                  <template #body="slotProps">
-                    {{ slotProps.data.credit }}
-                  </template>
-                </Column>
-                <Column v-else field="debt" header="Debt">
-                  <template #body="slotProps">
-                    {{ slotProps.data.debt }}
-                  </template>
-                </Column>
-                <Column field="recentActivity" header="Activity">
-                  <template #body="slotProps">
-                    {{ getActivityDescription(slotProps.data.recentActivity) }}
-                  </template>
-                </Column>
-                <Column field="discord" header="Discord Tag">
-                  <template #body="slotProps">
-                    {{ slotProps.data.discord }}
-                  </template>
-                </Column>
-                <Column field="id" header="Message">
-                  <template #body="slotProps">
-                    <a :href="getNationMessageLink(slotProps.data.nation)" target="_blank">Click to Send</a>
-                  </template>
-                </Column>
-              </DataTable>
             </div>
-          </TabPanel>
-        </TabView>
+          </UCard>
+
+          <!-- Recipients Data Section -->
+          <UCard>
+            <template #header>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recipients</h3>
+            </template>
+
+            <UTable
+              :data="selectedList.recipients"
+              :columns="getColumnsForList(selectedList)"
+            />
+          </UCard>
+        </div>
       </div>
     </div>
-  </div>
+  </UContainer>
 </template>
 
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
 import { useAdminListsStore, type AidList } from '~/stores/adminLists'
 import { useAuthStore } from '~/stores/auth'
@@ -88,6 +92,7 @@ const { lists } = storeToRefs(adminListsStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const isLoading = ref<boolean>(true)
+const selectedTab = ref<number>(0)
 
 // Computed property for today's formatted date
 const todayFormatted = computed<string>(() => {
@@ -96,6 +101,22 @@ const todayFormatted = computed<string>(() => {
   const month = months[now.getMonth()]
   const day = now.getDate().toString().padStart(2, '0')
   return `${month} ${day}`
+})
+
+// Computed property for tab items
+const tabItems = computed(() => {
+  return lists.value.map(list => ({
+    label: list.name,
+    list: list
+  }))
+})
+
+// Computed property for currently selected list
+const selectedList = computed<AidList | undefined>(() => {
+  if (selectedTab.value >= 0 && selectedTab.value < tabItems.value.length) {
+    return tabItems.value[selectedTab.value].list
+  }
+  return undefined
 })
 
 // Helper function to get ruler list as string
@@ -112,6 +133,75 @@ const getNationMessageLink = (nation: NationSimplified): string => {
 const getActivityDescription = (activityId: number): string => {
   const activity = recentActivityValues.find(v => v.id === activityId)
   return activity ? activity.description : 'Unknown'
+}
+
+// Helper function to get columns for a specific list
+const getColumnsForList = (list: AidList): TableColumn<any>[] => {
+  const baseColumns: TableColumn<any>[] = [
+    {
+      accessorKey: 'nation',
+      header: 'Nation',
+      cell: ({ row }) => {
+        const recipient = row.original
+        return h('div', [
+          h('div', { class: 'font-medium text-gray-900 dark:text-white' }, recipient.nation.rulerName),
+          h('div', { class: 'text-sm text-gray-500 dark:text-gray-400' }, recipient.nation.nationName)
+        ])
+      }
+    },
+    {
+      accessorKey: 'slotsFree',
+      header: 'Slots Free',
+      cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.slotsFree)
+    }
+  ]
+
+  // Conditionally add credit or debt column based on list type
+  if (list.name.includes('Incoming')) {
+    baseColumns.push({
+      accessorKey: 'credit',
+      header: 'Credit',
+      cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.credit)
+    })
+  } else {
+    baseColumns.push({
+      accessorKey: 'debt',
+      header: 'Debt',
+      cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.debt)
+    })
+  }
+
+  // Add remaining columns
+  baseColumns.push(
+    {
+      accessorKey: 'recentActivity',
+      header: 'Activity',
+      cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, getActivityDescription(row.original.recentActivity))
+    },
+    {
+      accessorKey: 'discord',
+      header: 'Discord Tag',
+      cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.discord || '-')
+    },
+    {
+      accessorKey: 'id',
+      header: 'Message',
+      cell: ({ row }) => {
+        const recipient = row.original
+        return h(resolveComponent('UButton'), {
+          label: 'Send Message',
+          color: 'primary',
+          variant: 'soft',
+          size: 'xs',
+          to: getNationMessageLink(recipient.nation),
+          target: '_blank',
+          external: true
+        })
+      }
+    }
+  )
+
+  return baseColumns
 }
 
 // Check admin access and load lists on mount

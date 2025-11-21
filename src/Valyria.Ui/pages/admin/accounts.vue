@@ -1,118 +1,52 @@
 <template>
-  <div>
-    <div class="container">
-      <div class="section">
-        <h1 class="title">VEP Accounts</h1>
-        <h2 class="subtitle">Manage accounts enrolled in VEP, or enroll new accounts</h2>
+  <UContainer>
+    <div class="py-8 space-y-6">
+      <!-- Header -->
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Accounts</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Manage accounts enrolled in VEP, or enroll new accounts</p>
       </div>
-    </div>
-    <div class="container">
-      <div class="section table-container">
-        <Button label="Create" severity="success" @click="createAccount()" class="mb-3" />
-        <DataTable
-          :value="accounts"
-          :sortField="'nationId'"
-          :sortOrder="1"
-          filterDisplay="row"
-          :globalFilterFields="['rulerName', 'nationName', 'allianceName', 'role']"
-          paginator
-          :rows="25"
-          :rowsPerPageOptions="[10, 25, 50, 100]"
-        >
-          <Column field="id" header="Actions" style="width: 140px">
-            <template #body="slotProps">
-              <div class="flex gap-2">
-                <Button
-                  label="Edit"
-                  severity="info"
-                  size="small"
-                  @click="editAccount(slotProps.data)"
-                />
-                <Button
-                  label="Delete"
-                  severity="danger"
-                  size="small"
-                  :loading="accountIdBeingDeleted === slotProps.data.id"
-                  @click="deleteAccountById(slotProps.data.id)"
-                />
-              </div>
-            </template>
-          </Column>
-          <Column field="nationId" header="Nation" sortable>
-            <template #body="slotProps">
-              {{ slotProps.data.rulerName }} of {{ slotProps.data.nationName }}
-            </template>
-            <template #filter="{ filterModel, filterCallback }">
-              <InputText
-                v-model="filterModel.value"
-                type="text"
-                @input="filterCallback()"
-                placeholder="Filter..."
-                class="p-column-filter"
-              />
-            </template>
-          </Column>
-          <Column field="allianceName" header="Alliance" sortable>
-            <template #body="slotProps">
-              {{ slotProps.data.allianceName }}
-            </template>
-            <template #filter="{ filterModel, filterCallback }">
-              <InputText
-                v-model="filterModel.value"
-                type="text"
-                @input="filterCallback()"
-                placeholder="Filter..."
-                class="p-column-filter"
-              />
-            </template>
-          </Column>
-          <Column field="role" header="Role" sortable>
-            <template #body="slotProps">
-              {{ getRoleDescription(slotProps.data.role) }}
-            </template>
-            <template #filter="{ filterModel, filterCallback }">
-              <InputText
-                v-model="filterModel.value"
-                type="text"
-                @input="filterCallback()"
-                placeholder="Filter..."
-                class="p-column-filter"
-              />
-            </template>
-          </Column>
-          <Column field="credit" header="Credit" sortable>
-            <template #body="slotProps">
-              {{ slotProps.data.credit }}
-            </template>
-          </Column>
-          <Column field="debt" header="Debt" sortable>
-            <template #body="slotProps">
-              {{ slotProps.data.debt }}
-            </template>
-          </Column>
-          <Column field="slotsUsed" header="Slots Free" sortable>
-            <template #body="slotProps">
-              {{ slotProps.data.slotsFull - slotProps.data.slotsUsed }}
-            </template>
-          </Column>
-          <Column field="slotsFull" header="Slots Full" sortable>
-            <template #body="slotProps">
-              {{ slotProps.data.slotsFull }}
-            </template>
-          </Column>
-        </DataTable>
-      </div>
+
+      <!-- Actions and Table Card -->
+      <UCard>
+        <div class="space-y-4">
+          <!-- Create Button -->
+          <div class="flex justify-between items-center">
+            <UInput
+              v-model="searchQuery"
+              placeholder="Search by nation, ruler, alliance, or role..."
+              icon="i-heroicons-magnifying-glass"
+              class="w-full max-w-md"
+            />
+            <UButton
+              label="Create Account"
+              color="success"
+              icon="i-heroicons-plus"
+              @click="createAccount()"
+            />
+          </div>
+
+          <!-- Table -->
+          <UTable
+            :data="filteredAccounts"
+            :columns="columns"
+            :loading="loading"
+            :sort="{ column: 'nationId', direction: 'asc' }"
+          />
+        </div>
+      </UCard>
     </div>
 
-    <AdminAccountEditDialog
+    <AccountEditDialog
       :account="accountBeingEdited"
       :show="editDialogIsVisible"
       @close="closeAccountEditDialog()"
     />
-  </div>
+  </UContainer>
 </template>
 
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
@@ -130,7 +64,87 @@ const { loggedInUser } = storeToRefs(authStore)
 const editDialogIsVisible = ref<boolean>(false)
 const accountBeingEdited = ref<AdminAccount | undefined>(undefined)
 const accountIdBeingDeleted = ref<number>(0)
+const loading = ref<boolean>(false)
+const searchQuery = ref<string>('')
 const roles = accountRoles
+
+// Table columns definition
+const columns: TableColumn<AdminAccount>[] = [
+  {
+    accessorKey: 'nationName',
+    header: 'Nation',
+    cell: ({ row }) => {
+      const account = row.original
+      return h('div', [
+        h('div', { class: 'font-medium text-gray-900 dark:text-white' }, account.rulerName),
+        h('div', { class: 'text-sm text-gray-500 dark:text-gray-400' }, account.nationName)
+      ])
+    }
+  },
+  {
+    accessorKey: 'allianceName',
+    header: 'Alliance',
+    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.allianceName)
+  },
+  {
+    accessorKey: 'role',
+    header: 'Role',
+    cell: ({ row }) => {
+      const roleCode = row.original.role
+      return h(resolveComponent('UBadge'), {
+        color: getRoleBadgeColor(roleCode),
+        variant: 'subtle'
+      }, () => getRoleDescription(roleCode))
+    }
+  },
+  {
+    accessorKey: 'credit',
+    header: 'Credit',
+    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.credit)
+  },
+  {
+    accessorKey: 'debt',
+    header: 'Debt',
+    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.debt)
+  },
+  {
+    accessorKey: 'slotsUsed',
+    header: 'Slots Free',
+    cell: ({ row }) => {
+      const slotsFree = row.original.slotsFull - row.original.slotsUsed
+      return h('span', { class: 'font-mono text-gray-900 dark:text-white' }, slotsFree)
+    }
+  },
+  {
+    accessorKey: 'slotsFull',
+    header: 'Slots Full',
+    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.slotsFull)
+  },
+  {
+    accessorKey: 'id',
+    header: 'Actions',
+    cell: ({ row }) => {
+      const account = row.original
+      return h('div', { class: 'flex gap-2' }, [
+        h(resolveComponent('UButton'), {
+          label: 'Edit',
+          color: 'primary',
+          variant: 'soft',
+          size: 'xs',
+          onClick: () => editAccount(account)
+        }),
+        h(resolveComponent('UButton'), {
+          label: 'Delete',
+          color: 'error',
+          variant: 'soft',
+          size: 'xs',
+          loading: accountIdBeingDeleted.value === account.id,
+          onClick: () => deleteAccountById(account.id)
+        })
+      ])
+    }
+  }
+]
 
 // Helper function to get role description
 const getRoleDescription = (roleCode: string): string => {
@@ -138,20 +152,36 @@ const getRoleDescription = (roleCode: string): string => {
   return role ? role.description : roleCode
 }
 
-// Filter function for nation search (ruler or nation name)
-const filterByNation = (row: AdminAccount, input: string): boolean => {
-  return row.rulerName.toLowerCase().includes(input.toLowerCase())
-    || row.nationName.toLowerCase().includes(input.toLowerCase())
+// Helper function to get role badge color
+const getRoleBadgeColor = (roleCode: string): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' => {
+  switch (roleCode) {
+    case 'BUYER':
+      return 'primary'
+    case 'SELLER':
+      return 'success'
+    case 'BOTH':
+      return 'info'
+    default:
+      return 'neutral'
+  }
 }
 
-// Filter function for role search
-const filterByRole = (row: AdminAccount, input: string): boolean => {
-  const rolesMatchingInput = roles
-    .filter(role => role.description.toLowerCase().includes(input.toLowerCase()))
-    .map(role => role.code)
+// Filtered accounts based on search query
+const filteredAccounts = computed(() => {
+  if (!searchQuery.value) {
+    return accounts.value
+  }
 
-  return rolesMatchingInput.includes(row.role)
-}
+  const query = searchQuery.value.toLowerCase()
+  return accounts.value.filter((account: AdminAccount) => {
+    return (
+      account.rulerName?.toLowerCase().includes(query) ||
+      account.nationName?.toLowerCase().includes(query) ||
+      account.allianceName?.toLowerCase().includes(query) ||
+      getRoleDescription(account.role)?.toLowerCase().includes(query)
+    )
+  })
+})
 
 // Create new account
 const createAccount = (): void => {
@@ -211,6 +241,7 @@ onMounted(async () => {
     return
   }
 
+  loading.value = true
   try {
     await adminAccountsStore.loadAllAccounts()
     console.log('Accounts loaded:', accounts.value)
@@ -222,6 +253,8 @@ onMounted(async () => {
       description: 'Failed to load accounts. Please try again.',
       duration: 5000
     })
+  } finally {
+    loading.value = false
   }
 })
 </script>
