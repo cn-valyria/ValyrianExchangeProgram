@@ -71,4 +71,9 @@ export default defineNuxtConfig({
     strict: false,
     typeCheck: false,
   },
+
+  // Build configuration for Chart.js
+  build: {
+    transpile: ['chart.js'],
+  },
 })

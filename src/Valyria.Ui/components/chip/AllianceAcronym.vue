@@ -8,39 +8,15 @@
 </template>
 
 <script setup lang="ts">
+import { convertToAllianceAcronym } from '~/infrastructure/converters';
+import { allianceAcronyms } from '~/infrastructure/dataLists';
+
 const props = defineProps<{
   allianceName: string
 }>()
 
-const allianceAcronyms = [
-  { code: 'CCC', name: 'Christian Coalition Of Countries' },
-  { code: 'FAN', name: 'Federation of Armed Nations' },
-  { code: 'FARK', name: 'Fark' },
-  { code: 'FTW', name: 'Freehold of the Wolves' },
-  { code: 'MHA', name: 'Mostly Harmless Alliance' },
-  { code: 'NATO', name: 'NATO' },
-  { code: 'NG', name: 'Non Grata' },
-  { code: 'OG', name: 'Old Guard' },
-  { code: 'RIA', name: 'Random Insanity Alliance' },
-  { code: 'TIO', name: 'The Imperial Order' },
-]
-
 const allianceAcronym = computed(() => {
-  if (!props.allianceName) {
-    return ''
-  }
-
-  const acronym = allianceAcronyms.find(
-    (aa) => aa.name.localeCompare(props.allianceName, 'en', { sensitivity: 'base' }) === 0
-  )
-
-  if (acronym) {
-    return acronym.code
-  } else {
-    return props.allianceName
-      .split(/\s/)
-      .reduce((result, word) => result + word.slice(0, 1), '')
-  }
+  return convertToAllianceAcronym(props.allianceName)
 })
 
 const allianceImage = computed(() => {

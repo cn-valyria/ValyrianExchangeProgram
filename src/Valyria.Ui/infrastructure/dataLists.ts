@@ -13,6 +13,11 @@ export interface RecentActivityValue {
   description: string
 }
 
+export interface AllianceAcronym {
+  code: string,
+  name: string
+}
+
 export const transactionClassifications: TransactionClassification[] = [
   { id: 0, description: 'Non-VEP aid' },
   { id: 1, description: 'VEP aid' },
@@ -44,4 +49,17 @@ export const recentActivityValues: RecentActivityValue[] = [
   { id: 3, description: 'Last Week' },
   { id: 4, description: 'Three Weeks Ago' },
   { id: 5, description: 'More Than 3 Weeks Ago' },
+]
+
+export const allianceAcronyms: AllianceAcronym[] = [
+  { code: 'CCC', name: 'Christian Coalition Of Countries' },
+  { code: 'FAN', name: 'Federation of Armed Nations' },
+  { code: 'FARK', name: 'Fark' },
+  { code: 'FTW', name: 'Freehold of the Wolves' },
+  { code: 'MHA', name: 'Mostly Harmless Alliance' },
+  { code: 'NATO', name: 'NATO' },
+  { code: 'NG', name: 'Non Grata' },
+  { code: 'OG', name: 'Old Guard' },
+  { code: 'RIA', name: 'Random Insanity Alliance' },
+  { code: 'TIO', name: 'The Imperial Order' },
 ]
