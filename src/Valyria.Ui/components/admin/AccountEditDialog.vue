@@ -1,15 +1,16 @@
 <template>
-  <USlideover v-model="isOpen" @update:model-value="handleClose">
-    <UCard class="flex flex-col flex-1">
-      <template #header>
-        <h3 v-if="isInUpdateState" class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ state.rulerName }}'s Account
-        </h3>
-        <h3 v-else class="text-lg font-semibold text-gray-900 dark:text-white">
-          New Account
-        </h3>
-      </template>
+  <UModal :close="{ onClick: () => emit('close', false) }">
 
+    <template #header>
+      <h3 v-if="isInUpdateState" class="text-lg font-semibold text-gray-900 dark:text-white">
+        {{ state.rulerName }}'s Account
+      </h3>
+      <h3 v-else class="text-lg font-semibold text-gray-900 dark:text-white">
+        New Account
+      </h3>
+    </template>
+
+    <template #body>
       <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
         <!-- Account Data Section -->
         <div>
@@ -161,69 +162,64 @@
         <!-- Hidden submit button for form submission -->
         <button type="submit" class="hidden" ref="submitButton"></button>
       </UForm>
+    </template>
 
-      <template #footer>
-        <div class="flex gap-3 justify-end">
-          <UButton label="Cancel" color="neutral" @click="handleClose" />
-          <UButton
-            v-if="isInUpdateState"
-            label="Save"
-            color="success"
-            :loading="buttonIsLoading"
-            @click="submitForm()"
-          />
-          <UButton
-            v-else-if="foundProspectAccount"
-            label="Create"
-            color="success"
-            :loading="buttonIsLoading"
-            @click="submitForm()"
-          />
-          <UButton
-            v-else
-            label="Search"
-            color="primary"
-            :loading="buttonIsLoading"
-            @click="findProspectAccount()"
-          />
-        </div>
-      </template>
-    </UCard>
-  </USlideover>
+    <template #footer>
+      <div class="flex gap-3 justify-end">
+        <UButton label="Cancel" color="neutral" @click="handleClose" />
+        <UButton
+          v-if="isInUpdateState"
+          label="Save"
+          color="success"
+          :loading="buttonIsLoading"
+          @click="submitForm()"
+        />
+        <UButton
+          v-else-if="foundProspectAccount"
+          label="Create"
+          color="success"
+          :loading="buttonIsLoading"
+          @click="submitForm()"
+        />
+        <UButton
+          v-else
+          label="Search"
+          color="primary"
+          :loading="buttonIsLoading"
+          @click="findProspectAccount()"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
-import { z } from 'zod'
+import { clone, z } from 'zod'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
 import { accountRoles } from '~/infrastructure/dataLists'
 
 interface Props {
-  show: boolean
   account?: AdminAccount
-}
-
-interface Emits {
-  (e: 'close'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   account: () => ({} as AdminAccount)
 })
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<{ close: [boolean] }>()
 
 const config = useRuntimeConfig()
 const toast = useToast()
 const adminAccountsStore = useAdminAccountsStore()
 
-const isOpen = ref(false)
+const open = ref(false)
 const buttonIsLoading = ref(false)
 const submitButton = ref<HTMLButtonElement>()
 const roles = accountRoles
 
 // Define the form state
-const state = reactive<AdminAccount>({} as AdminAccount)
+const state = reactive<AdminAccount>(props.account)
 
 // Define the Zod schema - only validates when creating
 const schema = z.object({
@@ -332,16 +328,8 @@ const foundProspectAccount = computed(() => {
   return state !== undefined && state.rulerName !== undefined
 })
 
-watch(() => props.show, (val) => {
-  isOpen.value = val
-})
-
-watch(() => props.account, (val) => {
-  Object.assign(state, val)
-})
-
 const handleClose = () => {
-  emit('close')
+  emit("close", false);
 }
 
 const submitForm = () => {
@@ -385,7 +373,7 @@ const update = async () => {
   try {
     await adminAccountsStore.updateAccount(state as any)
     toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
-    emit('close')
+    handleClose();
   } catch (e) {
     console.error(e)
     toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
@@ -399,7 +387,7 @@ const create = async () => {
   try {
     await adminAccountsStore.createAccount(state)
     toast.add({ color: 'success', title: 'Success', description: 'Account created successfully!', duration: 3000 })
-    emit('close')
+    handleClose();
   } catch (e) {
     console.error(e)
     toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })

@@ -19,11 +19,12 @@
               class="w-full max-w-md"
             />
             <UButton
-              label="Create Account"
               color="success"
               icon="i-heroicons-plus"
               @click="createAccount()"
-            />
+            >
+              Create Account
+            </UButton>
           </div>
 
           <!-- Table -->
@@ -36,12 +37,6 @@
         </div>
       </UCard>
     </div>
-
-    <AccountEditDialog
-      :account="accountBeingEdited"
-      :show="editDialogIsVisible"
-      @close="closeAccountEditDialog()"
-    />
   </UContainer>
 </template>
 
@@ -51,9 +46,13 @@ import { storeToRefs } from 'pinia'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
 import { accountRoles } from '~/infrastructure/dataLists'
+import AccountEditDialog from '~/components/admin/AccountEditDialog.vue'
 
 const router = useRouter()
 const toast = useToast()
+const overlay = useOverlay()
+
+const modal = overlay.create(AccountEditDialog)
 
 const adminAccountsStore = useAdminAccountsStore()
 const authStore = useAuthStore()
@@ -62,7 +61,6 @@ const { accounts } = storeToRefs(adminAccountsStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const editDialogIsVisible = ref<boolean>(false)
-const accountBeingEdited = ref<AdminAccount | undefined>(undefined)
 const accountIdBeingDeleted = ref<number>(0)
 const loading = ref<boolean>(false)
 const searchQuery = ref<string>('')
@@ -185,14 +183,16 @@ const filteredAccounts = computed(() => {
 
 // Create new account
 const createAccount = (): void => {
-  accountBeingEdited.value = {} as AdminAccount
-  editDialogIsVisible.value = true
+  modal.open({
+    account: {} as AdminAccount
+  })
 }
 
 // Edit existing account
 const editAccount = (account: AdminAccount): void => {
-  accountBeingEdited.value = account
-  editDialogIsVisible.value = true
+  modal.open({
+    account: account
+  })
 }
 
 // Delete account by ID
@@ -218,12 +218,6 @@ const deleteAccountById = async (accountId: number): Promise<void> => {
   } finally {
     accountIdBeingDeleted.value = 0
   }
-}
-
-// Close account edit dialog
-const closeAccountEditDialog = (): void => {
-  accountBeingEdited.value = undefined
-  editDialogIsVisible.value = false
 }
 
 // Check admin access and load accounts on mount

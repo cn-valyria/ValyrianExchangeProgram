@@ -30,7 +30,7 @@
           </UDropdownMenu>
 
           <!-- Login Button (Not Authenticated) -->
-          <Login :show="loginFormIsVisible" @close="loginFormIsVisible = false" />
+          <Login />
         </div>
 
         <!-- Mobile Menu Button -->
