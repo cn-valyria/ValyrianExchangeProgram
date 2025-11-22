@@ -24,6 +24,8 @@ interface AuthState {
   isAuthenticated: boolean
 }
 
+const STORAGE_KEY = 'vep_auth'
+
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     user: null,
@@ -38,6 +40,45 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    // Save auth state to session storage
+    saveToStorage() {
+      if (import.meta.client) {
+        const authData = {
+          user: this.user,
+          accessToken: this.accessToken,
+          refreshToken: this.refreshToken,
+          isAuthenticated: this.isAuthenticated,
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(authData))
+      }
+    },
+
+    // Load auth state from session storage
+    loadFromStorage() {
+      if (import.meta.client) {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored) {
+          try {
+            const authData = JSON.parse(stored)
+            this.user = authData.user
+            this.accessToken = authData.accessToken
+            this.refreshToken = authData.refreshToken
+            this.isAuthenticated = authData.isAuthenticated
+          } catch (error) {
+            console.error('Failed to parse stored auth data:', error)
+            this.clearStorage()
+          }
+        }
+      }
+    },
+
+    // Clear session storage
+    clearStorage() {
+      if (import.meta.client) {
+        localStorage.removeItem(STORAGE_KEY)
+      }
+    },
+
     async login(credentials: { nationId?: string; rulerName?: string; uniqueCode: string }) {
       const config = useRuntimeConfig()
       const { data, error } = await useFetch(`${config.public.apiUrl}/api/user/authenticate`, {
@@ -54,6 +95,7 @@ export const useAuthStore = defineStore('auth', {
         this.accessToken = authData.accessToken
         this.refreshToken = authData.refreshToken
         await this.fetchUser()
+        this.saveToStorage()
       }
     },
 
@@ -76,6 +118,7 @@ export const useAuthStore = defineStore('auth', {
       if (data.value) {
         this.user = data.value as User
         this.isAuthenticated = true
+        this.saveToStorage()
       }
     },
 
@@ -100,6 +143,7 @@ export const useAuthStore = defineStore('auth', {
         const authData = data.value as TokenResponse
         this.accessToken = authData.accessToken
         this.refreshToken = authData.refreshToken
+        this.saveToStorage()
         return true
       }
 
@@ -111,13 +155,15 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null
       this.refreshToken = null
       this.isAuthenticated = false
-      navigateTo('/?auth=failed')
+      this.clearStorage()
+      navigateTo('login?auth=logout')
     },
 
-    // Initialize auth state from storage (if using persistence)
+    // Initialize auth state from storage
     async init() {
-      // This could be expanded to load from localStorage/sessionStorage if needed
-      if (this.accessToken) {
+      this.loadFromStorage()
+      // If we have a token but no user, fetch the user
+      if (this.accessToken && !this.user) {
         await this.fetchUser()
       }
     },

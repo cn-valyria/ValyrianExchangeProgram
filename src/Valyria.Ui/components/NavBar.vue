@@ -30,7 +30,9 @@
           </UDropdownMenu>
 
           <!-- Login Button (Not Authenticated) -->
-          <Login />
+          <NuxtLink v-if="!isAuthenticated" to="/login">
+            <UButton color="primary">Log In</UButton>
+          </NuxtLink>
         </div>
 
         <!-- Mobile Menu Button -->
@@ -81,9 +83,11 @@
           </a>
         </template>
         <template v-else>
-          <UButton @click="loginFormIsVisible = true" color="primary" block class="mt-2">
-            Log In
-          </UButton>
+          <NuxtLink to="/login">
+            <UButton color="primary" block class="mt-2">
+              Log In
+            </UButton>
+          </NuxtLink>
         </template>
       </div>
     </div>
@@ -95,7 +99,6 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import { useAuthStore } from '~/stores/auth'
 
 const mobileMenuOpen = ref(false)
-const loginFormIsVisible = ref(false)
 
 const authStore = useAuthStore()
 
@@ -163,14 +166,16 @@ const accountMenuItems = computed(() => {
   items.push([{
     label: 'Log Out',
     icon: 'i-heroicons-arrow-right-on-rectangle',
-    click: handleLogout
+    onSelect() {
+      handleLogout()
+    }
   }])
 
   return items
 })
 
-const handleLogout = async () => {
-  await authStore.logout()
+const handleLogout = () => {
+  authStore.logout()
   mobileMenuOpen.value = false
 }
 </script>

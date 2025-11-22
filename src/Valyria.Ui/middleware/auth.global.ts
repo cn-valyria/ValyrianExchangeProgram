@@ -2,14 +2,14 @@ export default defineNuxtRouteMiddleware((to) => {
   const authStore = useAuthStore()
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/']
+  const publicRoutes = ['/', '/login']
 
   // Check if the route requires authentication
   const requiresAuth = !publicRoutes.includes(to.path)
 
   if (requiresAuth && !authStore.isAuthenticated) {
     // Redirect to login page if not authenticated
-    return navigateTo('/?auth=failed')
+    return navigateTo('/login?auth=failed')
   }
 
   // Check for admin routes

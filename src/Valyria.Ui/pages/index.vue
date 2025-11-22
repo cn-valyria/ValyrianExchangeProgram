@@ -175,18 +175,7 @@ definePageMeta({
   auth: false,
 })
 
-const route = useRoute()
-const toast = useToast()
-
 // Check for auth failure on mount
 onMounted(() => {
-  if (route.query.auth === 'failed') {
-    toast.add({
-      title: 'Authentication Required',
-      description:
-        "You can't access that page until you're logged in. Please log into your account, or contact VEP management to create one for you.",
-      color: 'error',
-    })
-  }
 })
 </script>
