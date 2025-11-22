@@ -23,26 +23,40 @@ public class AdminRepository : IAdminRepository
         const string query = @"
 select
 	(select count(1) from account where va <> 'H') as TotalAccounts,
-    (select count(1) from account where va = 'B') as TotalBuyers,
-    (select count(1) from account where va = 'S' or va = 'N') as TotalSellers,
-    (select count(1) from transaction) as TotalTransactions,
-    (select coalesce(sum(rate), 0) from transaction where left(lu, 1) in ('F', 'D')) as UnusedCredit;";
+	coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'C' then slots * multiplier else 0 end), 0) as TotalIncomingCashSlots,
+    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'D' then slots * multiplier else 0 end), 0) as TotalOutgoingCashSlots,
+    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'R' then slots * multiplier else 0 end), 0) as TotalIncomingTechSlots,
+    coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'F' then slots * multiplier else 0 end), 0) as TotalOutgoingTechSlots,
+    (select count(1) from transaction) as TotalTransactions
+from (
+	select 
+		va,
+		sum(aid_activity.slots_full) as slots,
+		case when va in ('F', 'D', 'C', 'R') then 2 else 1 end as multiplier
+	from account
+	join aid_activity on account.id = aid_activity.account_id and account.va <> 'H'
+	group by va
+) root;";
 
         var dashboard = await sqlConnection.QuerySingleAsync<AdminDashboard>(query);
 
         var transactionsPerDayTask = GetTransactionsPerDayAsync();
         var pendingCreditPerDayTask = GetPendingCreditPerAllianceAsync();
         var accountsPerRoleTask = GetAccountsPerRoleAsync();
-        var totalSlotsPerRoleTask = GetTotalSlotsPerRoleAsync();
+        var totalSlotsPerAlliance = GetTotalSlotsPerAllianceAsync();
         var freeSlotsPerListTask = GetFreeSlotsPerListAsync();
         var accountsPerAllianceTask = GetAccountsPerAllianceAsync();
 
-        await Task.WhenAll(transactionsPerDayTask, pendingCreditPerDayTask, accountsPerRoleTask, totalSlotsPerRoleTask, freeSlotsPerListTask, accountsPerAllianceTask);
+        await Task.WhenAll(transactionsPerDayTask, pendingCreditPerDayTask, accountsPerRoleTask, totalSlotsPerAlliance, freeSlotsPerListTask, accountsPerAllianceTask);
 
         dashboard.TransactionsPerDay = transactionsPerDayTask.Result;
         dashboard.PendingCreditByAlliance = pendingCreditPerDayTask.Result;
         dashboard.AccountsPerRole = accountsPerRoleTask.Result;
-        dashboard.TotalSlotsPerRole = totalSlotsPerRoleTask.Result;
+        dashboard.TotalSlotsPerAlliance = totalSlotsPerAlliance.Result;
         dashboard.FreeSlotsPerList = freeSlotsPerListTask.Result;
         dashboard.AccountsPerAlliance = accountsPerAllianceTask.Result;
 
@@ -70,7 +84,7 @@ group by date(`date`);";
         using var sqlConnection = new MySqlConnection(_connectionString);
 
         var results = new List<CreditGroupsByAlliance>();
-        var rawData = await sqlConnection.QueryAsync<RawData>("get_pending_credit_per_alliance", CommandType.StoredProcedure);
+        var rawData = await sqlConnection.QueryAsync<PendingCreditRawData>("get_pending_credit_per_alliance", CommandType.StoredProcedure);
         foreach (var grouping in rawData.GroupBy(x => x.AllianceName))
         {
             var newGroup = new CreditGroupsByAlliance
@@ -85,11 +99,74 @@ group by date(`date`);";
         return results;
     }
 
-    private class RawData
+    private class PendingCreditRawData
     {
         public string DateRange { get; set; }
         public string AllianceName { get; set; }
         public int TotalCredit { get; set; }
+    }
+
+    private async Task<List<TotalSlotGroupsByAlliance>> GetTotalSlotsPerAllianceAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select
+	name as AllianceName,
+	coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'C' then slots * multiplier else 0 end), 0) as TotalIncomingCashSlots,
+    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'D' then slots * multiplier else 0 end), 0) as TotalOutgoingCashSlots,
+    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'R' then slots * multiplier else 0 end), 0) as TotalIncomingTechSlots,
+    coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
+        coalesce(sum(case when va = 'F' then slots * multiplier else 0 end), 0) as TotalOutgoingTechSlots
+from (
+	select 
+		alliance.name,
+		va,
+		sum(aid_activity.slots_full) as slots,
+		case when va in ('F', 'D', 'C', 'R') then 2 else 1 end as multiplier
+	from account
+	join aid_activity on account.id = aid_activity.account_id and account.va <> 'H'
+    join cybernations_db.nation on account.nation_id = nation.id
+    join cybernations_db.alliance on nation.alliance_id = alliance.id
+	group by alliance.name, va
+) root
+group by name;";
+
+        var results = new List<TotalSlotGroupsByAlliance>
+        {
+            new() { SlotGroupName = "Incoming Cash", TotalSlotGroups = [] },
+            new() { SlotGroupName = "Outgoing Cash", TotalSlotGroups = [] },
+            new() { SlotGroupName = "Incoming Tech", TotalSlotGroups = [] },
+            new() { SlotGroupName = "Outgoing Tech", TotalSlotGroups = [] },
+        };
+
+        var rawData = await sqlConnection.QueryAsync<SlotGroupsRawData>(query);
+        foreach (var alliance in rawData)
+        {
+            AddAllianceSlotsIfNotZero(results[0], alliance.AllianceName, alliance.TotalIncomingCashSlots);
+            AddAllianceSlotsIfNotZero(results[1], alliance.AllianceName, alliance.TotalOutgoingCashSlots);
+            AddAllianceSlotsIfNotZero(results[2], alliance.AllianceName, alliance.TotalIncomingTechSlots);
+            AddAllianceSlotsIfNotZero(results[3], alliance.AllianceName, alliance.TotalOutgoingTechSlots);
+        }
+
+        return results;
+
+        static void AddAllianceSlotsIfNotZero(TotalSlotGroupsByAlliance grouping, string allianceName, int slotCount)
+        {
+            if (slotCount > 0)
+                grouping.TotalSlotGroups.Add(new() { AllianceName = allianceName, TotalSlots = slotCount });
+        }
+    }
+
+    private class SlotGroupsRawData
+    {
+        public string AllianceName { get; set; }
+        public int TotalIncomingCashSlots { get; set; }
+        public int TotalOutgoingCashSlots { get; set; }
+        public int TotalIncomingTechSlots { get; set; }
+        public int TotalOutgoingTechSlots { get; set; }
     }
 
     private async Task<List<AccountCountByRole>> GetAccountsPerRoleAsync()

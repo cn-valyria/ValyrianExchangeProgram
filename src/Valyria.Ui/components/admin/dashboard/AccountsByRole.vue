@@ -21,7 +21,7 @@ interface RoleData {
 }
 
 interface Props {
-  data: RoleData[]
+  data: RoleData[] | undefined
 }
 
 const props = defineProps<Props>()

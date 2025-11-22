@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Total Transactions</p>
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Last 5 Days' Transactions</p>
     <div class="h-64">
       <Line :data="chartData" :options="chartOptions" />
     </div>
@@ -21,7 +21,7 @@ interface TransactionData {
 }
 
 interface Props {
-  data: TransactionData[]
+  data: TransactionData[] | undefined
 }
 
 const props = defineProps<Props>()

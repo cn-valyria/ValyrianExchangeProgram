@@ -26,7 +26,7 @@ interface CreditData {
 }
 
 interface Props {
-  data: CreditData[]
+  data: CreditData[] | undefined
 }
 
 const props = defineProps<Props>()

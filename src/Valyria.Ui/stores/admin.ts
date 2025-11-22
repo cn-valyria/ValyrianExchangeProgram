@@ -16,14 +16,19 @@ export interface CreditGroupsByAlliance {
   creditGroups: CreditGroup[]
 }
 
+export interface TotalSlotsGroup {
+  allianceName: string
+  totalSlots: number
+}
+
+export interface TotalSlotGroupsByAlliance {
+  slotGroupName: string,
+  totalSlotGroups: TotalSlotsGroup[]
+}
+
 export interface AccountCountByRole {
   role: string
   totalAccounts: number
-}
-
-export interface TotalSlotCountByRole {
-  role: string
-  totalSlots: number
 }
 
 export interface FreeSlotCountByList {
@@ -38,14 +43,15 @@ export interface AccountCountByAlliance {
 
 export interface Dashboard {
   totalAccounts: number
-  totalBuyers: number
-  totalSellers: number
+  totalIncomingCashSlots: number
+  totalOutgoingCashSlots: number
+  totalIncomingTechSlots: number
+  totalOutgoingTechSlots: number
   totalTransactions: number
-  unusedCredit: number
   transactionsPerDay: TransactionCountByDay[]
   pendingCreditByAlliance: CreditGroupsByAlliance[]
   accountsPerRole: AccountCountByRole[]
-  totalSlotsPerRole: TotalSlotCountByRole[]
+  totalSlotsPerAlliance: TotalSlotGroupsByAlliance[]
   freeSlotsPerList: FreeSlotCountByList[]
   accountsPerAlliance: AccountCountByAlliance[]
 }

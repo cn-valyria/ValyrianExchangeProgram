@@ -20,7 +20,7 @@ interface ListData {
 }
 
 interface Props {
-  data: ListData[]
+  data: ListData[] | undefined
 }
 
 const props = defineProps<Props>()
