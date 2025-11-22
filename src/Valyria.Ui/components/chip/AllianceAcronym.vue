@@ -28,6 +28,6 @@ const allianceImage = computed(() => {
     fileName = allianceAcronym.value.toLowerCase()
   }
 
-  return `/assets/img/alliance/${fileName}.jpg`
+  return new URL(`../../assets/img/alliance/${fileName}.jpg`, import.meta.url).href
 })
 </script>
