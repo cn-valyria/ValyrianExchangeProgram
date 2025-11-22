@@ -33,21 +33,19 @@ public class TransactionsController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("{transactionType}")]
+    [HttpGet("{type}")]
     public async Task<IActionResult> SearchTransactions(
-        TransactionType transactionType,
+        string type,
         int? limit,
         int? offset,
-        [FromBody] TransactionFilters filters)
+        [FromQuery] TransactionFilters filters)
     {
         _logger.LogInformation($"Beginning execution for {nameof(SearchTransactions)} method...");
         _logger.LogInformation("Received query params: {@query}", Request.Query);
 
         try
         {
-            _logger.LogInformation("Parsed the filters {filters} with limit {limit} and offset {offset}",
-                System.Text.Json.JsonSerializer.Serialize(filters), limit, offset);
-
+            var transactionType = Enum.TryParse<TransactionType>(type, out var enumType) ? enumType : TransactionType.All;
             var searchResults = await _transactionsRepository.SearchTransactionsAsync(transactionType, filters, limit ?? 100, offset ?? 0);
 
             return Ok(_mapper.Map<TransactionCollection>(searchResults));

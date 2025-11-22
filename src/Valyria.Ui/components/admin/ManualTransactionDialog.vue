@@ -1,12 +1,12 @@
 <template>
-  <UModal v-model="isOpen" @update:model-value="handleClose">
-    <UCard>
-      <template #header>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ state.id !== undefined ? "Update" : "New"}} Manual Transaction
-        </h3>
-      </template>
+  <UModal :close="{ onClick: () => emit('close') }">
+    <template #header>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        {{ state.id !== undefined ? "Update" : "New"}} Manual Transaction
+      </h3>
+    </template>
 
+    <template #body>
       <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
         <!-- Manual Data Section -->
         <div>
@@ -108,55 +108,28 @@
         <!-- Hidden submit button for form submission -->
         <button type="submit" class="hidden" ref="submitButton"></button>
       </UForm>
+    </template>
 
-      <template #footer>
-        <div class="flex gap-3 justify-end">
-          <UButton label="Cancel" color="neutral" @click="handleClose()" />
-          <UButton label="Save" color="success" :loading="buttonIsLoading" @click="submitForm()" />
-        </div>
-      </template>
-    </UCard>
+    <template #footer>
+      <div class="flex gap-3 justify-end">
+        <UButton label="Cancel" color="neutral" @click="handleClose()" />
+        <UButton label="Save" color="success" :loading="buttonIsLoading" @click="submitForm()" />
+      </div>
+    </template>
   </UModal>
 </template>
 
 <script setup lang="ts">
 import { z } from 'zod'
-import { useAdminTransactionsStore } from '~/stores/adminTransactions'
+import { useAdminTransactionsStore, type ManualTransaction } from '~/stores/adminTransactions'
+import { type AdminAccount } from '~/stores/adminAccounts'
 import { ADJUSTMENT_TYPES, ERROR_MESSAGES } from '~/infrastructure/constants'
 import { transactionClassifications } from '~/infrastructure/dataLists'
-
-interface Nation {
-  nationId: number
-  nationName: string
-  rulerName: string
-  allianceName: string
-}
-
-interface Account {
-  nationId: number
-  nationName: string
-  rulerName: string
-  allianceName: string
-  role: string
-}
-
-interface Transaction {
-  id?: number
-  nation?: Nation | null
-  adjustmentType?: string
-  reason?: string
-  classification?: number | null
-  rate?: number | string
-  cashMovedCashCredit?: number
-  cashMovedTechCredit?: number
-  techMovedCashCredit?: number
-  techMovedTechCredit?: number
-}
+import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
 interface Props {
-  show: boolean
-  transaction?: Transaction
-  accounts: Account[]
+  transaction?: ManualTransaction
+  accounts: AdminAccount[]
 }
 
 interface Emits {
@@ -164,7 +137,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  transaction: () => ({} as Transaction),
+  transaction: () => ({} as ManualTransaction),
   accounts: () => []
 })
 
@@ -173,14 +146,13 @@ const emit = defineEmits<Emits>()
 const toast = useToast()
 const adminTransactionsStore = useAdminTransactionsStore()
 
-const isOpen = ref(false)
 const buttonIsLoading = ref(false)
 const submitButton = ref<HTMLButtonElement>()
 const adjustmentTypes = [ADJUSTMENT_TYPES.credit, ADJUSTMENT_TYPES.debt]
 const classifications = transactionClassifications
 
 // Define the form state
-const state = reactive<Transaction>({} as Transaction)
+const state = reactive<ManualTransaction>(props.transaction)
 
 // Define the Zod schema
 const schema = z.object({
@@ -237,22 +209,12 @@ const transactionNation = computed(() => {
   if (state.nation) {
     return state.nation
   } else {
-    return {} as Nation
+    return {} as NationSimplified
   }
 })
 
 const isInUpdateState = computed(() => {
   return state !== undefined && state.id !== undefined
-})
-
-watch(() => props.show, (val) => {
-  isOpen.value = val
-})
-
-watch(() => props.transaction, (val) => {
-  Object.assign(state, val)
-  // Recalculate the credits when the transaction changes, since they're always readonly
-  recalculateCredits()
 })
 
 watch(() => state.adjustmentType, () => {

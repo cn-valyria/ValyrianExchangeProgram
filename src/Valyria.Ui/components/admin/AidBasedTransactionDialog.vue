@@ -1,12 +1,12 @@
 <template>
-  <UModal v-model="isOpen" @update:model-value="handleClose">
-    <UCard>
-      <template #header>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-          Update Transaction
-        </h3>
-      </template>
+  <UModal :close="{ onClick: () => emit('close') }">
+    <template #header>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        Update Transaction
+      </h3>
+    </template>
 
+    <template #body>
       <div v-if="state !== undefined" class="space-y-6">
         <!-- Aid-Based Data Section -->
         <div>
@@ -111,13 +111,13 @@
           </fieldset>
         </div>
       </div>
+    </template>
 
-      <template #footer>
-        <div class="flex justify-end">
-          <UButton label="Close" color="neutral" @click="handleClose" />
-        </div>
-      </template>
-    </UCard>
+    <template #footer>
+      <div class="flex justify-end">
+        <UButton label="Close" color="neutral" @click="handleClose" />
+      </div>
+    </template>
   </UModal>
 </template>
 
@@ -126,7 +126,6 @@ import { transactionClassifications } from '~/infrastructure/dataLists'
 import type { Transaction } from '~/stores/shared/transaction'
 
 interface Props {
-  show: boolean
   transaction?: Transaction
 }
 
@@ -140,17 +139,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-const isOpen = ref(false)
-const state = reactive<Transaction>({} as Transaction)
+const state = reactive<Transaction>(props.transaction)
 const classifications = transactionClassifications
-
-watch(() => props.show, (val) => {
-  isOpen.value = val
-})
-
-watch(() => props.transaction, (val) => {
-  Object.assign(state, val)
-})
 
 const handleClose = () => {
   emit('close')

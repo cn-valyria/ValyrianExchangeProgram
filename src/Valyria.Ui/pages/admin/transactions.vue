@@ -32,7 +32,7 @@
       </UCard>
 
       <!-- Tabs and Tables -->
-      <UTabs v-model="activeTabIndex" :items="tabs" class="w-full">
+      <UTabs v-model="activeTab" :items="tabs" class="w-full">
         <!-- Aid-Based Tab -->
         <template #aid-based>
           <UCard>
@@ -49,10 +49,9 @@
                   Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
                 </div>
                 <UPagination
-                  v-model="currentPage"
+                  v-model:page="currentPage"
                   :total="currentTransactionsPage.totalCount"
-                  :page-count="limit"
-                  @update:model-value="changePage"
+                  :items-per-page="limit"
                 />
               </div>
             </div>
@@ -79,10 +78,9 @@
                   Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
                 </div>
                 <UPagination
-                  v-model="currentPage"
+                  v-model:page="currentPage"
                   :total="currentTransactionsPage.totalCount"
-                  :page-count="limit"
-                  @update:model-value="changePage"
+                  :items-per-page="limit"
                 />
               </div>
             </div>
@@ -90,18 +88,6 @@
         </template>
       </UTabs>
     </div>
-
-    <AdminAidBasedTransactionDialog
-      :show="aidBasedDialogIsVisible"
-      :transaction="transactionBeingEdited"
-      @close="closeDialog(TRANSACTION_TYPES.aidBased)"
-    />
-    <AdminManualTransactionDialog
-      :show="manualDialogIsVisible"
-      :transaction="transactionBeingEdited"
-      :accounts="accounts"
-      @close="closeDialog(TRANSACTION_TYPES.manual)"
-    />
   </UContainer>
 </template>
 
@@ -114,9 +100,15 @@ import { useAuthStore } from '~/stores/auth'
 import { TRANSACTION_TYPES } from '~/infrastructure/constants'
 import { transactionClassifications } from '~/infrastructure/dataLists'
 import type { Transaction } from '~/stores/shared/transaction'
+import ManualTransactionDialog from '~/components/admin/ManualTransactionDialog.vue'
+import AidBasedTransactionDialog from '~/components/admin/AidBasedTransactionDialog.vue'
 
 const router = useRouter()
 const toast = useToast()
+const overlay = useOverlay()
+
+const aidBasedModal = overlay.create(AidBasedTransactionDialog)
+const manualModal = overlay.create(ManualTransactionDialog)
 
 const adminTransactionsStore = useAdminTransactionsStore()
 const adminAccountsStore = useAdminAccountsStore()
@@ -126,7 +118,7 @@ const { currentTransactionsPage, aidBasedTransactions, manualTransactions } = st
 const { accounts } = storeToRefs(adminAccountsStore)
 const { loggedInUser } = storeToRefs(authStore)
 
-const activeTabIndex = ref<number>(0)
+const activeTab = ref<string>(TRANSACTION_TYPES.aidBased)
 const currentPage = ref<number>(1)
 const limit = ref<number>(25)
 const tableIsLoading = ref<boolean>(false)
@@ -152,12 +144,12 @@ const filters = ref<TransactionFilter>({
 // Tab configuration for UTabs component
 const tabs = [
   {
-    key: 'aid-based',
+    value: TRANSACTION_TYPES.aidBased,
     label: 'Aid-Based',
     slot: 'aid-based'
   },
   {
-    key: 'manual',
+    value: TRANSACTION_TYPES.manual,
     label: 'Manual',
     slot: 'manual'
   }
@@ -260,7 +252,7 @@ const manualColumns: TableColumn<ManualTransaction>[] = [
           label: 'Edit',
           color: 'primary',
           size: 'xs',
-          onClick: () => editTransaction(transaction as any, TRANSACTION_TYPES.manual)
+          onClick: () => editTransaction(transaction, TRANSACTION_TYPES.manual)
         }),
         h(resolveComponent('UButton'), {
           label: 'Delete',
@@ -315,11 +307,6 @@ const manualColumns: TableColumn<ManualTransaction>[] = [
   }
 ]
 
-// Computed property for current transaction type based on active tab
-const currentTab = computed<string>(() => {
-  return activeTabIndex.value === 0 ? TRANSACTION_TYPES.aidBased : TRANSACTION_TYPES.manual
-})
-
 // Helper function to get classification description
 const getClassificationDescription = (classificationId: number | null): string => {
   if (classificationId === null) return 'N/A'
@@ -363,7 +350,7 @@ const changePage = async (newPageNumber: number): Promise<void> => {
 
   try {
     await adminTransactionsStore.reloadCurrentTransactionsPage({
-      type: currentTab.value,
+      type: activeTab.value,
       filter: {
         sentBy: filters.value.sentBy ? Number(filters.value.sentBy) : undefined,
         receivedBy: filters.value.receivedBy ? Number(filters.value.receivedBy) : undefined,
@@ -396,24 +383,28 @@ watch(() => dateFilters.value.sentUntil, (newValue) => {
 })
 
 // Watch for tab changes
-watch(activeTabIndex, async (newIndex) => {
+watch(activeTab, async (_) => {
   await changePage(1)
+})
+
+watch(currentPage, async (newPage) => {
+  await changePage(newPage)
 })
 
 // Create new transaction
 const createTransaction = (): void => {
-  transactionBeingEdited.value = {} as Transaction
-  manualDialogIsVisible.value = true
+  manualModal.open({
+    transaction: {} as ManualTransaction,
+    accounts: accounts.value
+  })
 }
 
 // Edit transaction
-const editTransaction = (transaction: Transaction, transactionType: string): void => {
-  transactionBeingEdited.value = transaction
-
+const editTransaction = (transaction: Transaction | ManualTransaction, transactionType: string): void => {
   if (transactionType === TRANSACTION_TYPES.aidBased) {
-    aidBasedDialogIsVisible.value = true
+    aidBasedModal.open({ transaction: transaction as Transaction })
   } else if (transactionType === TRANSACTION_TYPES.manual) {
-    manualDialogIsVisible.value = true
+    manualModal.open({ transaction: transaction as ManualTransaction, accounts: accounts.value })
   }
 }
 
@@ -441,18 +432,6 @@ const deleteTransactionById = async (id: number): Promise<void> => {
   } finally {
     transactionIdBeingDeleted.value = 0
   }
-}
-
-// Close dialog
-const closeDialog = async (transactionType: string): Promise<void> => {
-  if (transactionType === TRANSACTION_TYPES.aidBased) {
-    aidBasedDialogIsVisible.value = false
-  } else if (transactionType === TRANSACTION_TYPES.manual) {
-    manualDialogIsVisible.value = false
-  }
-
-  transactionBeingEdited.value = undefined
-  await changePage(currentPage.value)
 }
 
 // Check admin access and load data on mount
