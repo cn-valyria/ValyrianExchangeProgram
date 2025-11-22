@@ -3,6 +3,7 @@ import { useAuthStore } from './auth'
 import type { AidStatus, NationalWarStatus, RecentActivity } from './shared/enums'
 import type { NationSimplified } from './shared/nationSimplified'
 import type { Transaction } from './shared/transaction'
+import type { TransactionsPage } from './shared/transactionsPage'
 
 export interface Account {
   id: number
@@ -55,6 +56,12 @@ export interface TransactionCode {
   receivingRole: string | null
 }
 
+export interface AccountTransactionHistory {
+  currentPage: TransactionsPage,
+  totalCreditTxns: number,
+  totalDebtTxns: number
+}
+
 export interface CreditHistoryItem {
   id: number
   otherNation: NationSimplified | null
@@ -71,7 +78,11 @@ export const useAccountStore = defineStore('account', {
   state: () => ({
     account: {} as Account,
     aidList: [] as AidItem[],
-    transactionHistory: [] as Transaction[],
+    accountTransactionHistory: {
+      currentPage: { totalCount: 0, results: [] } as TransactionsPage,
+      totalCreditTxns: 0,
+      totalDebtTxns: 0
+    } as AccountTransactionHistory,
   }),
 
   getters: {
@@ -81,8 +92,8 @@ export const useAccountStore = defineStore('account', {
         return []
       }
 
-      const transactions = state.transactionHistory
-      return transactions.map((txn) => ({
+      const transactions = state.accountTransactionHistory.currentPage.results
+      return transactions.map((txn: Transaction) => ({
         id: txn.id,
         otherNation: buildOtherNation(txn, account),
         type: buildTransactionType(txn, account),
@@ -140,18 +151,23 @@ export const useAccountStore = defineStore('account', {
       }
     },
 
-    async loadTransactionHistory(accountId: number) {
+    async loadTransactionHistory(accountId: number, limit?: number, offset?: number) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 
-      const { data, error } = await useFetch(
-        `${config.public.apiUrl}/api/accounts/${accountId}/transactions`,
-        {
-          headers: {
-            Authorization: `Bearer ${authStore.accessToken}`,
-          },
-        }
-      )
+      const params = new URLSearchParams()
+      if (limit !== undefined) params.append('limit', limit.toString())
+      if (offset !== undefined) params.append('offset', offset.toString())
+
+      const url = `${config.public.apiUrl}/api/accounts/${accountId}/transactions${
+        params.toString().length > 0 ? '?' + params.toString() : ''
+      }`
+
+      const { data, error } = await useFetch(url, {
+        headers: {
+          Authorization: `Bearer ${authStore.accessToken}`,
+        },
+      })
 
       if (error.value) {
         console.error('Failed to load transaction history:', error.value)
@@ -159,7 +175,10 @@ export const useAccountStore = defineStore('account', {
       }
 
       if (data.value) {
-        this.transactionHistory = data.value as Transaction[]
+        const response = data.value as AccountTransactionHistory
+        this.accountTransactionHistory.currentPage = response.currentPage
+        this.accountTransactionHistory.totalCreditTxns = response.totalCreditTxns
+        this.accountTransactionHistory.totalDebtTxns = response.totalDebtTxns
       }
     },
   },

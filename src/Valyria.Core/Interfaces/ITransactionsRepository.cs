@@ -15,7 +15,7 @@ public interface ITransactionsRepository
         int offset
     );
 
-    Task<List<TransactionDetail>> GetTransactionsByAccount(int accountId);
+    Task<AccountTransactionsResponse> GetTransactionsByAccount(int accountId, int limit, int offset);
 
     Task<int> CreateTransactionAsync(TransactionCreateRequest transaction);
 

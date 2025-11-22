@@ -11,6 +11,7 @@ using Valyria.Infrastructure.Exceptions;
 using Valyria.Api.Auth;
 using AutoMapper;
 using Valyria.Core.Entities;
+using Valyria.Core.Contracts;
 
 namespace Valyria.Api.Controllers;
 
@@ -85,17 +86,17 @@ public class AccountsController : ControllerBase
     }
 
     [HttpGet("{id}/transactions")]
-    public async Task<IActionResult> GetAccountTransactions(int id)
+    public async Task<IActionResult> GetAccountTransactions(int id, [FromQuery] int? limit, [FromQuery] int? offset)
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAccountTransactions)} method...");
 
         try
         {
-            var results = await _transactionsRepository.GetTransactionsByAccount(id);
+            var results = await _transactionsRepository.GetTransactionsByAccount(id, limit ?? 10, offset ?? 0);
 
-            _logger.LogInformation($"{nameof(GetAccountTransactions)} execution complete. Found {results.Count} results.");
+            _logger.LogInformation($"{nameof(GetAccountTransactions)} execution complete. Found {results.CurrentPage.TotalCount} total results.");
 
-            return Ok(results.Select(_mapper.Map<Transaction>));
+            return Ok(_mapper.Map<AccountTransactionSearchResults>(results));
         }
         catch (Exception e)
         {

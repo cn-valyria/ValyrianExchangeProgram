@@ -30,7 +30,11 @@
         <AccountAidList :account="account" :aidList="aidList" />
 
         <!-- Credit History Card -->
-        <AccountCreditHistory :accountRole="account.role" :creditHistory="creditHistory" />
+        <AccountCreditHistory
+          :accountId="account.id"
+          :accountRole="account.role"
+          :creditHistory="creditHistory"
+        />
       </div>
     </UContainer>
   </div>

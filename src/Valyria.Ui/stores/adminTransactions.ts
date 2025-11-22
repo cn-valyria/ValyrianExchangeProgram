@@ -3,11 +3,7 @@ import { useAuthStore } from './auth'
 import { ADJUSTMENT_TYPES } from '~/infrastructure/constants'
 import type { NationSimplified } from './shared/nationSimplified'
 import type { Transaction } from './shared/transaction'
-
-export interface TransactionsPage {
-  totalCount: number
-  data: Transaction[]
-}
+import type { TransactionsPage } from './shared/transactionsPage'
 
 export interface TransactionFilter {
   sentBy?: number
@@ -34,18 +30,18 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
   state: () => ({
     currentTransactionsPage: {
       totalCount: 0,
-      data: [],
+      results: [],
     } as TransactionsPage,
   }),
 
   getters: {
     aidBasedTransactions: (state): Transaction[] => {
-      const data = state.currentTransactionsPage.data
+      const data = state.currentTransactionsPage.results
       return data.some((txn) => txn.aidId === null) ? [] : data
     },
 
     manualTransactions: (state): ManualTransaction[] => {
-      const data = state.currentTransactionsPage.data
+      const data = state.currentTransactionsPage.results
       return data.some((txn) => txn.aidId !== null)
         ? []
         : data.map((txn) => ({
@@ -92,7 +88,7 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
 
       if (data.value) {
         const response = data.value as { results: Transaction[]; totalCount: number }
-        this.currentTransactionsPage.data = response.results
+        this.currentTransactionsPage.results = response.results
         this.currentTransactionsPage.totalCount = response.totalCount
       }
     },

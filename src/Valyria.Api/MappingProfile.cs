@@ -2,10 +2,6 @@ using AutoMapper;
 using Valyria.Core.Contracts;
 using Valyria.Core.Entities;
 using Valyria.Core.DTOs;
-using Valyria.Core.Enums;
-using DtoTxnSearchResults = Valyria.Core.DTOs.TransactionSearchResponse;
-using System.Linq;
-using System;
 
 namespace Valyria.Api;
 
@@ -13,7 +9,7 @@ public class MappingProfile : Profile
 {
     public MappingProfile()
     {
-        CreateMap<DtoTxnSearchResults, TransactionSearchResults>();
+        CreateMap<AccountTransactionsResponse, AccountTransactionSearchResults>();
         CreateMap<DataCollection<TransactionDetail>, TransactionCollection>()
             .ForMember(dest => dest.TotalCount, opt => opt.MapFrom(src => src.TotalCount))
             .ForMember(dest => dest.Results, opt => opt.MapFrom((src, dest, i, context) => src.Results.Select(context.Mapper.Map<Transaction>)));

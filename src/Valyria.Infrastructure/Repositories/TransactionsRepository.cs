@@ -48,7 +48,7 @@ public class TransactionsRepository : ITransactionsRepository
         };
     }
 
-    public async Task<List<TransactionDetail>> GetTransactionsByAccount(int accountId)
+    public async Task<AccountTransactionsResponse> GetTransactionsByAccount(int accountId, int limit, int offset)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
 
@@ -56,13 +56,35 @@ public class TransactionsRepository : ITransactionsRepository
         {
             _type = (int?) null,
             _account_id = accountId,
-            _sent_by = (string) null,
-            _received_by = (string) null,
+            _sent_by = (string?) null,
+            _received_by = (string?) null,
             _sent_since = (DateTime?) null,
             _sent_until = (DateTime?) null
         }, commandType: CommandType.StoredProcedure);
 
-        return (await sqlConnection.QueryAsync<TransactionDetail>("select * from tmpTxnSearchResults order by AidId desc, StartsOn desc")).ToList();
+        var totalCount = await sqlConnection.QueryFirstAsync<int>("select count(1) from tmpTxnSearchResults");
+        var results = await sqlConnection.QueryAsync<TransactionDetail>(
+            "select * from tmpTxnSearchResults order by AidId desc, StartsOn desc limit @offset, @limit",
+            new { offset, limit });
+
+        var (TotalCredit, TotalDebt) = await sqlConnection.QueryFirstAsync<(int, int)>(@"
+select 
+    coalesce(sum(case when AidId is null and SentByNationId is not null or sent_account.id = @accountId then 1 else 0 end), 0) as TotalCredit,
+    coalesce(sum(case when AidId is null and SentByNationId is null or recd_account.id = @accountId then 1 else 0 end), 0) as TotalDebt
+from tmpTxnSearchResults results
+left join account sent_account on results.SentByNationId = sent_account.nation_id
+left join account recd_account on results.ReceivedByNationId = recd_account.nation_id", new { accountId });
+
+        return new AccountTransactionsResponse
+        {
+            CurrentPage = new DataCollection<TransactionDetail>
+            {
+                TotalCount = totalCount,
+                Results = results
+            },
+            TotalCreditTxns = TotalCredit,
+            TotalDebtTxns = TotalDebt
+        };
     }
 
     public async Task<int> CreateTransactionAsync(TransactionCreateRequest transaction)
