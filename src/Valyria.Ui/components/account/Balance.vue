@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <UDivider />
+      <USeparator />
 
       <p class="text-center text-base text-gray-700 dark:text-gray-300">
         {{ description }}
@@ -32,9 +32,9 @@
 import { ACCOUNT_ROLE_CODES } from "@/infrastructure/constants"
 
 interface Props {
-  credit: number
-  debt: number
-  role: string
+  credit: number | undefined
+  debt: number | undefined
+  role: string | undefined
 }
 
 const props = defineProps<Props>()

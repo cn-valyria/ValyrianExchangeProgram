@@ -9,7 +9,7 @@
             How VEP Works
           </h1>
           <p class="text-lg sm:text-xl text-primary-100 max-w-3xl mx-auto">
-            Sending and receiving aid made simple, efficient, and dare we say—a little bit fun
+            Sending and receiving aid, made simple, efficient, and dare we say—a little bit fun
           </p>
         </div>
       </div>
@@ -44,7 +44,7 @@
                 </h3>
                 <p class="text-gray-600 dark:text-gray-300">
                   Click the <strong>Login</strong> button in the top right corner of the page. You'll need your Cybernations
-                  Nation ID to authenticate.
+                  Ruler Name or Nation ID to authenticate.
                 </p>
                 <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
                   <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">How to find your Nation ID:</p>
@@ -55,12 +55,11 @@
                   </ol>
                 </div>
 
-                <!-- Placeholder for screenshot -->
-                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 p-8 flex items-center justify-center">
-                  <div class="text-center">
-                    <Icon name="heroicons:photo" class="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Screenshot placeholder: Login page</p>
-                  </div>
+                <div class="lg:col-span-3">
+                  <UCard class="overflow-hidden">
+                    <img src="~/assets/img/howitworks-login1.png" alt="Account Example" class="w-full rounded-lg" />
+                    <img src="~/assets/img/howitworks-login2.png" alt="Account Example" class="w-full rounded-lg" />
+                  </UCard>
                 </div>
               </div>
             </div>
@@ -92,12 +91,10 @@
                   icon="i-heroicons-light-bulb"
                 />
 
-                <!-- Placeholder for screenshot -->
-                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 p-8 flex items-center justify-center">
-                  <div class="text-center">
-                    <Icon name="heroicons:photo" class="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Screenshot placeholder: Authentication code message</p>
-                  </div>
+                <div class="lg:col-span-3">
+                  <UCard class="overflow-hidden">
+                    <img src="~/assets/img/howitworks-notepad.png" alt="Account Example" class="w-full rounded-lg" />
+                  </UCard>
                 </div>
               </div>
             </div>
@@ -130,12 +127,10 @@
                   </ul>
                 </div>
 
-                <!-- Placeholder for screenshot -->
-                <div class="bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 p-8 flex items-center justify-center">
-                  <div class="text-center">
-                    <Icon name="heroicons:photo" class="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Screenshot placeholder: Account dashboard</p>
-                  </div>
+                <div class="lg:col-span-3">
+                  <UCard class="overflow-hidden">
+                    <img src="~/assets/img/howitworks-accessaccount.png" alt="Account Example" class="w-full rounded-lg" />
+                  </UCard>
                 </div>
               </div>
             </div>
@@ -207,12 +202,10 @@
           </UCard>
         </div>
 
-        <!-- Placeholder for aid targets screenshot -->
-        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 p-12 flex items-center justify-center">
-          <div class="text-center">
-            <Icon name="heroicons:photo" class="h-20 w-20 text-gray-400 mx-auto mb-3" />
-            <p class="text-sm text-gray-500 dark:text-gray-400">Screenshot placeholder: Aid targets list</p>
-          </div>
+        <div class="lg:col-span-3">
+          <UCard class="overflow-hidden">
+            <img src="~/assets/img/howitworks-aidlist.png" alt="Account Example" class="w-full rounded-lg" />
+          </UCard>
         </div>
       </section>
 
@@ -273,7 +266,8 @@
               Join Our Community
             </h3>
             <p class="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              If you need support or have questions, visit the VEP members channel on the FTW Discord server.
+              If you need support or have questions, visit the 
+              <a href="https://discord.gg/kUdGRm3zXA" class="font-medium text-fg-brand hover:underline">VEP Discord Server</a>.
               Our community is here to help you succeed!
             </p>
           </div>

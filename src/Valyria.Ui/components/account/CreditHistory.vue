@@ -59,7 +59,11 @@ interface Props {
   creditHistory: CreditHistoryItem[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  accountId: () => 0,
+  accountRole: () => "",
+  creditHistory: () => []
+})
 
 const tableIsLoading = ref<boolean>(false)
 const currentPage = ref<number>(1)

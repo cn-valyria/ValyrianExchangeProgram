@@ -9,7 +9,7 @@
 import { accountRoles } from '~/infrastructure/dataLists'
 
 const props = defineProps<{
-  code: string
+  code: string | undefined
 }>()
 
 const roleDescription = computed(() => {

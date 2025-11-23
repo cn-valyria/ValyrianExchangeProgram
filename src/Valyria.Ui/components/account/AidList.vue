@@ -32,7 +32,7 @@
         :description="alertDescription"
       />
 
-      <UTable :data="props.aidList" :columns="columns" />
+      <UTable :data="data" :columns="columns" />
     </div>
   </UCard>
 </template>
@@ -48,18 +48,26 @@ interface Props {
   aidList: AidItem[]
 }
 
-const props = defineProps<Props>()
+interface AidListTableRow {
+  nation: NationSimplified
+  alliance: string 
+  slotsFree: number 
+  discord: string
+}
 
-const data = computed(() => {
-  return props.aidList.map((item) => ({
-    nation: item.nation,
-    alliance: item.nation.allianceName,
-    slotsFree: item.slotsFree,
-    discord: item.discord
-  }));
-});
+const props = withDefaults(defineProps<Props>(), {
+  account: () => ({} as Account),
+  aidList: () => []
+})
 
-const columns: TableColumn<AidItem>[] = [
+const data = computed<AidListTableRow[]>(() => props.aidList.map((item) => ({
+  nation: item.nation,
+  alliance: item.nation.allianceName,
+  slotsFree: item.slotsFree,
+  discord: item.discord
+})));
+
+const columns: TableColumn<AidListTableRow>[] = [
   {
     accessorKey: 'nation',
     header: 'Nation',
@@ -70,7 +78,16 @@ const columns: TableColumn<AidItem>[] = [
   },
   {
     accessorKey: 'alliance',
-    header: 'Alliance'
+    header: 'Alliance',
+    cell: ({ row }) => {
+      const aidList = row.original
+      return h('div', { class: 'flex items-center gap-3 flex-1' }, [
+        h(resolveComponent('ChipAllianceAcronym'), {
+          allianceName: aidList.alliance
+        }),
+        h('span', aidList.alliance)
+      ])
+    }
   },
   {
     accessorKey: 'slotsFree',

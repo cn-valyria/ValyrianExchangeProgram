@@ -12,7 +12,7 @@ import { convertToAllianceAcronym } from '~/infrastructure/converters';
 import { allianceAcronyms } from '~/infrastructure/dataLists';
 
 const props = defineProps<{
-  allianceName: string
+  allianceName: string | undefined
 }>()
 
 const allianceAcronym = computed(() => {
