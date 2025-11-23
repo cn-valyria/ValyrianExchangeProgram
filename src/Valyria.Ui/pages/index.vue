@@ -155,7 +155,9 @@
           If you already have an account, dig into our additional resources to learn more about the nuts and bolts of
           how VEP works
         </p>
-        <UButton size="xl" color="neutral" variant="solid" label="How VEP Works" class="mt-4" />
+        <NuxtLink to="/how-it-works">
+          <UButton size="xl" color="neutral" variant="solid" label="How VEP Works" class="mt-4" />
+        </NuxtLink>
       </div>
     </section>
 

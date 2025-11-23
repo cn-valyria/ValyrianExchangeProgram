@@ -14,17 +14,13 @@
           <NuxtLink to="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
             Home
           </NuxtLink>
-          <a
-            href="https://docs.google.com/document/d/1xsOzQjIb98aJwvHr4-AZqfUlCXLcVYAlXihZnvwBQoc/edit?tab=t.0"
-            target="_blank"
-            class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-          >
+          <NuxtLink to="/how-it-works" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
             How It Works
-          </a>
+          </NuxtLink>
 
           <!-- Account Dropdown (Authenticated) -->
           <UDropdownMenu v-if="isAuthenticated" :items="accountMenuItems" :popper="{ placement: 'bottom-end' }">
-            <UButton color="neutral" variant="ghost" trailing-icon="i-heroicons-chevron-down-20-solid">
+            <UButton color="neutral" variant="ghost" trailing-icon="i-heroicons-chevron-down-20-solid" class="text-gray-300 hover:text-gray-900">
               Account
             </UButton>
           </UDropdownMenu>
@@ -51,13 +47,9 @@
         <NuxtLink to="/" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
           Home
         </NuxtLink>
-        <a
-          href="https://docs.google.com/document/d/1xsOzQjIb98aJwvHr4-AZqfUlCXLcVYAlXihZnvwBQoc/edit?tab=t.0"
-          target="_blank"
-          class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
-        >
+        <NuxtLink to="/how-it-works" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
           How It Works
-        </a>
+        </NuxtLink>
 
         <template v-if="isAuthenticated">
           <NuxtLink :to="accountUrl" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
