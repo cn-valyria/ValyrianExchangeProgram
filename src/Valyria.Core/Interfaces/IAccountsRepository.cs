@@ -6,7 +6,7 @@ namespace Valyria.Core.Interfaces;
 
 public interface IAccountsRepository
 {
-    Task<IEnumerable<AccountDetail>> GetAccountDetailsAsync();
+    Task<IEnumerable<AccountDetail>> GetAccountDetailsAsync(bool includeOnHold = false);
 
     Task<AccountDetail> GetAccountByIdAsync(int accountId);
 

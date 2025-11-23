@@ -45,11 +45,11 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
   }),
 
   actions: {
-    async loadAllAccounts() {
+    async loadAllAccounts(includeOnHold: boolean = false) {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/accounts`, {
+      const { data, error } = await useFetch(`${config.public.apiUrl}/api/accounts?includeOnHold=${includeOnHold}`, {
         headers: {
           Authorization: `Bearer ${authStore.accessToken}`,
         },

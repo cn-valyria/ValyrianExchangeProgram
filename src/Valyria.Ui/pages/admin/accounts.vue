@@ -10,21 +10,31 @@
       <!-- Actions and Table Card -->
       <UCard>
         <div class="space-y-4">
-          <!-- Create Button -->
-          <div class="flex justify-between items-center">
+          <!-- Search and Actions -->
+          <div class="flex justify-between items-center gap-4">
             <UInput
               v-model="searchQuery"
               placeholder="Search by nation, ruler, alliance, or role..."
               icon="i-heroicons-magnifying-glass"
               class="w-full max-w-md"
             />
-            <UButton
-              color="success"
-              icon="i-heroicons-plus"
-              @click="createAccount()"
-            >
-              Create Account
-            </UButton>
+            <div class="flex items-center gap-4">
+              <USwitch
+                v-model="showOnHold"
+                @update:model-value="handleToggleChange"
+              >
+                <template #label>
+                  <span class="text-sm text-gray-600 dark:text-gray-400">Show On Hold</span>
+                </template>
+              </USwitch>
+              <UButton
+                color="success"
+                icon="i-heroicons-plus"
+                @click="createAccount()"
+              >
+                Create Account
+              </UButton>
+            </div>
           </div>
 
           <!-- Table -->
@@ -64,6 +74,7 @@ const editDialogIsVisible = ref<boolean>(false)
 const accountIdBeingDeleted = ref<number>(0)
 const loading = ref<boolean>(false)
 const searchQuery = ref<string>('')
+const showOnHold = ref<boolean>(false)
 const roles = accountRoles
 
 // Table columns definition
@@ -220,6 +231,24 @@ const deleteAccountById = async (accountId: number): Promise<void> => {
   }
 }
 
+// Handle toggle change to reload accounts with/without On Hold
+const handleToggleChange = async (): Promise<void> => {
+  loading.value = true
+  try {
+    await adminAccountsStore.loadAllAccounts(showOnHold.value)
+  } catch (error) {
+    console.error('Failed to reload accounts:', error)
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to reload accounts. Please try again.',
+      duration: 5000
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
 // Check admin access and load accounts on mount
 onMounted(async () => {
   // Check if user has admin role
@@ -237,7 +266,7 @@ onMounted(async () => {
 
   loading.value = true
   try {
-    await adminAccountsStore.loadAllAccounts()
+    await adminAccountsStore.loadAllAccounts(showOnHold.value)
     console.log('Accounts loaded:', accounts.value)
   } catch (error) {
     console.error('Failed to load accounts:', error)

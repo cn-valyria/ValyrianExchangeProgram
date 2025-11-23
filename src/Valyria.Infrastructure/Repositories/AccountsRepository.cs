@@ -66,10 +66,17 @@ left join (
 
     public AccountsRepository(string connectionString) => _connectionString = connectionString;
 
-    public async Task<IEnumerable<AccountDetail>> GetAccountDetailsAsync()
+    public async Task<IEnumerable<AccountDetail>> GetAccountDetailsAsync(bool includeOnHold = false)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
-        return await sqlConnection.QueryAsync<AccountDetail>(AccountDetailQuery);
+        var query = AccountDetailQuery;
+
+        if (!includeOnHold)
+        {
+            query += "\nwhere account.va <> 'H'";
+        }
+
+        return await sqlConnection.QueryAsync<AccountDetail>(query);
     }
 
     public async Task<AccountDetail> GetAccountByIdAsync(int accountId)

@@ -44,13 +44,13 @@ public class AccountsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllAccounts()
+    public async Task<IActionResult> GetAllAccounts([FromQuery] bool includeOnHold = false)
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAllAccounts)} method...");
 
         try
         {
-            var results = await _accountsRepository.GetAccountDetailsAsync();
+            var results = await _accountsRepository.GetAccountDetailsAsync(includeOnHold);
 
             _logger.LogInformation("GetAllAccounts execution complete. Found {count} results.", results.Count());
 
