@@ -49,6 +49,11 @@
           :accountRole="account.role"
           :creditHistory="creditHistory"
         />
+
+        <!-- List Performance -->
+        <AccountListPerformance
+          :listPerformance="listPerformance"
+        />
       </div>
     </UContainer>
   </div>
@@ -66,7 +71,7 @@ const toast = useToast()
 const accountStore = useAccountStore()
 const authStore = useAuthStore()
 
-const { account, aidList, creditHistory } = storeToRefs(accountStore)
+const { account, aidList, creditHistory, listPerformance } = storeToRefs(accountStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref<boolean>(true)
@@ -97,6 +102,7 @@ onMounted(async () => {
     await accountStore.loadAccount(accountId.value)
     await accountStore.loadAidList(accountId.value)
     await accountStore.loadTransactionHistory(accountId.value)
+    await accountStore.loadListPerformance(accountId.value)
   } catch (error) {
     console.error('Failed to load account data:', error)
     toast.add({

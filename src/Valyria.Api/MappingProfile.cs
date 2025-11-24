@@ -24,7 +24,11 @@ public class MappingProfile : Profile
         CreateMap<AidListDetail, AidList>();
         CreateMap<ListRecipientDetail, ListRecipient>()
             .ForMember(dest => dest.Nation, opt => opt.MapFrom(src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName)))
-            .ForMember(dest => dest.RecentActivity, opt => opt.MapFrom(src => (Valyria.Core.Enums.RecentActivity) src.RecentActivity));
+            .ForMember(dest => dest.RecentActivity, opt => opt.MapFrom(src => (Valyria.Core.Enums.RecentActivity)src.RecentActivity));
+
+        CreateMap<AccountListPerformance, ListPerformance>()
+            .ForMember(dest => dest.Nation, opt => opt.MapFrom(src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName)))
+            .ForMember(dest => dest.DayStarted, opt => opt.MapFrom(src => DateOnly.FromDateTime(src.DayStarted)));
     }
 
     private NationSimplified MapToNationSimplified(int? nationId, string nationName, string rulerName, string allianceName)

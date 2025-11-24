@@ -23,6 +23,7 @@ public class AccountsController : ControllerBase
     private readonly IAccountsRepository _accountsRepository;
     private readonly ITransactionsRepository _transactionsRepository;
     private readonly IListsRepository _listsRepository;
+    private readonly IAccountListPerformanceRepository _accountListPerformanceRepository;
     private readonly ITokenProvider _tokenProvider;
     private readonly IMapper _mapper;
     private readonly ILogger<AccountsController> _logger;
@@ -31,6 +32,7 @@ public class AccountsController : ControllerBase
         IAccountsRepository accountsRepository,
         ITransactionsRepository transactionsRepository,
         IListsRepository listsRepository,
+        IAccountListPerformanceRepository accountListPerformanceRepository,
         ITokenProvider tokenProvider,
         IMapper mapper,
         ILogger<AccountsController> logger)
@@ -38,6 +40,7 @@ public class AccountsController : ControllerBase
         _accountsRepository = accountsRepository;
         _transactionsRepository = transactionsRepository;
         _listsRepository = listsRepository;
+        _accountListPerformanceRepository = accountListPerformanceRepository;
         _tokenProvider = tokenProvider;
         _mapper = mapper;
         _logger = logger;
@@ -122,6 +125,27 @@ public class AccountsController : ControllerBase
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountAidList)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    [HttpGet("{id}/listPerformance")]
+    public async Task<IActionResult> GetAccountListPerformance(int id, [FromQuery] bool? includeIncoming)
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(GetAccountListPerformance)} method...");
+
+        try
+        {
+            var results = await _accountListPerformanceRepository.GetAccountListPerformanceAsync(id, includeIncoming ?? false);
+
+            _logger.LogInformation($"{nameof(GetAccountListPerformance)} execution complete. Found {results.Count} results.");
+
+            return Ok(results.Select(_mapper.Map<ListPerformance>));
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountListPerformance)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }

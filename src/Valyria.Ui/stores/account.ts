@@ -4,6 +4,7 @@ import type { AidStatus, NationalWarStatus, RecentActivity } from './shared/enum
 import type { NationSimplified } from './shared/nationSimplified'
 import type { Transaction } from './shared/transaction'
 import type { TransactionsPage } from './shared/transactionsPage'
+import type { ListPerformance } from './shared/listPerformance'
 
 export interface Account {
   id: number
@@ -87,6 +88,7 @@ export const useAccountStore = defineStore('account', {
       totalCreditTxns: 0,
       totalDebtTxns: 0
     } as AccountTransactionHistory,
+    listPerformance: [] as ListPerformance[],
   }),
 
   getters: {
@@ -183,6 +185,33 @@ export const useAccountStore = defineStore('account', {
         this.accountTransactionHistory.currentPage = response.currentPage
         this.accountTransactionHistory.totalCreditTxns = response.totalCreditTxns
         this.accountTransactionHistory.totalDebtTxns = response.totalDebtTxns
+      }
+    },
+
+    async loadListPerformance(accountId: number, includeIncoming?: boolean) {
+      const config = useRuntimeConfig()
+      const authStore = useAuthStore()
+
+      const params = new URLSearchParams()
+      if (includeIncoming !== undefined) params.append('includeIncoming', includeIncoming.toString())
+
+      const url = `${config.public.apiUrl}/api/accounts/${accountId}/listPerformance${
+        params.toString().length > 0 ? '?' + params.toString() : ''
+      }`
+
+      const { data, error } = await useFetch(url, {
+        headers: {
+          Authorization: `Bearer ${authStore.accessToken}`,
+        },
+      })
+
+      if (error.value) {
+        console.error('Failed to load list performance:', error.value)
+        throw error.value
+      }
+
+      if (data.value) {
+        this.listPerformance = data.value as ListPerformance[]
       }
     },
   },
