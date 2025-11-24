@@ -117,6 +117,38 @@ const columns: TableColumn<AdminAccount>[] = [
     cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.debt)
   },
   {
+    accessorKey: 'avgDaysToClearDebt',
+    header: 'Debt Activity',
+    cell: ({ row }) => {
+      const account = row.original
+      if (account.totalTimesInDebt === 0) {
+        return h('span', { class: 'text-gray-400 dark:text-gray-500 italic' }, 'N/A')
+      }
+      const avgDays = account.avgDaysToClearDebt.toFixed(2)
+      const times = account.totalTimesInDebt
+      return h('div', { class: 'text-gray-900 dark:text-white' }, [
+        h('span', { class: 'font-mono' }, avgDays),
+        h('span', { class: 'text-xs text-gray-500 dark:text-gray-400 ml-1' }, `(${times})`)
+      ])
+    }
+  },
+  {
+    accessorKey: 'avgDaysToFillCredit',
+    header: 'Credit Activity',
+    cell: ({ row }) => {
+      const account = row.original
+      if (account.totalTimesWithCredit === 0) {
+        return h('span', { class: 'text-gray-400 dark:text-gray-500 italic' }, 'N/A')
+      }
+      const avgDays = account.avgDaysToFillCredit.toFixed(2)
+      const times = account.totalTimesWithCredit
+      return h('div', { class: 'text-gray-900 dark:text-white' }, [
+        h('span', { class: 'font-mono' }, avgDays),
+        h('span', { class: 'text-xs text-gray-500 dark:text-gray-400 ml-1' }, `(${times})`)
+      ])
+    }
+  },
+  {
     accessorKey: 'slotsUsed',
     header: 'Slots Free',
     cell: ({ row }) => {

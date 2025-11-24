@@ -38,4 +38,8 @@ public class AccountDetail
     public int TechSentTechCredit { get; set; }
     public int TechReceivedTechCredit { get; set; }
     public int PreviousListOrder { get; set; }
+    public int TotalTimesInDebt { get; set; }
+    public decimal AvgDaysToClearDebt { get; set; }
+    public int TotalTimesWithCredit { get; set; }
+    public decimal AvgDaysToFillCredit { get; set; }
 }

@@ -29,7 +29,7 @@
 
             <!-- Right: Activity Score -->
             <div class="flex justify-center lg:justify-start lg:pl-4 lg:border-l border-gray-200 dark:border-gray-700">
-              <AccountActivityScore :score="mockActivityScore" />
+              <AccountActivityScore :score="account.avgDaysToClearDebt" :totalTimesInDebt="account.totalTimesInDebt" />
             </div>
           </div>
         </div>
@@ -71,9 +71,6 @@ const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref<boolean>(true)
 
-// Mock Activity Score (will be replaced with real data later)
-const mockActivityScore = ref<number | null>(null)
-
 // Parse account ID from route params
 const accountId = computed<number>(() => {
   const parsedId = parseInt(route.params.id as string)
@@ -100,21 +97,6 @@ onMounted(async () => {
     await accountStore.loadAccount(accountId.value)
     await accountStore.loadAidList(accountId.value)
     await accountStore.loadTransactionHistory(accountId.value)
-
-    // Generate mock activity score (random tier and random score within that tier)
-    const tiers = [
-      { name: 'elite', min: 0, max: 0.99 },
-      { name: 'solid', min: 1, max: 1.99 },
-      { name: 'moderate', min: 2, max: 4.99 },
-      { name: 'poor', min: 5, max: 9.99 },
-      { name: 'terrible', min: 10, max: 90 }
-    ]
-
-    const randomTier = tiers[Math.floor(Math.random() * tiers.length)]
-    mockActivityScore.value = Math.random() * (randomTier.max - randomTier.min) + randomTier.min
-
-    // Uncomment the line below to test the "no score" state
-    // mockActivityScore.value = null
   } catch (error) {
     console.error('Failed to load account data:', error)
     toast.add({

@@ -40,6 +40,10 @@ export interface Account {
   techSentTechCredit: number
   techReceivedTechCredit: number
   previousListOrder: number
+  totalTimesInDebt: number
+  avgDaysToClearDebt: number
+  totalTimesWithCredit: number
+  avgDaysToFillCredit: number
 }
 
 export interface AidItem {

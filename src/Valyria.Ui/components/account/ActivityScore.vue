@@ -45,13 +45,14 @@
 <script setup lang="ts">
 interface Props {
   score?: number | null
+  totalTimesInDebt?: number
 }
 
 const props = defineProps<Props>()
 
-// Determine if the account has a score
+// Determine if the account has a score (only if they've had debt at least once)
 const hasScore = computed(() => {
-  return props.score !== undefined && props.score !== null
+  return props.totalTimesInDebt !== undefined && props.totalTimesInDebt > 0
 })
 
 // Format the score to 2 decimal places

@@ -47,7 +47,11 @@ select 	account.id as Id,
     balance.tcS as TechReceivedCashCredit,
     balance.ttB as TechSentTechCredit,
     balance.ttS as TechReceivedTechCredit,
-    999 as PreviousListOrder
+    999 as PreviousListOrder,
+	coalesce(outgoing_perf.times_in_list, 0) as TotalTimesInDebt,
+    coalesce(outgoing_perf.average_days_until_removed, 0.0) as AvgDaysToClearDebt,
+	coalesce(incoming_perf.times_in_list, 0) as TotalTimesWithCredit,
+    coalesce(incoming_perf.average_days_until_removed, 0.0) as AvgDaysToFillCredit
 from vep_db.account account
 join vep_db.balance balance on account.nation_id = balance.nation_id
 join vep_db.aid_activity on account.id = aid_activity.account_id
@@ -62,7 +66,19 @@ left join (
 	select receiving_nation_id as nation_id, sum(money) as money, sum(technology) as technology
 	from cybernations_db.aid
 	group by receiving_nation_id
-) recd_aid on nation.id = recd_aid.nation_id";
+) recd_aid on nation.id = recd_aid.nation_id
+left join (
+	select account_id, count(1) as times_in_list, avg(days_until_removed) as average_days_until_removed
+    from account_list_performance
+    where list_id in (1, 3)
+    group by account_id
+) outgoing_perf on account.id = outgoing_perf.account_id
+left join (
+	select account_id, count(1) as times_in_list, avg(days_until_removed) as average_days_until_removed
+    from account_list_performance
+    where list_id in (2, 4)
+    group by account_id
+) incoming_perf on account.id = incoming_perf.account_id";
 
     public AccountsRepository(string connectionString) => _connectionString = connectionString;
 

@@ -37,6 +37,10 @@ export interface AdminAccount {
   techSentTechCredit: number
   techReceivedTechCredit: number
   previousListOrder: number
+  totalTimesInDebt: number
+  avgDaysToClearDebt: number
+  totalTimesWithCredit: number
+  avgDaysToFillCredit: number
 }
 
 export const useAdminAccountsStore = defineStore('adminAccounts', {
