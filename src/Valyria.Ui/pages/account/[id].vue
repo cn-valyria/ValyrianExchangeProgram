@@ -7,14 +7,30 @@
 
     <!-- Header Section -->
     <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <UContainer class="py-8">
-        <div class="space-y-4">
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-            <span class="font-extrabold">{{ account.rulerName }}</span> of {{ account.nationName }}
-          </h1>
-          <div class="flex flex-wrap gap-2">
-            <ChipAccountRole :code="account.role" />
-            <ChipAllianceAcronym :allianceName="account.allianceName" />
+      <UContainer class="py-6">
+        <div class="flex flex-col gap-6">
+          <!-- Top Section: Account Info (Centered) -->
+          <div class="flex flex-col items-center text-center space-y-3">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+              <span class="font-extrabold">{{ account.rulerName }}</span> of {{ account.nationName }}
+            </h1>
+            <div class="flex flex-wrap gap-2 justify-center">
+              <ChipAccountRole :code="account.role" />
+              <ChipAllianceAcronym :allianceName="account.allianceName" />
+            </div>
+          </div>
+
+          <!-- Bottom Section: Balance (Left) and Activity Score (Right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left: Balance Info -->
+            <div class="flex justify-center lg:justify-end lg:pr-4">
+              <AccountBalance :credit="account.credit" :debt="account.debt" :role="account.role" />
+            </div>
+
+            <!-- Right: Activity Score -->
+            <div class="flex justify-center lg:justify-start lg:pl-4 lg:border-l border-gray-200 dark:border-gray-700">
+              <AccountActivityScore :score="mockActivityScore" />
+            </div>
           </div>
         </div>
       </UContainer>
@@ -23,8 +39,6 @@
     <!-- Main Content -->
     <UContainer class="py-8">
       <div class="space-y-6">
-        <!-- Balance Card -->
-        <AccountBalance :credit="account.credit" :debt="account.debt" :role="account.role" />
 
         <!-- Aid List Card -->
         <AccountAidList :account="account" :aidList="aidList" />
@@ -57,6 +71,9 @@ const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref<boolean>(true)
 
+// Mock Activity Score (will be replaced with real data later)
+const mockActivityScore = ref<number | null>(null)
+
 // Parse account ID from route params
 const accountId = computed<number>(() => {
   const parsedId = parseInt(route.params.id as string)
@@ -83,6 +100,21 @@ onMounted(async () => {
     await accountStore.loadAccount(accountId.value)
     await accountStore.loadAidList(accountId.value)
     await accountStore.loadTransactionHistory(accountId.value)
+
+    // Generate mock activity score (random tier and random score within that tier)
+    const tiers = [
+      { name: 'elite', min: 0, max: 0.99 },
+      { name: 'solid', min: 1, max: 1.99 },
+      { name: 'moderate', min: 2, max: 4.99 },
+      { name: 'poor', min: 5, max: 9.99 },
+      { name: 'terrible', min: 10, max: 90 }
+    ]
+
+    const randomTier = tiers[Math.floor(Math.random() * tiers.length)]
+    mockActivityScore.value = Math.random() * (randomTier.max - randomTier.min) + randomTier.min
+
+    // Uncomment the line below to test the "no score" state
+    // mockActivityScore.value = null
   } catch (error) {
     console.error('Failed to load account data:', error)
     toast.add({

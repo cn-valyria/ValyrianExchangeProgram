@@ -1,31 +1,28 @@
 <template>
-  <UCard>
-    <template #header>
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Current Balance</h2>
-        <UBadge :color="badgeColor" size="lg" variant="subtle">
-          {{ balanceCategory }}
-        </UBadge>
-      </div>
-    </template>
-
-    <div class="space-y-6">
-      <div class="text-center py-8">
-        <div class="text-6xl font-bold mb-2" :class="categoryClass">
+  <div class="flex flex-col items-center gap-2 min-w-fit">
+    <!-- Balance Amount & Badge Row -->
+    <div class="flex items-center gap-3">
+      <div class="text-center">
+        <div class="text-3xl font-bold" :class="categoryClass">
           {{ positivityIndicator }}{{ amount }}
         </div>
-        <div class="text-2xl font-medium text-gray-600 dark:text-gray-400">
+        <div class="text-sm font-medium text-gray-600 dark:text-gray-400">
           {{ balanceType }}
         </div>
+          <div class="text-sm font-medium text-gray-600 dark:text-gray-400">
+            Balance
+          </div>
       </div>
-
-      <USeparator />
-
-      <p class="text-center text-base text-gray-700 dark:text-gray-300">
-        {{ description }}
-      </p>
+      <UBadge :color="badgeColor" size="md" variant="subtle" class="shrink-0">
+        {{ balanceCategory }}
+      </UBadge>
     </div>
-  </UCard>
+
+    <!-- Description Row -->
+    <div class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
+      {{ description }}
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -53,7 +50,9 @@ const balanceCategory = computed(() => {
     return null
   }
 
-  if (balance.value === 0) {
+  if (props.role === ACCOUNT_ROLE_CODES.onHold) {
+    return "Hold"
+  } else if (balance.value === 0) {
     return "Even" // If the max is 0, then the account has neither credit nor debt
   } else if (balance.value === props.credit) {
     return "Credit"
@@ -115,7 +114,7 @@ const badgeColor = computed(() => {
 })
 
 const positivityIndicator = computed(() => {
-  if (balance.value !== 1 && balanceCategory.value !== "Even") {
+  if (balance.value !== 1 && !["Even", "Hold"].includes(balanceCategory.value)) {
     return balanceCategory.value === "Credit" ? "+" : "-"
   } else {
     return ""
@@ -123,7 +122,9 @@ const positivityIndicator = computed(() => {
 })
 
 const amount = computed(() => {
-  if (balance.value === 1) {
+  if (props.role === ACCOUNT_ROLE_CODES.onHold) {
+    return "--"
+  } else if (balance.value === 1) {
     return "\u221E"
   } else if (balance.value === 0) {
     return "0"
@@ -133,6 +134,9 @@ const amount = computed(() => {
 })
 
 const description = computed(() => {
+  if (balanceCategory.value === "Hold") {
+    return "Your account is on hold and cannot participate in VEP. If you feel this is an error, please contact VEP management for support."
+  }
   if (balanceCategory.value === "Credit" && balance.value !== 1) {
     return `Your nation is due ${amount.value} ${balanceType.value} from other VEP accounts.`
   }
@@ -152,6 +156,8 @@ const description = computed(() => {
       case ACCOUNT_ROLE_CODES.seller:
       case ACCOUNT_ROLE_CODES.probationarySeller:
         return "Your account currently has an even balance! This means that you are due cash from other VEP accounts."
+      default:
+        return "It shouldn't be possible for you to have an even balance. Please contact VEP management for support."
     }
   }
 

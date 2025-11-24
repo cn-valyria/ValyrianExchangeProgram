@@ -16,9 +16,19 @@ export default defineNuxtConfig({
   ],
 
   // Nuxt UI configuration
-  // ui: {
-  //   icons: ['heroicons', 'lucide'],
-  // },
+  ui: {
+    theme: {
+      colors: [
+        'primary',
+        'secondary',
+        'tertiary',
+        'info',
+        'success',
+        'warning',
+        'error'
+      ]
+    }
+  },
 
   // Global CSS
   css: ['@/assets/css/main.css'],
