@@ -262,3 +262,12 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# User secrets
+**/appsettings.*.local.json
+**/appsettings.Secrets.json
