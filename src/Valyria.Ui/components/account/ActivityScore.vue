@@ -15,7 +15,7 @@
           Calculating
         </UBadge>
       </div>
-      <div class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
+      <div v-if="showDetail" class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
         Your Activity Score will be calculated once you've had debt at least one time.
       </div>
     </div>
@@ -35,7 +35,7 @@
           {{ tierName }}
         </UBadge>
       </div>
-      <div class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
+      <div v-if="showDetail" class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
         {{ tierDescription }}
       </div>
     </div>
@@ -46,6 +46,7 @@
 interface Props {
   score?: number | null
   totalTimesInDebt?: number
+  compact?: boolean
 }
 
 const props = defineProps<Props>()
@@ -133,4 +134,6 @@ const tierDescription = computed(() => {
       return ''
   }
 })
+
+const showDetail = computed(() => !(props.compact || false))
 </script>

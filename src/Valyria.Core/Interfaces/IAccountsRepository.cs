@@ -17,4 +17,6 @@ public interface IAccountsRepository
     Task RemoveAccountAsync(int accountId);
 
     Task<ProspectAccount> FindProspectAccountAsync(int nationId);
+
+    Task<IEnumerable<TopScorerAccount>> GetTopScorerAccountsAsync();
 }

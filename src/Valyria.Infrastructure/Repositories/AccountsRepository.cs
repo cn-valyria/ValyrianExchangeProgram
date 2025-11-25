@@ -243,4 +243,39 @@ where nation.id = @nation_id";
 
         return accountExists ?? false;
     }
+
+    public async Task<IEnumerable<TopScorerAccount>> GetTopScorerAccountsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select 	account.id as Id,
+    nation.id as NationId,
+    nation.nation_name as NationName,
+    nation.ruler_name as RulerName,
+    alliance.name as AllianceName,
+    coalesce(outgoing_perf.times_in_list, 0) as TotalTimesInDebt,
+    coalesce(outgoing_perf.average_days_until_removed, 0.0) as AvgDaysToClearDebt
+from vep_db.account account
+join cybernations_db.nation nation on account.nation_id = nation.id
+join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
+left join (
+    select account_id, count(1) as times_in_list, avg(days_until_removed) as average_days_until_removed
+    from account_list_performance
+    where list_id in (1, 3)
+    group by account_id
+) outgoing_perf on account.id = outgoing_perf.account_id
+where account.va <> 'H'
+  and coalesce(outgoing_perf.times_in_list, 0) > 0
+order by AvgDaysToClearDebt asc
+limit 10";
+
+        var results = await sqlConnection.QueryAsync<TopScorerAccount>(query);
+        var rankedResults = results.Select((account, index) =>
+        {
+            account.Rank = index + 1;
+            return account;
+        });
+
+        return rankedResults;
+    }
 }

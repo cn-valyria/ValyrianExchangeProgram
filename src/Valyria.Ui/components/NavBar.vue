@@ -111,11 +111,18 @@ const accountCanSeeLists = computed(() => {
 
 const accountMenuItems = computed(() => {
   const items: DropdownMenuItem[][] = [
-    [{
-      label: 'My Account',
-      icon: 'i-heroicons-user-circle',
-      to: accountUrl.value
-    }]
+    [
+      {
+        label: 'My Account',
+        icon: 'i-heroicons-user-circle',
+        to: accountUrl.value
+      },
+      {
+        label: 'Leaderboard',
+        icon: 'i-heroicons-trophy',
+        to: '/leaderboard'
+      }
+    ]
   ]
 
   if (accountIsAdmin.value || accountCanSeeLists.value) {

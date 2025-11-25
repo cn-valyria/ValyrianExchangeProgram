@@ -256,4 +256,25 @@ public class AccountsController : ControllerBase
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
+
+    [HttpGet("topScorers")]
+    public async Task<IActionResult> GetTopScorers()
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(GetTopScorers)} method...");
+
+        try
+        {
+            var results = await _accountsRepository.GetTopScorerAccountsAsync();
+
+            _logger.LogInformation("GetTopScorers execution complete. Found {count} results.", results.Count());
+
+            return Ok(results);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetTopScorers)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
 }
