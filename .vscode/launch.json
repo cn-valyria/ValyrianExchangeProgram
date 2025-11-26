@@ -41,6 +41,12 @@
       "name": ".NET Core Attach",
       "type": "coreclr",
       "request": "attach"
+    },
+    {
+      "type": "aspire",
+      "request": "launch",
+      "name": "Aspire: Launch default apphost",
+      "program": "${workspaceFolder}"
     }
   ]
 }

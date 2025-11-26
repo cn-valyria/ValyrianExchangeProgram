@@ -12,15 +12,11 @@ var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
     .WithEnvironment("ConnectionStrings__VepDb", vepDbConnectionString)
     .WithEnvironment("JwtSecret", jwtSecret);
 
-builder.AddNpmApp("valyria-ui", "../Valyria.Ui", "dev")
-    .WithHttpEndpoint(env: "PORT")
+builder.AddViteApp("valyria-ui", "../Valyria.Ui", "dev")
     .WithExternalHttpEndpoints()
-    .WithNpmPackageInstallation(configureInstaller: configureInstaller =>
-    {
-        configureInstaller.WithArgs("--legacy-peer-deps");
-    })
-    .WithEnvironment("NUXT_PUBLIC_API_URL", api.GetEndpoint("http"))
-    .WithReference(api)
-    .WaitFor(api);
+    .WithNpm(installArgs: ["--legacy-peer-deps"])
+    .WithEnvironment("NUXT_PUBLIC_API_URL", api.GetEndpoint("https"))
+    .WaitFor(api)
+    .WithReference(api);
 
 builder.Build().Run();
