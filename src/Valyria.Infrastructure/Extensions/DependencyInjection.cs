@@ -9,7 +9,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var vepDbConnectionString = configuration.GetConnectionString("VepDb");
+        var vepDbConnectionString = configuration["VepDbConnectionString"];
 
         return services
             .AddTransient<IAuthorizationRepository>(sp => new AuthorizationRepository(vepDbConnectionString))
