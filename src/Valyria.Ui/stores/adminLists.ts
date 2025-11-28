@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
 import type { RecentActivity } from './shared/enums'
 import type { NationSimplified } from './shared/nationSimplified'
 
@@ -27,14 +26,9 @@ export const useAdminListsStore = defineStore('adminLists', {
 
   actions: {
     async getAllAidLists() {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/lists`, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<AidList[]>('/api/lists')
 
       if (error.value) {
         console.error('Failed to load lists:', error.value)

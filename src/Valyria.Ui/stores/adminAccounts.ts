@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
 import type { NationalWarStatus, RecentActivity } from './shared/enums'
 
 export interface AdminAccount {
@@ -50,14 +49,9 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
 
   actions: {
     async loadAllAccounts(includeOnHold: boolean = false) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/accounts?includeOnHold=${includeOnHold}`, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<AdminAccount[]>(`/api/accounts?includeOnHold=${includeOnHold}`)
 
       if (error.value) {
         console.error('Failed to load accounts:', error.value)
@@ -70,14 +64,10 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     },
 
     async createAccount(payload: Partial<AdminAccount>) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/accounts`, {
+      const { data, error } = await apiFetch<AdminAccount>('/api/accounts', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
         body: payload,
       })
 
@@ -92,14 +82,10 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     },
 
     async updateAccount(payload: Partial<AdminAccount> & { id: number }) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/accounts`, {
+      const { data, error } = await apiFetch<void>('/api/accounts', {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
         body: payload,
       })
 
@@ -125,14 +111,10 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     },
 
     async deleteAccount(id: number) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { error } = await useFetch(`${config.public.apiUrl}/api/accounts/${id}`, {
+      const { error } = await apiFetch<void>(`/api/accounts/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
       })
 
       if (error.value) {

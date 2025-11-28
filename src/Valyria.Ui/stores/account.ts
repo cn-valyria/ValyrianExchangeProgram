@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
 import type { AidStatus, NationalWarStatus, RecentActivity } from './shared/enums'
 import type { NationSimplified } from './shared/nationSimplified'
 import type { Transaction } from './shared/transaction'
@@ -115,14 +114,9 @@ export const useAccountStore = defineStore('account', {
 
   actions: {
     async loadAccount(accountId: number) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/accounts/${accountId}`, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<Account>(`/api/accounts/${accountId}`)
 
       if (error.value) {
         console.error('Failed to load account:', error.value)
@@ -135,17 +129,9 @@ export const useAccountStore = defineStore('account', {
     },
 
     async loadAidList(accountId: number) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(
-        `${config.public.apiUrl}/api/accounts/${accountId}/aidList`,
-        {
-          headers: {
-            Authorization: `Bearer ${authStore.accessToken}`,
-          },
-        }
-      )
+      const { data, error } = await apiFetch<AidItem[]>(`/api/accounts/${accountId}/aidList`)
 
       if (error.value) {
         console.error('Failed to load aid list:', error.value)
@@ -158,22 +144,17 @@ export const useAccountStore = defineStore('account', {
     },
 
     async loadTransactionHistory(accountId: number, limit?: number, offset?: number) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
       const params = new URLSearchParams()
       if (limit !== undefined) params.append('limit', limit.toString())
       if (offset !== undefined) params.append('offset', offset.toString())
 
-      const url = `${config.public.apiUrl}/api/accounts/${accountId}/transactions${
+      const url = `/api/accounts/${accountId}/transactions${
         params.toString().length > 0 ? '?' + params.toString() : ''
       }`
 
-      const { data, error } = await useFetch(url, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<AccountTransactionHistory>(url)
 
       if (error.value) {
         console.error('Failed to load transaction history:', error.value)
@@ -189,21 +170,16 @@ export const useAccountStore = defineStore('account', {
     },
 
     async loadListPerformance(accountId: number, includeIncoming?: boolean) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
       const params = new URLSearchParams()
       if (includeIncoming !== undefined) params.append('includeIncoming', includeIncoming.toString())
 
-      const url = `${config.public.apiUrl}/api/accounts/${accountId}/listPerformance${
+      const url = `/api/accounts/${accountId}/listPerformance${
         params.toString().length > 0 ? '?' + params.toString() : ''
       }`
 
-      const { data, error } = await useFetch(url, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<ListPerformance[]>(url)
 
       if (error.value) {
         console.error('Failed to load list performance:', error.value)

@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
 
 export interface TransactionCountByDay {
   dayTxnRecorded: string
@@ -63,14 +62,9 @@ export const useAdminStore = defineStore('admin', {
 
   actions: {
     async loadDashboard() {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/admin/dashboard`, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<Dashboard>('/api/admin/dashboard')
 
       if (error.value) {
         console.error('Failed to load dashboard:', error.value)

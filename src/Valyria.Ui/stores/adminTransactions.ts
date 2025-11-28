@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { useAuthStore } from './auth'
 import { ADJUSTMENT_TYPES } from '~/infrastructure/constants'
 import type { NationSimplified } from './shared/nationSimplified'
 import type { Transaction } from './shared/transaction'
@@ -67,19 +66,14 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
       limit?: number
       offset?: number
     }) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
       const urlParams = toURLSearchParams(params.filter, params.limit, params.offset)
-      const url = `${config.public.apiUrl}/api/transactions/${params.type}${
+      const url = `/api/transactions/${params.type}${
         urlParams.toString().length > 0 ? '?' + urlParams.toString() : ''
       }`
 
-      const { data, error } = await useFetch(url, {
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
-      })
+      const { data, error } = await apiFetch<{ results: Transaction[]; totalCount: number }>(url)
 
       if (error.value) {
         console.error('Failed to load transactions:', error.value)
@@ -94,14 +88,10 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
     },
 
     async createTransaction(payload: Partial<Transaction>) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/transactions`, {
+      const { data, error } = await apiFetch<Transaction>('/api/transactions', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
         body: payload,
       })
 
@@ -114,14 +104,10 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
     },
 
     async updateTransaction(payload: Partial<Transaction> & { id: number }) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { data, error } = await useFetch(`${config.public.apiUrl}/api/transactions`, {
+      const { data, error } = await apiFetch<Transaction>('/api/transactions', {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
         body: payload,
       })
 
@@ -134,14 +120,10 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
     },
 
     async deleteTransaction(id: number) {
-      const config = useRuntimeConfig()
-      const authStore = useAuthStore()
+      const { apiFetch } = useApiClient()
 
-      const { error } = await useFetch(`${config.public.apiUrl}/api/transactions/${id}`, {
+      const { error } = await apiFetch<void>(`/api/transactions/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${authStore.accessToken}`,
-        },
       })
 
       if (error.value) {
