@@ -36,7 +36,7 @@
           <UButton
             @click="mobileMenuOpen = !mobileMenuOpen"
             color="neutral"
-            variant="ghost"
+            variant="solid"
             :icon="mobileMenuOpen ? 'i-heroicons-x-mark-20-solid' : 'i-heroicons-bars-3-20-solid'"
           />
         </div>
