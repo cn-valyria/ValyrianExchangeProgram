@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Valyria.Api/Valyria.Api.csproj" />
+    <ProjectReference Include="../Valyria.Batch.DataLoader/Valyria.Batch.DataLoader.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Valyria.AppHost", "src\Valy
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Valyria.ServiceDefaults", "src\Valyria.ServiceDefaults\Valyria.ServiceDefaults.csproj", "{ED83F048-16E4-475F-A9D1-7BC2AEEE98A8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Valyria.Batch.DataLoader", "src\Valyria.Batch.DataLoader\Valyria.Batch.DataLoader.csproj", "{8A3CE19B-C96B-4700-9D55-214ECAB980FF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +87,18 @@ Global
 		{ED83F048-16E4-475F-A9D1-7BC2AEEE98A8}.Release|x64.Build.0 = Release|Any CPU
 		{ED83F048-16E4-475F-A9D1-7BC2AEEE98A8}.Release|x86.ActiveCfg = Release|Any CPU
 		{ED83F048-16E4-475F-A9D1-7BC2AEEE98A8}.Release|x86.Build.0 = Release|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Debug|x64.Build.0 = Debug|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Debug|x86.Build.0 = Debug|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Release|x64.ActiveCfg = Release|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Release|x64.Build.0 = Release|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Release|x86.ActiveCfg = Release|Any CPU
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -95,5 +109,6 @@ Global
 		{DBBA5770-4D06-432E-9516-CFA1A41E2773} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{C5049E93-61AA-40DC-A2C6-D157003D47B0} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{ED83F048-16E4-475F-A9D1-7BC2AEEE98A8} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{8A3CE19B-C96B-4700-9D55-214ECAB980FF} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
