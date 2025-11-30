@@ -73,7 +73,17 @@ const columns: TableColumn<AidListTableRow>[] = [
     header: 'Nation',
     cell: ({ row }) => {
       const nation = row.getValue<NationSimplified>('nation');
-      return `${nation.rulerName} of ${nation.nationName}`;
+      const nationText = `${nation.rulerName} of ${nation.nationName}`;
+
+      if (owesTech.value || owesCash.value) {
+        return h('a', {
+          href: getAidNationLink(nation),
+          target: '_blank',
+          class: 'font-medium text-fg-brand hover:underline'
+        }, nationText);
+      }
+
+      return nationText;
     }
   },
   {
