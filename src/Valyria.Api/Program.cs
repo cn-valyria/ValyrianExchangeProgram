@@ -45,8 +45,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Add AutoMapper
-builder.Services.AddAutoMapper(typeof(MappingProfile));
+// Configure Mapster mappings
+MappingProfile.ConfigureMappings();
 
 // Add Infrastructure (repositories)
 builder.Services.AddInfrastructure(builder.Configuration);

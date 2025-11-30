@@ -1,117 +1,107 @@
 using System;
-using AutoMapper;
+using Mapster;
 using Valyria.Core.DTOs.CN;
 using Valyria.Infrastructure.Services.CnFileImport.Models;
 
 namespace Valyria.Batch.DataLoader;
 
-public class MappingProfile : Profile
+public static class MappingProfile
 {
-    public MappingProfile()
+    public static void ConfigureMappings()
     {
-        CreateMap<CnNationRecord, Nation>()
-            .ForMember(dest => dest.GovernmentType, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<GovernmentType>(src.GovernmentType.Replace(" ", ""), out var govType))
-                    return govType;
+        TypeAdapterConfig<CnNationRecord, Nation>.NewConfig()
+            .Map(dest => dest.GovernmentType, src => ParseGovernmentType(src.GovernmentType))
+            .Map(dest => dest.Religion, src => ParseReligion(src.Religion))
+            .Map(dest => dest.Team, src => ParseTeam(src.Team))
+            .Map(dest => dest.WarStatus, src => ParseNationalWarStatus(src.WarStatus))
+            .Map(dest => dest.CruiseMissiles, src => src.Cruise)
+            .Map(dest => dest.RecentActivity, src => ParseRecentActivity(src.Activity));
 
-                return GovernmentType.Anarchy;
-            }))
-            .ForMember(dest => dest.Religion, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<Religion>(src.Religion.Replace(" ", ""), out var religion))
-                    return religion;
+        TypeAdapterConfig<CnWarRecord, War>.NewConfig()
+            .Map(dest => dest.Id, src => src.WarId)
+            .Map(dest => dest.AttackingNationId, src => src.DeclaringId)
+            .Map(dest => dest.AttackingAllianceId, src => src.DeclaringAllianceId)
+            .Map(dest => dest.AttackingTeam, src => ParseTeam(src.DeclaringTeam))
+            .Map(dest => dest.DefendingNationId, src => src.ReceivingId)
+            .Map(dest => dest.DefendingAllianceId, src => src.ReceivingAllianceId)
+            .Map(dest => dest.DefendingTeam, src => ParseTeam(src.ReceivingTeam))
+            .Map(dest => dest.WarStatus, src => ParseWarStatus(src.WarStatus));
 
-                return Religion.Mixed;
-            }))
-            .ForMember(dest => dest.Team, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<Team>(src.Team, out var team))
-                    return team;
+        TypeAdapterConfig<CnAidRecord, Aid>.NewConfig()
+            .Map(dest => dest.Id, src => src.AidId)
+            .Map(dest => dest.SendingNationId, src => src.DeclaringId)
+            .Map(dest => dest.SendingAllianceId, src => src.DeclaringAllianceId)
+            .Map(dest => dest.SendingTeam, src => ParseTeam(src.DeclaringTeam))
+            .Map(dest => dest.ReceivingNationId, src => src.ReceivingId)
+            .Map(dest => dest.ReceivingTeam, src => ParseTeam(src.ReceivingTeam))
+            .Map(dest => dest.Status, src => ParseAidStatus(src.Status));
 
-                return Team.None;
-            }))
-            .ForMember(dest => dest.WarStatus, opt => opt.MapFrom((src, dest) =>
-            {
-                return src.WarStatus switch
-                {
-                    "War Mode" => NationalWarStatus.War,
-                    "Peace Mode" => NationalWarStatus.Peace,
-                    _ => throw new ArgumentOutOfRangeException(nameof(src.WarStatus), $"{src.WarStatus} could not be parsed")
-                };
-            }))
-            .ForMember(dest => dest.CruiseMissiles, opt => opt.MapFrom(src => src.Cruise))
-            .ForMember(dest => dest.RecentActivity, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<RecentActivity>(src.Activity.Replace(" ", ""), out var recentActivity))
-                    return recentActivity;
+        TypeAdapterConfig<CnAllianceRecord, Alliance>.NewConfig()
+            .Map(dest => dest.Id, src => src.Id)
+            .Map(dest => dest.Name, src => src.Name)
+            .Map(dest => dest.Strength, src => (int)decimal.Round(src.Strength))
+            .Map(dest => dest.AverageStrength, src => (int)decimal.Round(src.AverageStrength))
+            .Map(dest => dest.Score, src => decimal.Round(src.Score, 2))
+            .Map(dest => dest.Infrastructure, src => (int)decimal.Round(src.Infrastructure))
+            .Map(dest => dest.Technology, src => (int)decimal.Round(src.Technology))
+            .Map(dest => dest.Land, src => (int)decimal.Round(src.Land));
+    }
 
-                return RecentActivity.ActiveMoreThanThreeWeeksAgo;
-            }));
+    private static GovernmentType ParseGovernmentType(string governmentType)
+    {
+        if (Enum.TryParse<GovernmentType>(governmentType.Replace(" ", ""), out var govType))
+            return govType;
 
-        CreateMap<CnWarRecord, War>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.WarId))
-            .ForMember(dest => dest.AttackingNationId, opt => opt.MapFrom(src => src.DeclaringId))
-            .ForMember(dest => dest.AttackingAllianceId, opt => opt.MapFrom(src => src.DeclaringAllianceId))
-            .ForMember(dest => dest.AttackingTeam, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<Team>(src.DeclaringTeam, out var team))
-                    return team;
+        return GovernmentType.Anarchy;
+    }
 
-                return Team.None;
-            }))
-            .ForMember(dest => dest.DefendingNationId, opt => opt.MapFrom(src => src.ReceivingId))
-            .ForMember(dest => dest.DefendingAllianceId, opt => opt.MapFrom(src => src.ReceivingAllianceId))
-            .ForMember(dest => dest.DefendingTeam, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<Team>(src.ReceivingTeam, out var team))
-                    return team;
+    private static Religion ParseReligion(string religion)
+    {
+        if (Enum.TryParse<Religion>(religion.Replace(" ", ""), out var religionEnum))
+            return religionEnum;
 
-                return Team.None;
-            }))
-            .ForMember(dest => dest.WarStatus, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<WarStatus>(src.WarStatus, out var warStatus))
-                    return warStatus;
+        return Religion.Mixed;
+    }
 
-                return WarStatus.Expired;
-            }));
+    private static Team ParseTeam(string team)
+    {
+        if (Enum.TryParse<Team>(team, out var teamEnum))
+            return teamEnum;
 
-        CreateMap<CnAidRecord, Aid>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.AidId))
-            .ForMember(dest => dest.SendingNationId, opt => opt.MapFrom(src => src.DeclaringId))
-            .ForMember(dest => dest.SendingAllianceId, opt => opt.MapFrom(src => src.DeclaringAllianceId))
-            .ForMember(dest => dest.SendingTeam, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<Team>(src.DeclaringTeam, out var team))
-                    return team;
+        return Team.None;
+    }
 
-                return Team.None;
-            }))
-            .ForMember(dest => dest.ReceivingNationId, opt => opt.MapFrom(src => src.ReceivingId))
-            .ForMember(dest => dest.ReceivingTeam, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<Team>(src.ReceivingTeam, out var team))
-                    return team;
+    private static NationalWarStatus ParseNationalWarStatus(string warStatus)
+    {
+        return warStatus switch
+        {
+            "War Mode" => NationalWarStatus.War,
+            "Peace Mode" => NationalWarStatus.Peace,
+            _ => throw new ArgumentOutOfRangeException(nameof(warStatus), $"{warStatus} could not be parsed")
+        };
+    }
 
-                return Team.None;
-            }))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom((src, dest) =>
-            {
-                if (Enum.TryParse<AidStatus>(src.Status, out var status))
-                    return status;
+    private static RecentActivity ParseRecentActivity(string activity)
+    {
+        if (Enum.TryParse<RecentActivity>(activity.Replace(" ", ""), out var recentActivity))
+            return recentActivity;
 
-                return AidStatus.Expired;
-            }));
+        return RecentActivity.ActiveMoreThanThreeWeeksAgo;
+    }
 
-        CreateMap<CnAllianceRecord, Alliance>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
-            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
-            .ForMember(dest => dest.Strength, opt => opt.MapFrom(src => (int)decimal.Round(src.Strength)))
-            .ForMember(dest => dest.AverageStrength, opt => opt.MapFrom(src => (int)decimal.Round(src.AverageStrength)))
-            .ForMember(dest => dest.Score, opt => opt.MapFrom(src => decimal.Round(src.Score, 2)))
-            .ForMember(dest => dest.Infrastructure, opt => opt.MapFrom(src => (int)decimal.Round(src.Infrastructure)))
-            .ForMember(dest => dest.Technology, opt => opt.MapFrom(src => (int)decimal.Round(src.Technology)))
-            .ForMember(dest => dest.Land, opt => opt.MapFrom(src => (int)decimal.Round(src.Land)));
+    private static WarStatus ParseWarStatus(string warStatus)
+    {
+        if (Enum.TryParse<WarStatus>(warStatus, out var warStatusEnum))
+            return warStatusEnum;
+
+        return WarStatus.Expired;
+    }
+
+    private static AidStatus ParseAidStatus(string status)
+    {
+        if (Enum.TryParse<AidStatus>(status, out var statusEnum))
+            return statusEnum;
+
+        return AidStatus.Expired;
     }
 }

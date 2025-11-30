@@ -1,4 +1,4 @@
-using AutoMapper;
+using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -16,7 +16,6 @@ public class DataLoaderWorker : BackgroundService
     private readonly IDataLoaderRepository _cnDataLoaderRepository;
     private readonly ICnFileGrabber _cnFileGrabber;
     private readonly ICnFileParser _cnFileParser;
-    private readonly IMapper _mapper;
     private readonly IHostApplicationLifetime _applicationLifetime;
 
     public DataLoaderWorker(
@@ -25,7 +24,6 @@ public class DataLoaderWorker : BackgroundService
         [FromKeyedServices("CnDb")] IDataLoaderRepository cnDataLoaderRepository,
         ICnFileGrabber cnFileGrabber,
         ICnFileParser cnFileParser,
-        IMapper mapper,
         IHostApplicationLifetime applicationLifetime)
     {
         _logger = logger;
@@ -33,7 +31,6 @@ public class DataLoaderWorker : BackgroundService
         _cnDataLoaderRepository = cnDataLoaderRepository;
         _cnFileGrabber = cnFileGrabber;
         _cnFileParser = cnFileParser;
-        _mapper = mapper;
         _applicationLifetime = applicationLifetime;
     }
 
@@ -81,7 +78,7 @@ public class DataLoaderWorker : BackgroundService
         }
 
         var parsedData = await RunDataParser<CnNationRecord>(dataStream);
-        var dataForUpsert = parsedData.Select(_mapper.Map<Nation>).ToList();
+        var dataForUpsert = parsedData.Select(x => x.Adapt<Nation>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportNationsAsync);
     }
 
@@ -95,7 +92,7 @@ public class DataLoaderWorker : BackgroundService
         }
 
         var parsedData = await RunDataParser<CnAllianceRecord>(dataStream);
-        var dataForUpsert = parsedData.Select(_mapper.Map<Alliance>).ToList();
+        var dataForUpsert = parsedData.Select(x => x.Adapt<Alliance>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportAlliancesAsync);
     }
 
@@ -109,7 +106,7 @@ public class DataLoaderWorker : BackgroundService
         }
 
         var parsedData = await RunDataParser<CnAidRecord>(dataStream);
-        var dataForUpsert = parsedData.Select(_mapper.Map<Aid>).ToList();
+        var dataForUpsert = parsedData.Select(x => x.Adapt<Aid>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportAidAsync);
     }
 
@@ -123,7 +120,7 @@ public class DataLoaderWorker : BackgroundService
         }
 
         var parsedData = await RunDataParser<CnWarRecord>(dataStream);
-        var dataForUpsert = parsedData.Select(_mapper.Map<War>).ToList();
+        var dataForUpsert = parsedData.Select(x => x.Adapt<War>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportWarsAsync);
     }
 

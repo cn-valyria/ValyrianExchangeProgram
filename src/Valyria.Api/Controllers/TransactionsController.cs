@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Valyria.Core.Interfaces;
 using Valyria.Infrastructure.Repositories;
 using System.ComponentModel;
-using AutoMapper;
+using Mapster;
 using Valyria.Core.Contracts;
 using Valyria.Infrastructure.Exceptions;
 using Valyria.Core.DTOs;
@@ -20,16 +20,13 @@ namespace Valyria.Api.Controllers;
 public class TransactionsController : ControllerBase
 {
     private readonly ITransactionsRepository _transactionsRepository;
-    private readonly IMapper _mapper;
     private readonly ILogger<TransactionsController> _logger;
 
     public TransactionsController(
         ITransactionsRepository transactionsRepository,
-        IMapper mapper,
         ILogger<TransactionsController> logger)
     {
         _transactionsRepository = transactionsRepository;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -48,7 +45,7 @@ public class TransactionsController : ControllerBase
             var transactionType = Enum.TryParse<TransactionType>(type, out var enumType) ? enumType : TransactionType.All;
             var searchResults = await _transactionsRepository.SearchTransactionsAsync(transactionType, filters, limit ?? 100, offset ?? 0);
 
-            return Ok(_mapper.Map<TransactionCollection>(searchResults));
+            return Ok(searchResults.Adapt<TransactionCollection>());
         }
         catch (Exception e)
         {

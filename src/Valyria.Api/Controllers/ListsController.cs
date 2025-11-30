@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using AutoMapper;
+using Mapster;
 using Valyria.Core.Interfaces;
 using Valyria.Infrastructure.Repositories;
 using Valyria.Core.Entities;
@@ -17,13 +17,11 @@ namespace Valyria.Api.Controllers;
 public class ListsController : ControllerBase
 {
     private readonly IListsRepository _listsRepository;
-    private readonly IMapper _mapper;
     private readonly ILogger<ListsController> _logger;
 
-    public ListsController(IListsRepository listsRepository, IMapper mapper, ILogger<ListsController> logger)
+    public ListsController(IListsRepository listsRepository, ILogger<ListsController> logger)
     {
         _listsRepository = listsRepository;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -38,7 +36,7 @@ public class ListsController : ControllerBase
 
             _logger.LogInformation($"{nameof(GetAllLists)} method completed successfully. Found {results.Count} results.");
 
-            return Ok(results.Select(_mapper.Map<AidList>));
+            return Ok(results.Select(x => x.Adapt<AidList>()));
         }
         catch (Exception e)
         {

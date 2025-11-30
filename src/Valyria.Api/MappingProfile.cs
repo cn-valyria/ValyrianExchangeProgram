@@ -1,40 +1,43 @@
-using AutoMapper;
+using System;
+using Mapster;
 using Valyria.Core.Contracts;
 using Valyria.Core.Entities;
 using Valyria.Core.DTOs;
 
 namespace Valyria.Api;
 
-public class MappingProfile : Profile
+public static class MappingProfile
 {
-    public MappingProfile()
+    public static void ConfigureMappings()
     {
-        CreateMap<AccountTransactionsResponse, AccountTransactionSearchResults>();
-        CreateMap<DataCollection<TransactionDetail>, TransactionCollection>()
-            .ForMember(dest => dest.TotalCount, opt => opt.MapFrom(src => src.TotalCount))
-            .ForMember(dest => dest.Results, opt => opt.MapFrom((src, dest, i, context) => src.Results.Select(context.Mapper.Map<Transaction>)));
+        TypeAdapterConfig<AccountTransactionsResponse, AccountTransactionSearchResults>.NewConfig();
 
-        CreateMap<TransactionDetail, Transaction>()
-            .ForMember(dest => dest.SentBy, opt => opt.MapFrom(src => MapToNationSimplified(src.SentByNationId, src.SentByNationName, src.SentByRulerName, src.SentByAllianceName)))
-            .ForMember(dest => dest.ReceivedBy, opt => opt.MapFrom(src => MapToNationSimplified(src.ReceivedByNationId, src.ReceivedByNationName, src.ReceivedByRulerName, src.ReceivedByAllianceName)))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => (Valyria.Core.Enums.AidStatus) src.Status))
-            .ForMember(dest => dest.Code, opt => opt.MapFrom(src => MapToTransactionCode(src)))
-            .ForMember(dest => dest.EndsOn, opt => opt.MapFrom(src => src.StartsOn.HasValue ? src.StartsOn.Value.AddDays(10).Date : (DateTime?) null));
+        TypeAdapterConfig<DataCollection<TransactionDetail>, TransactionCollection>.NewConfig()
+            .Map(dest => dest.TotalCount, src => src.TotalCount)
+            .Map(dest => dest.Results, src => src.Results.Select(x => x.Adapt<Transaction>()).ToList());
 
-        CreateMap<AidListDetail, AidList>();
-        CreateMap<ListRecipientDetail, ListRecipient>()
-            .ForMember(dest => dest.Nation, opt => opt.MapFrom(src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName)))
-            .ForMember(dest => dest.RecentActivity, opt => opt.MapFrom(src => (Valyria.Core.Enums.RecentActivity)src.RecentActivity));
+        TypeAdapterConfig<TransactionDetail, Transaction>.NewConfig()
+            .Map(dest => dest.SentBy, src => MapToNationSimplified(src.SentByNationId, src.SentByNationName, src.SentByRulerName, src.SentByAllianceName))
+            .Map(dest => dest.ReceivedBy, src => MapToNationSimplified(src.ReceivedByNationId, src.ReceivedByNationName, src.ReceivedByRulerName, src.ReceivedByAllianceName))
+            .Map(dest => dest.Status, src => (Valyria.Core.Enums.AidStatus)src.Status)
+            .Map(dest => dest.Code, src => MapToTransactionCode(src))
+            .Map(dest => dest.EndsOn, src => src.StartsOn.HasValue ? src.StartsOn.Value.AddDays(10).Date : (DateTime?)null);
 
-        CreateMap<AccountListPerformance, ListPerformance>()
-            .ForMember(dest => dest.Nation, opt => opt.MapFrom(src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName)))
-            .ForMember(dest => dest.DayStarted, opt => opt.MapFrom(src => DateOnly.FromDateTime(src.DayStarted)));
+        TypeAdapterConfig<AidListDetail, AidList>.NewConfig();
+
+        TypeAdapterConfig<ListRecipientDetail, ListRecipient>.NewConfig()
+            .Map(dest => dest.Nation, src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName))
+            .Map(dest => dest.RecentActivity, src => (Valyria.Core.Enums.RecentActivity)src.RecentActivity);
+
+        TypeAdapterConfig<AccountListPerformance, ListPerformance>.NewConfig()
+            .Map(dest => dest.Nation, src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName))
+            .Map(dest => dest.DayStarted, src => DateOnly.FromDateTime(src.DayStarted));
     }
 
-    private NationSimplified MapToNationSimplified(int? nationId, string nationName, string rulerName, string allianceName)
+    private static NationSimplified? MapToNationSimplified(int? nationId, string nationName, string rulerName, string allianceName)
         => nationId.HasValue ? new NationSimplified(nationId.Value, nationName, rulerName, allianceName) : null;
 
-    private TransactionCode MapToTransactionCode(TransactionDetail transaction)
+    private static TransactionCode MapToTransactionCode(TransactionDetail transaction)
     {
         var code = transaction.Lu;
 
@@ -47,7 +50,7 @@ public class MappingProfile : Profile
             throw new ArgumentOutOfRangeException("Transaction code (aka lu) must be 1 or 2 characters");
 
         // If the code is just one character, then it means it is either the sending or receiving role, not both (or neither).
-        // We should always be able to tell which it is by analyzing the credits. In short, the code would only be for the 
+        // We should always be able to tell which it is by analyzing the credits. In short, the code would only be for the
         // sender if the credits are a credit, and vice versa (it's for the receiver if debt)
         char? sendingRole = transaction switch
         {

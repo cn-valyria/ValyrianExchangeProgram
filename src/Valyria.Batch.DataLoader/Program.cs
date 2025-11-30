@@ -10,10 +10,8 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddAutoMapper(config =>
-{
-    config.AddProfile<MappingProfile>();
-});
+// Configure Mapster mappings
+MappingProfile.ConfigureMappings();
 
 // Get connection string from configuration
 var vepDbConnectionString = builder.Configuration["VepDbConnectionString"]

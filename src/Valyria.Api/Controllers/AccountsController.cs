@@ -9,7 +9,7 @@ using Valyria.Infrastructure.Repositories;
 using Valyria.Core.DTOs;
 using Valyria.Infrastructure.Exceptions;
 using Valyria.Api.Auth;
-using AutoMapper;
+using Mapster;
 using Valyria.Core.Entities;
 using Valyria.Core.Contracts;
 
@@ -25,7 +25,6 @@ public class AccountsController : ControllerBase
     private readonly IListsRepository _listsRepository;
     private readonly IAccountListPerformanceRepository _accountListPerformanceRepository;
     private readonly ITokenProvider _tokenProvider;
-    private readonly IMapper _mapper;
     private readonly ILogger<AccountsController> _logger;
 
     public AccountsController(
@@ -34,7 +33,6 @@ public class AccountsController : ControllerBase
         IListsRepository listsRepository,
         IAccountListPerformanceRepository accountListPerformanceRepository,
         ITokenProvider tokenProvider,
-        IMapper mapper,
         ILogger<AccountsController> logger)
     {
         _accountsRepository = accountsRepository;
@@ -42,7 +40,6 @@ public class AccountsController : ControllerBase
         _listsRepository = listsRepository;
         _accountListPerformanceRepository = accountListPerformanceRepository;
         _tokenProvider = tokenProvider;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -99,7 +96,7 @@ public class AccountsController : ControllerBase
 
             _logger.LogInformation($"{nameof(GetAccountTransactions)} execution complete. Found {results.CurrentPage.TotalCount} total results.");
 
-            return Ok(_mapper.Map<AccountTransactionSearchResults>(results));
+            return Ok(results.Adapt<AccountTransactionSearchResults>());
         }
         catch (Exception e)
         {
@@ -120,7 +117,7 @@ public class AccountsController : ControllerBase
 
             _logger.LogInformation($"{nameof(GetAccountAidList)} execution complete. Found {results.Count} results.");
 
-            return Ok(results.Select(_mapper.Map<ListRecipient>));
+            return Ok(results.Select(x => x.Adapt<ListRecipient>()));
         }
         catch (Exception e)
         {
@@ -141,7 +138,7 @@ public class AccountsController : ControllerBase
 
             _logger.LogInformation($"{nameof(GetAccountListPerformance)} execution complete. Found {results.Count} results.");
 
-            return Ok(results.Select(_mapper.Map<ListPerformance>));
+            return Ok(results.Select(x => x.Adapt<ListPerformance>()));
         }
         catch (Exception e)
         {
