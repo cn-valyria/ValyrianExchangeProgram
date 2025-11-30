@@ -23,6 +23,8 @@ public class DataLoaderWorker : BackgroundService
     private readonly BlobContainerClient _warBlobClient;
     private readonly IHostApplicationLifetime _applicationLifetime;
 
+    private bool IsEveningRun => DateTime.UtcNow.Hour >= 7 && DateTime.UtcNow.Hour < 20;
+
     public DataLoaderWorker(
         ILogger<DataLoaderWorker> logger,
         [FromKeyedServices("VepDb")] IDataLoaderRepository vepDataLoaderRepository,
@@ -224,7 +226,16 @@ public class DataLoaderWorker : BackgroundService
 
     private async Task LoadTodaysListsAsync()
     {
-        await _vepDataLoaderRepository.LoadTodaysListsAsync();
+        if (IsEveningRun)
+        {
+            _logger.LogInformation("It's later in the day when lists were generated, so just remove accounts with full slots.");
+            await _vepDataLoaderRepository.RemoveAccountsWithFullSlotsFromListsAsync();
+        }
+        else
+        {
+            _logger.LogInformation("It's a new day, so loading new lists...");
+            await _vepDataLoaderRepository.LoadTodaysListsAsync();
+        }
         _logger.LogInformation("Successfully refreshed today's lists.");
     }
 }

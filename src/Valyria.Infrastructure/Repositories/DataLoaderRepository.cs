@@ -183,6 +183,19 @@ public class DataLoaderRepository : IDataLoaderRepository
         await sqlConnection.ExecuteAsync("load_todays_lists", commandType: CommandType.StoredProcedure);
     }
 
+    public async Task RemoveAccountsWithFullSlotsFromListsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string sql = @"
+delete from list_recipient where account_id in (
+	select account_id
+    from aid_activity
+	where slots_used = slots_full
+);";
+
+        await sqlConnection.ExecuteAsync(sql);
+    }
+
     private async Task<int> UpdateTempTable<T>(
         MySqlConnection connection,
         string tableName,
