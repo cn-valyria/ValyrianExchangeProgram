@@ -31,12 +31,19 @@ builder.AddProject<Projects.Valyria_Batch_DataLoader>("valyria-batch-dataloader"
     .PublishAsScheduledAzureContainerAppJob(cronExpression: "0/5 0-2,12-14 * * *");
 #pragma warning restore ASPIREAZURE002
 
+var domainName = builder.AddParameter("customDomain");
+var certificateName = builder.AddParameter("certificateName");
 builder.AddViteApp("valyria-ui", "../Valyria.Ui", "dev")
     .WithExternalHttpEndpoints()
     .WithNpm(installArgs: ["--legacy-peer-deps"])
     .WithEnvironment("NUXT_PUBLIC_API_URL", api.GetEndpoint("https"))
     .WaitFor(api)
     .WithReference(api)
-    .PublishAsDockerFile();
+    .PublishAsAzureContainerApp((module, app) =>
+    {
+#pragma warning disable ASPIREACADOMAINS001
+        app.ConfigureCustomDomain(domainName, certificateName);
+#pragma warning restore ASPIREACADOMAINS001
+    });
 
 builder.Build().Run();
