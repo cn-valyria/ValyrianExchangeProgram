@@ -27,6 +27,12 @@ builder.Services.AddSingleton<ICnFileParser, CnFileParser>();
 builder.Services.AddKeyedSingleton<IDataLoaderRepository>("VepDb", new DataLoaderRepository(vepDbConnectionString));
 builder.Services.AddKeyedSingleton<IDataLoaderRepository>("CnDb", new DataLoaderRepository(cnDbConnectionString));
 
+// Register blob storage
+builder.AddKeyedAzureBlobContainerClient("nation");
+builder.AddKeyedAzureBlobContainerClient("alliance");
+builder.AddKeyedAzureBlobContainerClient("aid");
+builder.AddKeyedAzureBlobContainerClient("war");
+
 // Register the batch worker
 builder.Services.AddHostedService<DataLoaderWorker>();
 

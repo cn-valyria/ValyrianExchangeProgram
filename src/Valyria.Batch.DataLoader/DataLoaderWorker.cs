@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,6 +17,10 @@ public class DataLoaderWorker : BackgroundService
     private readonly IDataLoaderRepository _cnDataLoaderRepository;
     private readonly ICnFileGrabber _cnFileGrabber;
     private readonly ICnFileParser _cnFileParser;
+    private readonly BlobContainerClient _nationBlobClient;
+    private readonly BlobContainerClient _allianceBlobClient;
+    private readonly BlobContainerClient _aidBlobClient;
+    private readonly BlobContainerClient _warBlobClient;
     private readonly IHostApplicationLifetime _applicationLifetime;
 
     public DataLoaderWorker(
@@ -24,6 +29,10 @@ public class DataLoaderWorker : BackgroundService
         [FromKeyedServices("CnDb")] IDataLoaderRepository cnDataLoaderRepository,
         ICnFileGrabber cnFileGrabber,
         ICnFileParser cnFileParser,
+        [FromKeyedServices("nation")] BlobContainerClient nationBlobClient,
+        [FromKeyedServices("alliance")] BlobContainerClient allianceBlobClient,
+        [FromKeyedServices("aid")] BlobContainerClient aidBlobClient,
+        [FromKeyedServices("war")] BlobContainerClient warBlobClient,
         IHostApplicationLifetime applicationLifetime)
     {
         _logger = logger;
@@ -31,6 +40,10 @@ public class DataLoaderWorker : BackgroundService
         _cnDataLoaderRepository = cnDataLoaderRepository;
         _cnFileGrabber = cnFileGrabber;
         _cnFileParser = cnFileParser;
+        _nationBlobClient = nationBlobClient;
+        _allianceBlobClient = allianceBlobClient;
+        _aidBlobClient = aidBlobClient;
+        _warBlobClient = warBlobClient;
         _applicationLifetime = applicationLifetime;
     }
 
@@ -70,6 +83,7 @@ public class DataLoaderWorker : BackgroundService
 
     private async Task ImportNationsFileAsync()
     {
+        // Pull today's file, and exit early if it's already been imported
         var (fileName, dataStream, fileAlreadyImported) = await GrabTodaysFile(CnFileType.Nations);
         if (fileAlreadyImported)
         {
@@ -77,13 +91,18 @@ public class DataLoaderWorker : BackgroundService
             return;
         }
 
+        // Upsert the data first. No point in uploading anything if this fails
         var parsedData = await RunDataParser<CnNationRecord>(dataStream);
         var dataForUpsert = parsedData.Select(x => x.Adapt<Nation>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportNationsAsync);
+
+        // Now add the file to blob storage
+        await UploadToBlobContainerAsync(_nationBlobClient, fileName, dataStream);
     }
 
     private async Task ImportAlliancesFileAsync()
     {
+        // Pull today's file, and exit early if it's already been imported
         var (fileName, dataStream, fileAlreadyImported) = await GrabTodaysFile(CnFileType.Alliances);
         if (fileAlreadyImported)
         {
@@ -91,13 +110,18 @@ public class DataLoaderWorker : BackgroundService
             return;
         }
 
+        // Upsert the data first. No point in uploading anything if this fails
         var parsedData = await RunDataParser<CnAllianceRecord>(dataStream);
         var dataForUpsert = parsedData.Select(x => x.Adapt<Alliance>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportAlliancesAsync);
+
+        // Now add the file to blob storage
+        await UploadToBlobContainerAsync(_allianceBlobClient, fileName, dataStream);
     }
 
     private async Task ImportAidFileAsync()
     {
+        // Pull today's file, and exit early if it's already been imported
         var (fileName, dataStream, fileAlreadyImported) = await GrabTodaysFile(CnFileType.Aid);
         if (fileAlreadyImported)
         {
@@ -105,13 +129,18 @@ public class DataLoaderWorker : BackgroundService
             return;
         }
 
+        // Upsert the data first. No point in uploading anything if this fails
         var parsedData = await RunDataParser<CnAidRecord>(dataStream);
         var dataForUpsert = parsedData.Select(x => x.Adapt<Aid>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportAidAsync);
+
+        // Now add the file to blob storage
+        await UploadToBlobContainerAsync(_aidBlobClient, fileName, dataStream);
     }
 
     private async Task ImportWarFileAsync()
     {
+        // Pull today's file, and exit early if it's already been imported
         var (fileName, dataStream, fileAlreadyImported) = await GrabTodaysFile(CnFileType.War);
         if (fileAlreadyImported)
         {
@@ -119,9 +148,13 @@ public class DataLoaderWorker : BackgroundService
             return;
         }
 
+        // Upsert the data first. No point in uploading anything if this fails
         var parsedData = await RunDataParser<CnWarRecord>(dataStream);
         var dataForUpsert = parsedData.Select(x => x.Adapt<War>()).ToList();
         await UpsertDataToDb(dataForUpsert, fileName, _cnDataLoaderRepository.ImportWarsAsync);
+
+        // Now add the file to blob storage
+        await UploadToBlobContainerAsync(_warBlobClient, fileName, dataStream);
     }
 
     private async Task<(string, Stream, bool)> GrabTodaysFile(CnFileType fileType)
@@ -153,6 +186,18 @@ public class DataLoaderWorker : BackgroundService
         }
 
         return allData;
+    }
+
+    private async Task UploadToBlobContainerAsync(BlobContainerClient blobContainerClient, string fileName, Stream dataStream)
+    {
+        _logger.LogInformation("Uploading {fileName} to blob storage", fileName);
+
+        await blobContainerClient.CreateIfNotExistsAsync();
+        var newFileBlob = blobContainerClient.GetBlobClient($"{fileName}.txt");
+        if (!await newFileBlob.ExistsAsync())
+            await newFileBlob.UploadAsync(dataStream);
+
+        _logger.LogInformation("{fileName} uploaded to blob storage successfully", fileName);
     }
         
     private async Task UpsertDataToDb<T>(List<T> allData, string fileName, Func<IReadOnlyCollection<T>, string, Task> upsertFunc)
