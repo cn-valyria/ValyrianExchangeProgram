@@ -162,7 +162,7 @@ public class DataLoaderWorker : BackgroundService
     {
         try
         {
-            await upsertFunc(allData, $"{fileName}.txt");
+            await upsertFunc(allData, fileName);
             _logger.LogInformation("Data uploaded successfully.");
         }
         catch (Exception e)
