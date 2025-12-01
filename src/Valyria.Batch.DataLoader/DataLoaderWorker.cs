@@ -23,7 +23,8 @@ public class DataLoaderWorker : BackgroundService
     private readonly BlobContainerClient _warBlobClient;
     private readonly IHostApplicationLifetime _applicationLifetime;
 
-    private bool IsEveningRun => DateTime.UtcNow.Hour >= 7 && DateTime.UtcNow.Hour < 20;
+    // Should be roughly 12am - 12pm CST. I'm just lazy and don't feel like redoing the CnFileGrabber logic
+    private bool IsMorningRun => DateTime.UtcNow.Hour >= 6 && DateTime.UtcNow.Hour <= 18;
 
     public DataLoaderWorker(
         ILogger<DataLoaderWorker> logger,
@@ -226,15 +227,15 @@ public class DataLoaderWorker : BackgroundService
 
     private async Task LoadTodaysListsAsync()
     {
-        if (IsEveningRun)
-        {
-            _logger.LogInformation("It's later in the day when lists were generated, so just remove accounts with full slots.");
-            await _vepDataLoaderRepository.RemoveAccountsWithFullSlotsFromListsAsync();
-        }
-        else
+        if (IsMorningRun)
         {
             _logger.LogInformation("It's a new day, so loading new lists...");
             await _vepDataLoaderRepository.LoadTodaysListsAsync();
+        }
+        else
+        {
+            _logger.LogInformation("It's later in the day when lists were generated, so just remove accounts with full slots.");
+            await _vepDataLoaderRepository.RemoveAccountsWithFullSlotsFromListsAsync();
         }
         _logger.LogInformation("Successfully refreshed today's lists.");
     }

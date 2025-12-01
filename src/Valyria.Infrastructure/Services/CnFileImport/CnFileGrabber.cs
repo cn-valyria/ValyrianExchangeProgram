@@ -79,8 +79,8 @@ public class CnFileGrabber : ICnFileGrabber
 
         var lastPart = CstNow switch
         {
-            // "morning" file (i.e. after 6am CST but before 6pm CST)
-            _ when CstNow.Hour >= 6 && CstNow.Hour <= 18 => "001",
+            // "morning" file (i.e. after 12am CST but before 12pm CST)
+            _ when CstNow.Hour >= 0 && CstNow.Hour <= 12 => "001",
             // if it's not the "morning" file then it has to be the "evening" file
             _ => "002"
         };
