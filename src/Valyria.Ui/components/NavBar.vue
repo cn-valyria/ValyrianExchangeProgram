@@ -55,6 +55,9 @@
           <NuxtLink :to="accountUrl" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             My Account
           </NuxtLink>
+          <NuxtLink to="/leaderboard" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            Leaderboard
+          </NuxtLink>
           <template v-if="accountIsAdmin">
             <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Admin Portal</div>
             <NuxtLink to="/admin" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
@@ -69,6 +72,9 @@
           </template>
           <NuxtLink v-if="accountIsAdmin || accountCanSeeLists" to="/admin/lists" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             Lists
+          </NuxtLink>
+          <NuxtLink v-if="accountIsAdmin" to="/admin/settings" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            Settings
           </NuxtLink>
           <a @click="handleLogout()" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium cursor-pointer">
             Log Out
@@ -151,11 +157,17 @@ const accountMenuItems = computed(() => {
       })
     }
 
-    if (accountIsAdmin.value || accountCanSeeLists.value) {
+    adminItems.push({
+      label: 'Lists',
+      icon: 'i-heroicons-list-bullet',
+      to: '/admin/lists'
+    })
+
+    if (accountIsAdmin.value) {
       adminItems.push({
-        label: 'Lists',
-        icon: 'i-heroicons-list-bullet',
-        to: '/admin/lists'
+        label: 'Settings',
+        icon: 'i-heroicons-cog-6-tooth',
+        to: '/admin/settings'
       })
     }
 
