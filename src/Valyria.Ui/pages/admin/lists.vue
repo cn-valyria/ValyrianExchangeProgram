@@ -24,26 +24,50 @@
             </template>
 
             <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Carbon Copy Rulers</label>
-                <UTextarea
-                  :model-value="getRulerList(selectedList)"
-                  readonly
-                  :rows="5"
-                  autoresize
-                  class="font-mono text-sm w-full"
+              <!-- First Recipient Row -->
+              <div v-if="firstRecipient" class="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div class="flex-1">
+                  <div class="text-sm font-medium text-gray-700 dark:text-gray-300">First Recipient</div>
+                  <div class="font-semibold text-gray-900 dark:text-white">{{ firstRecipient.nation.rulerName }}</div>
+                  <div class="text-sm text-gray-500 dark:text-gray-400">{{ firstRecipient.nation.nationName }}</div>
+                </div>
+                <UButton
+                  label="Send Message"
+                  color="primary"
+                  :to="getNationMessageLink(firstRecipient.nation)"
+                  target="_blank"
+                  external
+                  icon="i-heroicons-paper-airplane"
                 />
               </div>
 
+              <!-- Carbon Copy Rulers -->
+              <div v-if="ccRecipients.length > 0">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Carbon Copy Rulers ({{ ccRecipients.length }})
+                </label>
+                <UTextarea
+                  :model-value="getCCRulerList()"
+                  readonly
+                  :rows="5"
+                  autoresize
+                  class="font-mono text-sm w-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  @click="copyToClipboard(getCCRulerList(), 'Carbon Copy Rulers')"
+                />
+              </div>
+
+              <!-- Subject -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subject</label>
                 <UInput
                   :model-value="selectedList.subject.replace('{{date}}', todayFormatted)"
                   readonly
-                  class="w-full"
+                  class="w-full cursor-pointer"
+                  @click="copyToClipboard(selectedList.subject.replace('{{date}}', todayFormatted), 'Subject')"
                 />
               </div>
 
+              <!-- Message -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Message</label>
                 <UTextarea
@@ -51,8 +75,33 @@
                   readonly
                   :rows="10"
                   autoresize
-                  class="font-mono text-sm w-full"
+                  class="font-mono text-sm w-full cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  @click="copyToClipboard(selectedList.message, 'Message')"
                 />
+              </div>
+
+              <!-- Batch Pagination -->
+              <div v-if="totalBatches > 1" class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                  Batch {{ currentBatchIndex + 1 }} of {{ totalBatches }}
+                  <span class="text-gray-500">({{ selectedList.recipients.length }} total recipients)</span>
+                </div>
+                <div class="flex gap-2">
+                  <UButton
+                    icon="i-heroicons-chevron-left"
+                    color="neutral"
+                    variant="soft"
+                    :disabled="currentBatchIndex === 0"
+                    @click="goToBatch(currentBatchIndex - 1)"
+                  />
+                  <UButton
+                    icon="i-heroicons-chevron-right"
+                    color="neutral"
+                    variant="soft"
+                    :disabled="currentBatchIndex >= totalBatches - 1"
+                    @click="goToBatch(currentBatchIndex + 1)"
+                  />
+                </div>
               </div>
             </div>
           </UCard>
@@ -60,7 +109,7 @@
           <!-- Recipients Data Section -->
           <UCard>
             <template #header>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recipients</h3>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">All Recipients</h3>
             </template>
 
             <UTable
@@ -93,6 +142,8 @@ const { loggedInUser } = storeToRefs(authStore)
 
 const isLoading = ref<boolean>(true)
 const selectedTab = ref<number>(0)
+const currentBatchIndex = ref<number>(0)
+const BATCH_SIZE = 25
 
 // Computed property for today's formatted date
 const todayFormatted = computed<string>(() => {
@@ -106,6 +157,7 @@ const todayFormatted = computed<string>(() => {
 // Computed property for tab items
 const tabItems = computed(() => {
   return lists.value.map(list => ({
+    value: list.id - 1, // This is really hacky but I'm lazy and punishing my future self with having to fix this
     label: list.name,
     list: list
   }))
@@ -119,10 +171,72 @@ const selectedList = computed<AidList | undefined>(() => {
   return undefined
 })
 
-// Helper function to get ruler list as string
-const getRulerList = (aidList: AidList): string => {
-  return aidList.recipients.map(recipient => recipient.nation.rulerName).join('\r\n')
+// Computed property for total number of batches
+const totalBatches = computed<number>(() => {
+  if (!selectedList.value) return 0
+  return Math.ceil(selectedList.value.recipients.length / BATCH_SIZE)
+})
+
+// Computed property for current batch recipients
+const currentBatch = computed(() => {
+  if (!selectedList.value) return []
+  const startIndex = currentBatchIndex.value * BATCH_SIZE
+  const endIndex = startIndex + BATCH_SIZE
+  return selectedList.value.recipients.slice(startIndex, endIndex)
+})
+
+// Computed property for first recipient in current batch
+const firstRecipient = computed(() => {
+  return currentBatch.value[0] || null
+})
+
+// Computed property for CC recipients (all except first in batch)
+const ccRecipients = computed(() => {
+  return currentBatch.value.slice(1)
+})
+
+// Helper function to get ruler list as string for CC recipients
+const getCCRulerList = (): string => {
+  return ccRecipients.value.map(recipient => recipient.nation.rulerName).join('\r\n')
 }
+
+// Helper function to copy text to clipboard
+const copyToClipboard = async (text: string, label: string) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.add({
+      color: 'success',
+      title: 'Copied!',
+      description: `${label} copied to clipboard.`,
+      duration: 2000
+    })
+  } catch (error) {
+    console.error('Failed to copy to clipboard:', error)
+    toast.add({
+      color: 'error',
+      title: 'Copy Failed',
+      description: 'Failed to copy to clipboard. Please try again.',
+      duration: 3000
+    })
+  }
+}
+
+// Helper function to navigate batches
+const goToBatch = (index: number) => {
+  if (index >= 0 && index < totalBatches.value) {
+    currentBatchIndex.value = index
+  }
+}
+
+// Helper function to reset batch when tab changes
+const resetBatch = () => {
+  currentBatchIndex.value = 0
+}
+
+// Watch for tab changes and reset batch
+watch(selectedTab, () => {
+  resetBatch()
+})
 
 // Helper function to get nation message link
 const getNationMessageLink = (nation: NationSimplified): string => {
