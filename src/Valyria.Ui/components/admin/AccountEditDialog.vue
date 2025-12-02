@@ -11,148 +11,151 @@
     </template>
 
     <template #body>
-      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
+      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
         <!-- Account Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
 
-          <fieldset :disabled="isInUpdateState" class="space-y-4">
+          <fieldset :disabled="isInUpdateState" class="space-y-4 px-2">
             <UFormField label="Nation ID" name="nationId">
-              <UInput v-model="nationIdInput" placeholder="The account's NationID" />
+              <UInput v-model="nationIdInput" placeholder="The account's NationID" class="w-full" />
             </UFormField>
           </fieldset>
 
-          <fieldset disabled class="space-y-4 mt-4">
+          <fieldset disabled class="space-y-4 mt-4 px-2">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <UFormField label="Nation Name">
-                <UInput v-model="state.nationName" />
+                <UInput v-model="state.nationName" class="w-full" />
               </UFormField>
               <UFormField label="Ruler Name">
-                <UInput v-model="state.rulerName" />
+                <UInput v-model="state.rulerName" class="w-full" />
               </UFormField>
             </div>
             <UFormField label="Alliance Name">
-              <UInput v-model="state.allianceName" />
+              <UInput v-model="state.allianceName" class="w-full" />
             </UFormField>
           </fieldset>
         </div>
 
         <!-- Form Fields Section -->
-        <div v-if="isInUpdateState || foundProspectAccount" class="space-y-4">
-          <UFormField label="Role" name="role">
-            <USelectMenu
-              v-model="state.role"
-              :options="roles"
-              value-attribute="code"
-              option-attribute="description"
-              placeholder="Select a role"
-            />
-          </UFormField>
+        <div v-if="isInUpdateState || foundProspectAccount">
+          <div class="space-y-4 px-2">
+            <UFormField label="Role" name="role">
+              <USelectMenu
+                v-model="state.role"
+                :items="roles"
+                value-key="code"
+                label-key="description"
+                placeholder="Select a role"
+                class="w-full"
+              />
+            </UFormField>
 
-          <UFormField label="Secret Code" name="uniqueCode">
-            <div class="flex gap-2">
-              <UInput v-model="state.uniqueCode" class="flex-1" />
-              <UButton label="Generate" @click="generateSecretCode()" color="neutral" />
+            <UFormField label="Secret Code" name="uniqueCode">
+              <div class="flex gap-2">
+                <UInput v-model="state.uniqueCode" class="flex-1" />
+                <UButton label="Generate" @click="generateSecretCode()" color="neutral" />
+              </div>
+            </UFormField>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UFormField label="Discord Username">
+                <UInput
+                  v-model="state.discord"
+                  placeholder="e.g. username or username#1234"
+                  class="w-full"
+                />
+              </UFormField>
+              <UFormField label="Discord User ID">
+                <UInput
+                  v-model="state.discordUniqueId"
+                  placeholder="e.g. 318737615257993226"
+                  class="w-full"
+                />
+              </UFormField>
             </div>
-          </UFormField>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormField label="Discord Username">
-              <UInput
-                v-model="state.discord"
-                placeholder="e.g. username or username#1234"
-              />
-            </UFormField>
-            <UFormField label="Discord User ID">
-              <UInput
-                v-model="state.discordUniqueId"
-                placeholder="e.g. 318737615257993226"
-              />
-            </UFormField>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <UFormField label="Has Foreign Ministry?" name="hasForeignMinistry">
+                <URadioGroup
+                  v-model="hasForeignMinistryInput"
+                  :items="radioGroupYesNo"
+                  orientation="horizontal"
+                />
+              </UFormField>
+
+              <UFormField label="Has Federal Aid Commission?" name="hasFederalAidCommission">
+                <URadioGroup
+                  v-model="hasFederalAidCommissionInput"
+                  :items="radioGroupYesNo"
+                  orientation="horizontal"
+                />
+              </UFormField>
+
+              <UFormField label="Has Disaster Relief Agency?" name="hasDisasterReliefAgency">
+                <URadioGroup
+                  v-model="hasDisasterReliefAgencyInput"
+                  :items="radioGroupYesNo"
+                  orientation="horizontal"
+                />
+              </UFormField>
+            </div>
           </div>
 
-          <UFormField label="Has Foreign Ministry?" name="hasForeignMinistry">
-            <URadioGroup
-              v-model="hasForeignMinistryInput"
-              :items="[
-                { value: 'Y', label: 'Yes' },
-                { value: 'N', label: 'No' }
-              ]"
-            />
-          </UFormField>
-
-          <UFormField label="Has Federal Aid Commission?" name="hasFederalAidCommission">
-            <URadioGroup
-              v-model="hasFederalAidCommissionInput"
-              :items="[
-                { value: 'Y', label: 'Yes' },
-                { value: 'N', label: 'No' }
-              ]"
-            />
-          </UFormField>
-
-          <UFormField label="Has Disaster Relief Agency?" name="hasDisasterReliefAgency">
-            <URadioGroup
-              v-model="hasDisasterReliefAgencyInput"
-              :items="[
-                { value: 'Y', label: 'Yes' },
-                { value: 'N', label: 'No' }
-              ]"
-            />
-          </UFormField>
-
           <!-- Transactional Data Section -->
-          <div v-if="isInUpdateState">
+          <div v-if="isInUpdateState" class="my-6">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transactional Data</h2>
-            <fieldset disabled class="space-y-4">
+            <fieldset disabled class="space-y-4 px-2">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <UFormField label="Slots Free">
-                  <UInput :model-value="state.slotsFull - state.slotsUsed" />
+                  <UInput :model-value="state.slotsFull - state.slotsUsed" class="w-full" />
                 </UFormField>
                 <UFormField label="Slots Full">
-                  <UInput :model-value="state.slotsFull" />
+                  <UInput :model-value="state.slotsFull" class="w-full" />
                 </UFormField>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <UFormField label="Credit">
-                  <UInput :model-value="state.credit" />
+                  <UInput :model-value="state.credit" class="w-full" />
                 </UFormField>
                 <UFormField label="Debt">
-                  <UInput :model-value="state.debt" />
+                  <UInput :model-value="state.debt" class="w-full" />
                 </UFormField>
                 <UFormField label="Balance">
-                  <UInput :model-value="null" />
+                  <UInput :model-value="null" class="w-full" />
                 </UFormField>
               </div>
 
+              <h3 class="text-md text-gray-900 dark:text-white mb-4">Cash Credit Totals</h3>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormField label="Cash Sent (Cash)">
-                  <UInput :model-value="state.cashSentCashCredit" />
+                <UFormField label="Cash Sent">
+                  <UInput :model-value="state.cashSentCashCredit" class="w-full" />
                 </UFormField>
-                <UFormField label="Cash Rec'd (Cash)">
-                  <UInput :model-value="state.cashReceivedCashCredit" />
+                <UFormField label="Cash Rec'd">
+                  <UInput :model-value="state.cashReceivedCashCredit" class="w-full" />
                 </UFormField>
-                <UFormField label="Tech Sent (Cash)">
-                  <UInput :model-value="state.techSentCashCredit" />
+                <UFormField label="Tech Sent">
+                  <UInput :model-value="state.techSentCashCredit" class="w-full" />
                 </UFormField>
-                <UFormField label="Tech Rec'd (Cash)">
-                  <UInput :model-value="state.techReceivedCashCredit" />
+                <UFormField label="Tech Rec'd">
+                  <UInput :model-value="state.techReceivedCashCredit" class="w-full" />
                 </UFormField>
               </div>
 
+              <h3 class="text-md text-gray-900 dark:text-white mb-4">Tech Credit Totals</h3>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormField label="Cash Sent (Tech)">
-                  <UInput :model-value="state.cashSentTechCredit" />
+                <UFormField label="Cash Sent">
+                  <UInput :model-value="state.cashSentTechCredit" class="w-full" />
                 </UFormField>
-                <UFormField label="Cash Rec'd (Tech)">
-                  <UInput :model-value="state.cashReceivedTechCredit" />
+                <UFormField label="Cash Rec'd">
+                  <UInput :model-value="state.cashReceivedTechCredit" class="w-full" />
                 </UFormField>
-                <UFormField label="Tech Sent (Tech)">
-                  <UInput :model-value="state.techSentTechCredit" />
+                <UFormField label="Tech Sent">
+                  <UInput :model-value="state.techSentTechCredit" class="w-full" />
                 </UFormField>
-                <UFormField label="Tech Rec'd (Tech)">
-                  <UInput :model-value="state.techReceivedTechCredit" />
+                <UFormField label="Tech Rec'd">
+                  <UInput :model-value="state.techReceivedTechCredit" class="w-full" />
                 </UFormField>
               </div>
             </fieldset>
@@ -197,7 +200,7 @@
 import { clone, z } from 'zod'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
-import { accountRoles } from '~/infrastructure/dataLists'
+import { accountRoles, type AccountRole } from '~/infrastructure/dataLists'
 
 interface Props {
   account?: AdminAccount
@@ -213,10 +216,13 @@ const config = useRuntimeConfig()
 const toast = useToast()
 const adminAccountsStore = useAdminAccountsStore()
 
-const open = ref(false)
 const buttonIsLoading = ref(false)
 const submitButton = ref<HTMLButtonElement>()
 const roles = accountRoles
+const radioGroupYesNo: Array<{ value: string, label: string }> = [
+  { value: 'Y', label: 'Yes' },
+  { value: 'N', label: 'No' }
+]
 
 // Define the form state
 const state = reactive<AdminAccount>(props.account)
@@ -278,6 +284,15 @@ const nationIdInput = computed({
     } else {
       state.nationId = null
     }
+  }
+})
+
+const roleSelection = computed({
+  get() {
+    return accountRoles.find(role => role.code === state.role)
+  },
+  set(val: AccountRole) {
+    state.role = val?.code
   }
 })
 
