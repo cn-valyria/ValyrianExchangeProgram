@@ -32,6 +32,8 @@ public static class MappingProfile
         TypeAdapterConfig<AccountListPerformance, ListPerformance>.NewConfig()
             .Map(dest => dest.Nation, src => MapToNationSimplified(src.NationId, src.NationName, src.RulerName, src.AllianceName))
             .Map(dest => dest.DayStarted, src => DateOnly.FromDateTime(src.DayStarted));
+
+        TypeAdapterConfig<SimplifiedAccount, AccountSimplified>.NewConfig();
     }
 
     private static NationSimplified? MapToNationSimplified(int? nationId, string nationName, string rulerName, string allianceName)

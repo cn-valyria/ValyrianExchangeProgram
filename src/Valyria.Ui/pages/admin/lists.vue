@@ -20,7 +20,26 @@
           <!-- Message Template Section -->
           <UCard>
             <template #header>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Message Template</h3>
+              <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                <div class="flex-1">
+                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Message Template</h3>
+                  <p v-if="selectedList.recipientsLastUpdatedOn" class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Updated On: {{ formatDate(selectedList.recipientsLastUpdatedOn) }}
+                  </p>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <USwitch
+                    :model-value="!!selectedList.messagesSentOn"
+                    disabled
+                    label="Messages Sent"
+                    class="pointer-events-none"
+                  />
+                  <p v-if="selectedList.messagesSentOn && selectedList.messagesSentBy" class="text-sm text-gray-500 dark:text-gray-400">
+                    Sent by {{ selectedList.messagesSentBy.rulerName }} on {{ formatDate(selectedList.messagesSentOn) }}
+                  </p>
+                </div>
+              </div>
             </template>
 
             <div class="space-y-4">
@@ -247,6 +266,19 @@ const getNationMessageLink = (nation: NationSimplified): string => {
 const getActivityDescription = (activityId: number): string => {
   const activity = recentActivityValues.find(v => v.id === activityId)
   return activity ? activity.description : 'Unknown'
+}
+
+// Helper function to format date
+const formatDate = (date: Date): string => {
+  const d = new Date(date)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const month = months[d.getMonth()]
+  const day = d.getDate().toString().padStart(2, '0')
+  const year = d.getFullYear()
+  const hours = d.getHours().toString().padStart(2, '0')
+  const minutes = d.getMinutes().toString().padStart(2, '0')
+  const seconds = d.getSeconds().toString().padStart(2, '0')
+  return `${month} ${day}, ${year} ${hours}:${minutes}:${seconds}`
 }
 
 // Helper function to get columns for a specific list

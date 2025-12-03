@@ -39,18 +39,34 @@ order by lr.list_id, lr.priority;";
         using var sqlConnection = new MySqlConnection(_connectionString);
         
         const string getAidListsQuery = @"
-select  id as Id,
+select  list.id as Id,
         name as Name,
         subject as Subject,
-        message as Message
-from list";
-        var lists = (await sqlConnection.QueryAsync<AidListDetail>(getAidListsQuery)).ToList();
+        message as Message,
+        recipients_last_updated_on as RecipientsLastUpdatedOn,
+        messages_sent_on as MessagesSentOn,
+        account.id as AccountId,
+        nation.id as NationId,
+        nation.ruler_name as RulerName,
+        nation.nation_name as NationName
+from list
+left join account on list.messages_sent_by = account.id
+left join cybernations_db.nation on account.nation_id = nation.id";
+        var lists = await sqlConnection.QueryAsync<AidListDetail, SimplifiedAccount, AidListDetail>(
+            getAidListsQuery,
+            (aidList, account) =>
+            {
+                aidList.MessagesSentBy = account;
+                return aidList;
+            },
+            splitOn: "AccountId");
+
         var recipients = await sqlConnection.QueryAsync<ListRecipientDetail>(GetListRecipientsQuery);
 
         foreach (var list in lists)
             list.Recipients = recipients.Where(r => r.ListId == list.Id).ToList();
 
-        return lists;
+        return [.. lists];
     }
 
     public async Task<List<ListRecipientDetail>> GetListRecipientsForAccountAsync(int accountId)

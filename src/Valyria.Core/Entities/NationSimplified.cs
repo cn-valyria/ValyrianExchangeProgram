@@ -17,3 +17,8 @@ public class NationSimplified
         AllianceName = alliance;
     }
 }
+
+public class AccountSimplified : NationSimplified
+{
+    public int AccountId { get; set; }
+}

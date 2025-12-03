@@ -11,12 +11,19 @@ export interface ListRecipient {
   discord: string
 }
 
+export interface AccountSimplified extends NationSimplified {
+  accountId: number
+}
+
 export interface AidList {
   id: number
   name: string
   subject: string
   message: string
   recipients: ListRecipient[]
+  recipientsLastUpdatedOn: Date
+  messagesSentOn: Date
+  messagesSentBy: AccountSimplified
 }
 
 export const useAdminListsStore = defineStore('adminLists', {

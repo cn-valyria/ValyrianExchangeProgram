@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Valyria.Core.Entities;
 
 public class AidList
 {
@@ -7,4 +8,7 @@ public class AidList
     public string Subject { get; set; }
     public string Message { get; set; }
     public List<ListRecipient> Recipients { get; set; }
+    public DateTime? RecipientsLastUpdatedOn { get; set; }
+    public DateTime? MessagesSentOn { get; set; }
+    public AccountSimplified? MessagesSentBy { get; set; }
 }
