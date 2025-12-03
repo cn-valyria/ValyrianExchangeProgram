@@ -75,51 +75,6 @@
         </div>
       </UCard>
     </div>
-
-    <!-- Add/Edit Admin Access Dialog -->
-    
-
-    <!-- Add/Edit Team Event Dialog -->
-    <UModal v-model="teamEventDialogOpen">
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold">{{ editingTeamEvent.id ? 'Edit' : 'Add' }} Team Event</h3>
-        </template>
-
-        <div class="space-y-4">
-          <UFormGroup label="Team">
-            <USelect
-              v-model="editingTeamEvent.team"
-              :options="teamOptions"
-              placeholder="Select team"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Event Type">
-            <USelect
-              v-model="editingTeamEvent.eventType"
-              :options="eventTypeOptions"
-              placeholder="Select event type"
-            />
-          </UFormGroup>
-
-          <UFormGroup label="Description (optional)">
-            <UTextarea v-model="editingTeamEvent.description" placeholder="Event description" />
-          </UFormGroup>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="soft" @click="teamEventDialogOpen = false">
-              Cancel
-            </UButton>
-            <UButton color="primary" @click="saveTeamEvent()">
-              Save
-            </UButton>
-          </div>
-        </template>
-      </UCard>
-    </UModal>
   </UContainer>
 </template>
 
@@ -127,12 +82,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import { useAuthStore } from '~/stores/auth'
 import AdminAccessSettingsDialog from '~/components/admin/AdminAccessSettingsDialog.vue'
+import AdminTeamEventDialog from '~/components/admin/AdminTeamEventDialog.vue'
 
 const router = useRouter()
 const toast = useToast()
 const overlay = useOverlay()
 
 const adminAccessModal = overlay.create(AdminAccessSettingsDialog)
+const teamEventModal = overlay.create(AdminTeamEventDialog)
 
 const authStore = useAuthStore()
 const loggedInUser = computed(() => authStore.loggedInUser)
@@ -140,8 +97,6 @@ const loggedInUser = computed(() => authStore.loggedInUser)
 // Admin Access state
 const adminLoading = ref<boolean>(false)
 const adminSearchQuery = ref<string>('')
-const adminDialogOpen = ref<boolean>(false)
-const editingAdmin = ref<any>({})
 const adminAccessList = ref<any[]>([
   { id: 1, rulerName: 'lilweirdward', nationName: 'Land of Too Much Fun', accountId: 12345, role: 'Admin' },
   { id: 2, rulerName: 'dev0win', nationName: 'dont remember D:', accountId: 67890, role: 'Admin - Lists' },
@@ -151,36 +106,11 @@ const adminAccessList = ref<any[]>([
 // Team Events state
 const teamEventLoading = ref<boolean>(false)
 const teamEventSearchQuery = ref<string>('')
-const teamEventDialogOpen = ref<boolean>(false)
-const editingTeamEvent = ref<any>({})
 const teamEventsList = ref<any[]>([
   { id: 1, team: 'Aqua', eventType: '+1 Aid Slot', eventName: 'Tournament bonus' },
   { id: 2, team: 'Red', eventType: '-1 Aid Slot', eventName: 'Penalty for violation' },
   { id: 3, team: 'Green', eventType: '+1 Aid Slot', eventName: 'Event reward' }
 ])
-
-// Team options
-const teamOptions = [
-  { label: 'Aqua', value: 'Aqua' },
-  { label: 'White', value: 'White' },
-  { label: 'Red', value: 'Red' },
-  { label: 'Green', value: 'Green' },
-  { label: 'Brown', value: 'Brown' },
-  { label: 'Blue', value: 'Blue' },
-  { label: 'Purple', value: 'Purple' },
-  { label: 'Orange', value: 'Orange' },
-  { label: 'Maroon', value: 'Maroon' },
-  { label: 'Black', value: 'Black' },
-  { label: 'Yellow', value: 'Yellow' },
-  { label: 'Pink', value: 'Pink' },
-  { label: 'None (Grey)', value: 'None (Grey)' }
-]
-
-// Event type options
-const eventTypeOptions = [
-  { label: '+1 Aid Slot', value: '+1 Aid Slot' },
-  { label: '-1 Aid Slot', value: '-1 Aid Slot' }
-]
 
 // Admin Access columns
 const adminColumns: TableColumn<any>[] = [
@@ -354,40 +284,15 @@ const removeAdminAccess = (adminId: number): void => {
 
 // Team Events functions
 const addTeamEvent = (): void => {
-  editingTeamEvent.value = {}
-  teamEventDialogOpen.value = true
+  teamEventModal.open({
+    editingTeamEvent: {}
+  })
 }
 
 const editTeamEvent = (event: any): void => {
-  editingTeamEvent.value = { ...event }
-  teamEventDialogOpen.value = true
-}
-
-const saveTeamEvent = (): void => {
-  if (editingTeamEvent.value.id) {
-    // Update existing
-    const index = teamEventsList.value.findIndex(e => e.id === editingTeamEvent.value.id)
-    if (index !== -1) {
-      teamEventsList.value[index] = { ...editingTeamEvent.value }
-    }
-  } else {
-    // Add new
-    const newId = Math.max(...teamEventsList.value.map(e => e.id), 0) + 1
-    teamEventsList.value.push({
-      ...editingTeamEvent.value,
-      id: newId
-    })
-  }
-
-  toast.add({
-    color: 'success',
-    title: 'Success',
-    description: 'Team event saved successfully.',
-    duration: 3000
+  teamEventModal.open({
+    editingTeamEvent: { ...event }
   })
-
-  teamEventDialogOpen.value = false
-  editingTeamEvent.value = {}
 }
 
 const deleteTeamEvent = (eventId: number): void => {
