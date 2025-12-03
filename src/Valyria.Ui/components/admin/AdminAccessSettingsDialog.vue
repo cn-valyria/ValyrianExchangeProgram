@@ -2,19 +2,20 @@
   <UModal :close="{ onClick: () => emit('close', false) }">
 
     <template #header>
-      <h3 class="text-lg font-semibold">{{ props.editingAdmin.id ? 'Edit' : 'Add' }} Admin Access</h3>
+      <h3 class="text-lg font-semibold">{{ props.editingAdmin?.accountId ? 'Edit' : 'Add' }} Admin Access</h3>
     </template>
 
     <template #body>
       <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
         <UFormField label="Account ID">
-          <UInput v-model="state.accountId" placeholder="Account name" />
+          <UInput v-model="state.accountId" placeholder="Account ID" />
         </UFormField>
 
         <UFormField label="Role">
-          <USelect
-            v-model="state.role"
-            :options="adminRoleOptions"
+          <USelectMenu
+            v-model="state.adminRoleId"
+            :items="adminRoleOptions"
+            value-key="value"
             placeholder="Select admin role"
           />
         </UFormField>
@@ -41,29 +42,29 @@ import z from 'zod';
 const toast = useToast()
 
 interface Props {
-  editingAdmin?: any
+  editingAdmin?: AdminAccessSetting
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  editingAdmin: () => ({})
+  editingAdmin: () => ({} as AdminAccessSetting)
 })
 
 const emit = defineEmits<{ close: [boolean] }>()
 const submitButton = ref<HTMLButtonElement>()
 
 // Define the form state
-const state = reactive<any>(props.editingAdmin)
+const state = reactive<AdminAccessSetting>(props.editingAdmin)
 
 // Define the Zod schema - only validates when creating
 const schema = z.object({
   accountId: z.number().nullable(),
-  role: z.string().nullable()
+  adminRoleId: z.number().nullable()
 })
 
 // Admin role options
 const adminRoleOptions = [
-  { label: 'Admin', value: 'Admin' },
-  { label: 'Admin - Lists', value: 'Admin - Lists' }
+  { label: 'Super Admin', value: 1 },
+  { label: 'Admin - Lists', value: 3 }
 ]
 
 const handleClose = () => {
@@ -75,7 +76,7 @@ const submitForm = () => {
 }
 
 const onSubmit = async () => {
-  toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
+  toast.add({ color: 'error', title: 'Error', description: 'LWW still implementing this.', duration: 3000 })
   handleClose()
 }
 </script>

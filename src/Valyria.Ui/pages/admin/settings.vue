@@ -81,6 +81,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useAuthStore } from '~/stores/auth'
+import { useAdminAccessStore, type AdminAccessSetting } from '~/stores/adminAccess'
 import AdminAccessSettingsDialog from '~/components/admin/AdminAccessSettingsDialog.vue'
 import AdminTeamEventDialog from '~/components/admin/AdminTeamEventDialog.vue'
 
@@ -92,16 +93,13 @@ const adminAccessModal = overlay.create(AdminAccessSettingsDialog)
 const teamEventModal = overlay.create(AdminTeamEventDialog)
 
 const authStore = useAuthStore()
+const adminAccessStore = useAdminAccessStore()
 const loggedInUser = computed(() => authStore.loggedInUser)
 
 // Admin Access state
-const adminLoading = ref<boolean>(false)
 const adminSearchQuery = ref<string>('')
-const adminAccessList = ref<any[]>([
-  { id: 1, rulerName: 'lilweirdward', nationName: 'Land of Too Much Fun', accountId: 12345, role: 'Admin' },
-  { id: 2, rulerName: 'dev0win', nationName: 'dont remember D:', accountId: 67890, role: 'Admin - Lists' },
-  { id: 3, rulerName: 'A1ph4 0m3ga', nationName: 'Paradisia', accountId: 54321, role: 'Admin' }
-])
+const adminLoading = computed(() => adminAccessStore.loading)
+const adminAccessList = computed(() => adminAccessStore.adminAccessSettings)
 
 // Team Events state
 const teamEventLoading = ref<boolean>(false)
@@ -113,7 +111,7 @@ const teamEventsList = ref<any[]>([
 ])
 
 // Admin Access columns
-const adminColumns: TableColumn<any>[] = [
+const adminColumns: TableColumn<AdminAccessSetting>[] = [
   {
     accessorKey: 'rulerName',
     header: 'Ruler Name'
@@ -123,37 +121,28 @@ const adminColumns: TableColumn<any>[] = [
     header: 'Nation Name'
   },
   {
-    accessorKey: 'role',
+    accessorKey: 'adminRoleName',
     header: 'Role',
     cell: ({ row }) => {
-      const roleColor = row.original.role === 'Admin' ? 'error' : 'warning'
+      const roleColor = row.original.adminRoleName === 'Super Admin' ? 'tertiary' : 'secondary'
       return h(resolveComponent('UBadge'), {
         color: roleColor,
         variant: 'subtle'
-      }, () => row.original.role)
+      }, () => row.original.adminRoleName)
     }
   },
   {
-    accessorKey: 'id',
+    accessorKey: 'accountId',
     header: 'Actions',
     cell: ({ row }) => {
       const admin = row.original
-      return h('div', { class: 'flex gap-2' }, [
-        h(resolveComponent('UButton'), {
-          label: 'Edit',
-          color: 'primary',
-          variant: 'soft',
-          size: 'xs',
-          onClick: () => editAdminAccess(admin)
-        }),
-        h(resolveComponent('UButton'), {
-          label: 'Remove',
-          color: 'error',
-          variant: 'soft',
-          size: 'xs',
-          onClick: () => removeAdminAccess(admin.id)
-        })
-      ])
+      return h(resolveComponent('UButton'), {
+        label: 'Remove',
+        color: 'error',
+        variant: 'soft',
+        size: 'xs',
+        onClick: () => removeAdminAccess(admin.accountId, admin.adminRoleId)
+      })
     }
   }
 ]
@@ -236,10 +225,10 @@ const filteredAdminAccess = computed(() => {
   }
 
   const query = adminSearchQuery.value.toLowerCase()
-  return adminAccessList.value.filter((admin: any) => {
+  return adminAccessList.value.filter((admin) => {
     return (
-      admin.accountName?.toLowerCase().includes(query) ||
-      admin.role?.toLowerCase().includes(query)
+      admin.rulerName?.toLowerCase().includes(query) ||
+      admin.adminRoleName?.toLowerCase().includes(query)
     )
   })
 })
@@ -259,27 +248,29 @@ const filteredTeamEvents = computed(() => {
 // Admin Access functions
 const addAdminAccess = (): void => {
   adminAccessModal.open({
-    editingAdmin: {} as AdminAccount
+    editingAdmin: {} as any
   })
 }
 
-const editAdminAccess = (admin: any): void => {
-  adminAccessModal.open({
-    editingAdmin: { ...admin }
-  })
-}
+const removeAdminAccess = async (accountId: number, adminRoleId: number): Promise<void> => {
+  // TODO: Put this back once I'm comfortable with people being able to do this lol
+  // const success = await adminAccessStore.deleteAdminAccess({ accountId, adminRoleId })
 
-const removeAdminAccess = (adminId: number): void => {
-  const index = adminAccessList.value.findIndex(a => a.id === adminId)
-  if (index !== -1) {
-    adminAccessList.value.splice(index, 1)
+  // if (success) {
+  //   toast.add({
+  //     color: 'success',
+  //     title: 'Success',
+  //     description: 'Admin access removed successfully.',
+  //     duration: 3000
+  //   })
+  // } else {
     toast.add({
-      color: 'success',
-      title: 'Success',
-      description: 'Admin access removed successfully.',
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to remove admin access. LWW still implementing this.',
       duration: 3000
     })
-  }
+  // }
 }
 
 // Team Events functions
@@ -323,8 +314,20 @@ onMounted(async () => {
     return
   }
 
-  // TODO: Load actual data from backend API
-  adminLoading.value = false
+  // Load admin access data from backend API
+  try {
+    await adminAccessStore.loadAdminAccessSettings()
+  } catch (error) {
+    console.error('Failed to load admin access settings:', error)
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load admin access settings.',
+      duration: 5000
+    })
+  }
+
+  // TODO: Load team events data from backend API
   teamEventLoading.value = false
 })
 </script>

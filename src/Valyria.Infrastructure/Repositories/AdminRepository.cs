@@ -222,4 +222,45 @@ order by count(1) desc;";
 
         return (await sqlConnection.QueryAsync<AccountCountByAlliance>(query)).ToList();
     }
+
+    public async Task<List<AdminAccessSetting>> GetAdminAccessSettingsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select
+    account.id as AccountId,
+    ruler_name as RulerName,
+    nation_name as NationName,
+    account.va as VepRole,
+    role.id as AdminRoleId,
+    role.name as AdminRoleName
+from account
+join cybernations_db.nation on account.nation_id = nation.id
+join account_role on account.id = account_role.account_id
+join role on account_role.role_id = role.id;";
+
+        return (await sqlConnection.QueryAsync<AdminAccessSetting>(query)).ToList();
+    }
+
+    public async Task<bool> CreateAdminAccessAsync(int accountId, int adminRoleId)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+insert into account_role (account_id, role_id)
+values (@AccountId, @AdminRoleId);";
+
+        var rowsAffected = await sqlConnection.ExecuteAsync(query, new { AccountId = accountId, AdminRoleId = adminRoleId });
+        return rowsAffected > 0;
+    }
+
+    public async Task<bool> DeleteAdminAccessAsync(int accountId, int adminRoleId)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+delete from account_role
+where account_id = @AccountId and role_id = @AdminRoleId;";
+
+        var rowsAffected = await sqlConnection.ExecuteAsync(query, new { AccountId = accountId, AdminRoleId = adminRoleId });
+        return rowsAffected > 0;
+    }
 }
