@@ -12,6 +12,21 @@ public class ListsRepository : IListsRepository
 {
     private readonly string _connectionString;
 
+    private const string GetAidListsQuery = @"
+select  list.id as Id,
+        name as Name,
+        subject as Subject,
+        message as Message,
+        recipients_last_updated_on as RecipientsLastUpdatedOn,
+        messages_sent_on as MessagesSentOn,
+        account.id as AccountId,
+        nation.id as NationId,
+        nation.ruler_name as RulerName,
+        nation.nation_name as NationName
+from list
+left join account on list.messages_sent_by = account.id
+left join cybernations_db.nation on account.nation_id = nation.id";
+
     private const string GetListRecipientsQuery = @"
 select  lr.list_id as ListId,
         a.id as AccountId,
@@ -38,22 +53,8 @@ order by lr.list_id, lr.priority;";
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         
-        const string getAidListsQuery = @"
-select  list.id as Id,
-        name as Name,
-        subject as Subject,
-        message as Message,
-        recipients_last_updated_on as RecipientsLastUpdatedOn,
-        messages_sent_on as MessagesSentOn,
-        account.id as AccountId,
-        nation.id as NationId,
-        nation.ruler_name as RulerName,
-        nation.nation_name as NationName
-from list
-left join account on list.messages_sent_by = account.id
-left join cybernations_db.nation on account.nation_id = nation.id";
         var lists = await sqlConnection.QueryAsync<AidListDetail, SimplifiedAccount, AidListDetail>(
-            getAidListsQuery,
+            GetAidListsQuery,
             (aidList, account) =>
             {
                 aidList.MessagesSentBy = account;
@@ -67,6 +68,39 @@ left join cybernations_db.nation on account.nation_id = nation.id";
             list.Recipients = recipients.Where(r => r.ListId == list.Id).ToList();
 
         return [.. lists];
+    }
+
+    public async Task<AidListDetail> GetAidListAsync(int id)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+
+        var list = (await sqlConnection.QueryAsync<AidListDetail, SimplifiedAccount, AidListDetail>(
+            $"{GetAidListsQuery} where list.id = @id",
+            (aidList, account) =>
+            {
+                aidList.MessagesSentBy = account;
+                return aidList;
+            },
+            new { id },
+            splitOn: "AccountId"
+        )).First();
+        list.Recipients = [.. await sqlConnection.QueryAsync<ListRecipientDetail>(GetListRecipientsQuery)];
+
+        return list;
+    }
+
+    public async Task UpdateListAsync(int listId, DateTime? messagesSentOn, int? messagesSentByAccountId)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.OpenAsync();
+
+        const string query = @"
+update list
+set messages_sent_on = @messagesSentOn,
+    messages_sent_by = @messagesSentByAccountId
+where id = @listId";
+
+        await sqlConnection.ExecuteAsync(query, new { listId, messagesSentOn, messagesSentByAccountId });
     }
 
     public async Task<List<ListRecipientDetail>> GetListRecipientsForAccountAsync(int accountId)

@@ -181,6 +181,7 @@ public class DataLoaderRepository : IDataLoaderRepository
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         await sqlConnection.ExecuteAsync("load_todays_lists", commandType: CommandType.StoredProcedure);
+        await sqlConnection.ExecuteAsync("update list set recipients_last_updated_on = now();");
     }
 
     public async Task RemoveAccountsWithFullSlotsFromListsAsync()
@@ -194,6 +195,7 @@ delete from list_recipient where account_id in (
 );";
 
         await sqlConnection.ExecuteAsync(sql);
+        await sqlConnection.ExecuteAsync("update list set recipients_last_updated_on = now();");
     }
 
     private async Task<int> UpdateTempTable<T>(

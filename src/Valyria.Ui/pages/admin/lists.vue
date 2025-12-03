@@ -29,12 +29,15 @@
                 </div>
 
                 <div class="flex flex-col gap-2">
-                  <USwitch
-                    :model-value="!!selectedList.messagesSentOn"
-                    disabled
-                    label="Messages Sent"
-                    class="pointer-events-none"
-                  />
+                  <div class="flex items-center gap-2">
+                    <USwitch
+                      :model-value="!!selectedList.messagesSentOn"
+                      :disabled="isUpdatingMessagesSent"
+                      label="Messages Sent"
+                      @update:model-value="handleMessagesSentToggle"
+                    />
+                    <div v-if="isUpdatingMessagesSent" class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+                  </div>
                   <p v-if="selectedList.messagesSentOn && selectedList.messagesSentBy" class="text-sm text-gray-500 dark:text-gray-400">
                     Sent by {{ selectedList.messagesSentBy.rulerName }} on {{ formatDate(selectedList.messagesSentOn) }}
                   </p>
@@ -160,6 +163,7 @@ const { lists } = storeToRefs(adminListsStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const isLoading = ref<boolean>(true)
+const isUpdatingMessagesSent = ref<boolean>(false)
 const selectedTab = ref<number>(0)
 const currentBatchIndex = ref<number>(0)
 const BATCH_SIZE = 25
@@ -279,6 +283,53 @@ const formatDate = (date: Date): string => {
   const minutes = d.getMinutes().toString().padStart(2, '0')
   const seconds = d.getSeconds().toString().padStart(2, '0')
   return `${month} ${day}, ${year} ${hours}:${minutes}:${seconds}`
+}
+
+// Helper function to handle messages sent toggle
+const handleMessagesSentToggle = async (newValue: boolean) => {
+  if (!selectedList.value || !loggedInUser.value) return
+
+  isUpdatingMessagesSent.value = true
+
+  try {
+    let messagesSentOn: Date | null = null
+    let messagesSentByAccountId: number | null = null
+
+    if (newValue) {
+      // Convert to CST (UTC-6)
+      const now = new Date()
+      const localOffset = now.getTimezoneOffset() // Local offset in minutes from UTC
+      const cstOffset = 6 * 60 // CST is UTC-6, so 6 hours * 60 minutes
+      const cstTime = new Date(now.getTime() + (localOffset - cstOffset) * 60 * 1000)
+      console.log(localOffset, cstOffset, cstTime)
+
+      messagesSentOn = cstTime
+      messagesSentByAccountId = loggedInUser.value.accountId
+    }
+
+    await adminListsStore.updateMessagesSent(
+      selectedList.value.id,
+      messagesSentOn,
+      messagesSentByAccountId
+    )
+
+    toast.add({
+      color: 'success',
+      title: 'Success',
+      description: newValue ? 'Messages marked as sent.' : 'Messages marked as not sent.',
+      duration: 3000
+    })
+  } catch (error) {
+    console.error('Failed to update messages sent:', error)
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to update messages sent status. Please try again.',
+      duration: 5000
+    })
+  } finally {
+    isUpdatingMessagesSent.value = false
+  }
 }
 
 // Helper function to get columns for a specific list

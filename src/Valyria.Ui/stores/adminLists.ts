@@ -46,5 +46,32 @@ export const useAdminListsStore = defineStore('adminLists', {
         this.lists = data.value as AidList[]
       }
     },
+
+    async updateMessagesSent(listId: number, messagesSentOn: Date | null, messagesSentByAccountId: number | null) {
+      const { apiFetch } = useApiClient()
+
+      const { data, error } = await apiFetch<AidList>(`/api/lists/${listId}`, {
+        method: 'PUT',
+        body: {
+          messagesSentOn,
+          messagesSentByAccountId
+        }
+      })
+
+      if (error.value) {
+        console.error('Failed to update messages sent:', error.value)
+        throw error.value
+      }
+
+      if (data.value) {
+        // Update the list in the store
+        const index = this.lists.findIndex(l => l.id === listId)
+        if (index !== -1) {
+          this.lists[index] = data.value as AidList
+        }
+      }
+
+      return data.value
+    },
   },
 })
