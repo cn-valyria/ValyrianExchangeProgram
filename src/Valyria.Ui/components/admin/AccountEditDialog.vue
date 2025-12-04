@@ -11,7 +11,7 @@
     </template>
 
     <template #body>
-      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
+      <UForm ref="form" :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
         <!-- Account Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
@@ -161,9 +161,6 @@
             </fieldset>
           </div>
         </div>
-
-        <!-- Hidden submit button for form submission -->
-        <button type="submit" class="hidden" ref="submitButton"></button>
       </UForm>
     </template>
 
@@ -175,14 +172,14 @@
           label="Save"
           color="success"
           :loading="buttonIsLoading"
-          @click="submitForm()"
+          @click="form.submit()"
         />
         <UButton
           v-else-if="foundProspectAccount"
           label="Create"
           color="success"
           :loading="buttonIsLoading"
-          @click="submitForm()"
+          @click="form.submit()"
         />
         <UButton
           v-else
@@ -197,7 +194,8 @@
 </template>
 
 <script setup lang="ts">
-import { clone, z } from 'zod'
+import { z } from 'zod'
+import type { FormSubmitEvent } from '#ui/types'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
 import { accountRoles, type AccountRole } from '~/infrastructure/dataLists'
@@ -217,7 +215,7 @@ const toast = useToast()
 const adminAccountsStore = useAdminAccountsStore()
 
 const buttonIsLoading = ref(false)
-const submitButton = ref<HTMLButtonElement>()
+const form = ref()
 const roles = accountRoles
 const radioGroupYesNo: Array<{ value: string, label: string }> = [
   { value: 'Y', label: 'Yes' },
@@ -230,16 +228,16 @@ const state = reactive<AdminAccount>(props.account)
 // Define the Zod schema - only validates when creating
 const schema = z.object({
   nationId: z.number().nullable(),
-  role: z.string().optional(),
-  uniqueCode: z.string().min(1, 'Every account must have a unique code provided').optional(),
+  role: z.string().nullable().optional(),
+  uniqueCode: z.string().min(1, 'Every account must have a unique code provided').nullable().optional(),
   hasForeignMinistry: z.boolean().nullable(),
   hasFederalAidCommission: z.boolean().nullable(),
   hasDisasterReliefAgency: z.boolean().nullable(),
-  discord: z.string().optional(),
-  discordUniqueId: z.number().optional(),
-  nationName: z.string().optional(),
-  rulerName: z.string().optional(),
-  allianceName: z.string().optional()
+  discord: z.string().nullable().optional(),
+  discordUniqueId: z.number().nullable().optional(),
+  nationName: z.string().nullable().optional(),
+  rulerName: z.string().nullable().optional(),
+  allianceName: z.string().nullable().optional()
 }).superRefine((data, ctx) => {
   // Only validate these fields when creating (foundProspectAccount)
   if (data.rulerName && !data.nationId) {
@@ -347,10 +345,6 @@ const handleClose = () => {
   emit("close", false);
 }
 
-const submitForm = () => {
-  submitButton.value?.click()
-}
-
 const findProspectAccount = async () => {
   buttonIsLoading.value = true
   try {
@@ -375,7 +369,7 @@ const findProspectAccount = async () => {
   buttonIsLoading.value = false
 }
 
-const onSubmit = async () => {
+const onSubmit = async (event: FormSubmitEvent<any>) => {
   if (isInUpdateState.value) {
     await update()
   } else {
