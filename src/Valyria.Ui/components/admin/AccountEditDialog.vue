@@ -11,7 +11,7 @@
     </template>
 
     <template #body>
-      <UForm ref="form" :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
+      <UForm ref="form" :schema="schema" :state="state" @submit="onSubmit" @error="onError" class="space-y-4">
         <!-- Account Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
@@ -68,7 +68,7 @@
               </UFormField>
               <UFormField label="Discord User ID">
                 <UInput
-                  v-model="state.discordUniqueId"
+                  v-model="discordUniqueIdInput"
                   placeholder="e.g. 318737615257993226"
                   class="w-full"
                 />
@@ -195,7 +195,7 @@
 
 <script setup lang="ts">
 import { z } from 'zod'
-import type { FormSubmitEvent } from '#ui/types'
+import type { FormErrorEvent, FormSubmitEvent } from '#ui/types'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
 import { accountRoles, type AccountRole } from '~/infrastructure/dataLists'
@@ -213,6 +213,7 @@ const emit = defineEmits<{ close: [boolean] }>()
 const config = useRuntimeConfig()
 const toast = useToast()
 const adminAccountsStore = useAdminAccountsStore()
+const { apiFetch } = useApiClient()
 
 const buttonIsLoading = ref(false)
 const form = ref()
@@ -285,15 +286,6 @@ const nationIdInput = computed({
   }
 })
 
-const roleSelection = computed({
-  get() {
-    return accountRoles.find(role => role.code === state.role)
-  },
-  set(val: AccountRole) {
-    state.role = val?.code
-  }
-})
-
 const hasForeignMinistryInput = computed({
   get() {
     return (state.hasForeignMinistry ?? false) ? 'Y' : 'N'
@@ -333,6 +325,19 @@ const hasFederalAidCommissionInput = computed({
   }
 })
 
+const discordUniqueIdInput = computed({
+  get() {
+    return state.discordUniqueId?.toString() ?? ''
+  },
+  set(val: string) {
+    if (val !== "" && !isNaN(parseInt(val))) {
+      state.discordUniqueId = parseInt(val)
+    } else {
+      state.discordUniqueId = null
+    }
+  }
+})
+
 const isInUpdateState = computed(() => {
   return state !== undefined && state.id !== undefined
 })
@@ -347,24 +352,24 @@ const handleClose = () => {
 
 const findProspectAccount = async () => {
   buttonIsLoading.value = true
-  try {
-    const response = await $fetch(`${config.public.apiUrl}/accounts/prospect?nationId=${state.nationId}`)
-    const prospectAccount = response as any
+  const { data, error } = await apiFetch<any>(`/api/accounts/prospect?nationId=${state.nationId}`)
 
-    Object.assign(state, {
-      ...state,
-      nationName: prospectAccount.nationName,
-      rulerName: prospectAccount.rulerName,
-      allianceName: prospectAccount.allianceName
+  if (error.value) {
+    console.error(error)
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.",
+      duration: 3000
     })
-  } catch (e: any) {
-    console.error(e)
-    if (e.response) {
-      toast.add({ color: 'error', title: 'Error', description: e.response.data, duration: 3000 })
-    } else {
-      toast.add({ color: 'error', title: 'Error', description: "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.", duration: 3000 })
-    }
   }
+
+  Object.assign(state, {
+    ...state,
+    nationName: data.value.nationName,
+    rulerName: data.value.rulerName,
+    allianceName: data.value.allianceName
+  })
 
   buttonIsLoading.value = false
 }
@@ -377,10 +382,21 @@ const onSubmit = async (event: FormSubmitEvent<any>) => {
   }
 }
 
+const onError = async (event: FormErrorEvent) => {
+  if (event?.errors?.length > 0) {
+    toast.add({
+      description: `Form validation failed: ${event.errors.map(error => error.message).join(', ')}`,
+      title: 'Validation Error',
+      color: 'success',
+      duration: 3000
+    })
+  }
+}
+
 const update = async () => {
   buttonIsLoading.value = true
   try {
-    await adminAccountsStore.updateAccount(state as any)
+    await adminAccountsStore.updateAccount(state)
     toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
     handleClose();
   } catch (e) {
