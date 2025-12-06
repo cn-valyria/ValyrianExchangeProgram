@@ -3,6 +3,7 @@ using Mapster;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Valyria.Batch.DataLoader.Extensions;
 using Valyria.Core.DTOs.CN;
 using Valyria.Core.Interfaces;
 using Valyria.Infrastructure.Services.CnFileImport;
@@ -177,7 +178,7 @@ public class DataLoaderWorker : BackgroundService
         var allData = new List<T>();
         try
         {
-            await foreach (var fileRecord in _cnFileParser.ParseAsync<T>(fileBlob))
+            await foreach (var fileRecord in _cnFileParser.ParseAsync<T>(await fileBlob.CopyAsync()))
                 allData.Add(fileRecord);
 
             _logger.LogInformation("File successfully parsed. {count} records found.", allData.Count);
@@ -198,7 +199,7 @@ public class DataLoaderWorker : BackgroundService
         await blobContainerClient.CreateIfNotExistsAsync();
         var newFileBlob = blobContainerClient.GetBlobClient($"{fileName}.txt");
         if (!await newFileBlob.ExistsAsync())
-            await newFileBlob.UploadAsync(dataStream);
+            await newFileBlob.UploadAsync(await dataStream.CopyAsync());
 
         _logger.LogInformation("{fileName} uploaded to blob storage successfully", fileName);
     }
