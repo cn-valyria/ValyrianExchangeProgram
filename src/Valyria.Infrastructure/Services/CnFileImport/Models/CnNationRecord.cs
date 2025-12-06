@@ -15,9 +15,7 @@ public class CnNationRecord
     public string NationName { get; set; } = string.Empty;
 
     [Name("Alliance ID")]
-    public string AllianceIdRaw { get; set; } = string.Empty;
-
-    public int? AllianceId => string.IsNullOrEmpty(AllianceIdRaw) || AllianceIdRaw == "0" ? null : int.Parse(AllianceIdRaw);
+    public string AllianceId { get; set; } = string.Empty;
 
     [Name("Alliance Date")]
     public DateTime? AllianceDate { get; set; }
