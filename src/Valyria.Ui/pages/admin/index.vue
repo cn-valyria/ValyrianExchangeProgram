@@ -106,19 +106,6 @@ const alliances = computed<string[]>(() => {
 
 // Check admin access and load dashboard on mount
 onMounted(async () => {
-  // Check if user has admin role
-  if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
-    console.warn('Tried to access an admin page without the admin role.')
-    toast.add({
-      color: 'error',
-      title: 'Access Denied',
-      description: 'You do not have permission to access this page.',
-      duration: 5000
-    })
-    await router.push('/')
-    return
-  }
-
   try {
     await adminStore.loadDashboard()
   } catch (error) {

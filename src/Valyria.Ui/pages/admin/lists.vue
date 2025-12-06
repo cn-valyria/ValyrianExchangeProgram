@@ -403,23 +403,6 @@ const getColumnsForList = (list: AidList): TableColumn<any>[] => {
 
 // Check admin access and load lists on mount
 onMounted(async () => {
-  // Check if user has admin or admin-lists role
-  const hasAccess = loggedInUser.value?.roles?.some((role: any) =>
-    role.name === 'Admin' || role.name === 'Admin - Lists'
-  )
-
-  if (!hasAccess) {
-    console.warn('Tried to access an admin page without the admin role.')
-    toast.add({
-      color: 'error',
-      title: 'Access Denied',
-      description: 'You do not have permission to access this page.',
-      duration: 5000
-    })
-    await router.push('/')
-    return
-  }
-
   try {
     await adminListsStore.getAllAidLists()
     console.log('Lists loaded:', lists.value)

@@ -1,5 +1,6 @@
 export default defineNuxtRouteMiddleware((to) => {
   const authStore = useAuthStore()
+  const toast = useToast()
 
   // Public routes that don't require authentication
   const publicRoutes = ['/', '/login', '/how-it-works']
@@ -18,18 +19,19 @@ export default defineNuxtRouteMiddleware((to) => {
 
   if (isAdminRoute && authStore.user) {
     const userRoles = authStore.user.roles.map((r) => r.name)
-    const allowedRoles = ['Admin', 'Admin - Lists']
+    const allowedRoles = to.path === '/admin/lists' 
+      ? ['Super Admin', 'Admin - Lists']
+      : ['Super Admin']
 
-    // For lists page, both Admin and Admin - Lists are allowed
-    if (to.path === '/admin/lists') {
-      if (!userRoles.some((role) => allowedRoles.includes(role))) {
-        return navigateTo('/')
-      }
-    } else {
-      // For other admin pages, only Admin is allowed
-      if (!userRoles.includes('Admin')) {
-        return navigateTo('/')
-      }
+    if (!userRoles.some((role) => allowedRoles.includes(role))) {
+      console.warn('Tried to access an admin page without the admin role.')
+      toast.add({
+        color: 'error',
+        title: 'Access Denied',
+        description: 'You do not have permission to access this page.',
+        duration: 5000
+      })
+      return navigateTo('/')
     }
   }
 })

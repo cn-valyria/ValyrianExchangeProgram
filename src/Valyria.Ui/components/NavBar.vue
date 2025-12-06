@@ -108,7 +108,7 @@ const accountUrl = computed(() => {
 })
 
 const accountIsAdmin = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin") ?? false
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Super Admin") ?? false
 })
 
 const accountCanSeeLists = computed(() => {

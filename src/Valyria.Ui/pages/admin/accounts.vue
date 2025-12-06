@@ -283,19 +283,6 @@ const handleToggleChange = async (): Promise<void> => {
 
 // Check admin access and load accounts on mount
 onMounted(async () => {
-  // Check if user has admin role
-  if (!loggedInUser.value?.roles?.some((role: any) => role.name === 'Admin')) {
-    console.warn('Tried to access an admin page without the admin role.')
-    toast.add({
-      color: 'error',
-      title: 'Access Denied',
-      description: 'You do not have permission to access this page.',
-      duration: 5000
-    })
-    await router.push('/')
-    return
-  }
-
   loading.value = true
   try {
     await adminAccountsStore.loadAllAccounts(showOnHold.value)
