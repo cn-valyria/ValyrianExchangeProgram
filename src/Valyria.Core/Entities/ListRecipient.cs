@@ -8,4 +8,5 @@ public class ListRecipient
     public int Debt { get; set; }
     public RecentActivity RecentActivity { get; set; }
     public string Discord { get; set; }
+    public int DaysOnCurrentList { get; set; }
 }

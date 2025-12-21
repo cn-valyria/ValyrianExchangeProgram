@@ -9,6 +9,7 @@ export interface ListRecipient {
   debt: number
   recentActivity: RecentActivity
   discord: string
+  daysOnCurrentList: number
 }
 
 export interface AccountSimplified extends NationSimplified {

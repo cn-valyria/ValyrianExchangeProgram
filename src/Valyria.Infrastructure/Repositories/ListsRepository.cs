@@ -38,13 +38,18 @@ select  lr.list_id as ListId,
         Credit,
         Debt,
         recent_activity as RecentActivity,
-        discord as Discord
+        discord as Discord,
+        alp.days_until_removed as DaysOnCurrentList
 from account a
 join balance b on a.nation_id = b.nation_id
 join aid_activity aa on a.id = aa.account_id
 join cybernations_db.nation nation on a.nation_id = nation.id
 join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
 join list_recipient lr on a.id = lr.account_id
+join account_list_performance alp 
+    on lr.account_id = alp.account_id
+    and lr.list_id = alp.list_id
+    and date_add(alp.day_started, interval (alp.days_until_removed + 1) day) >= curdate()
 order by lr.list_id, lr.priority;";
 
     public ListsRepository(string connectionString) => _connectionString = connectionString;

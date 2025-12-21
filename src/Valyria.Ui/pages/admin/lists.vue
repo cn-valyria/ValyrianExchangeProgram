@@ -376,6 +376,11 @@ const getColumnsForList = (list: AidList): TableColumn<any>[] => {
       cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, getActivityDescription(row.original.recentActivity))
     },
     {
+      accessorKey: 'daysOnCurrentList',
+      header: 'Days on List',
+      cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.daysOnCurrentList)
+    },
+    {
       accessorKey: 'discord',
       header: 'Discord Tag',
       cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.discord || '-')
