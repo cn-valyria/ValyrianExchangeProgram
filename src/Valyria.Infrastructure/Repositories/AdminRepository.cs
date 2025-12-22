@@ -17,23 +17,32 @@ public class AdminRepository : IAdminRepository
 
     public AdminRepository(string connectionString) => _connectionString = connectionString;
 
-    public async Task<AdminDashboard> GetAdminDashboardAsync()
+    public async Task<GeneralProgramSummary> GetGeneralProgramSummaryAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
 select
 	(select count(1) from account where va <> 'H') as TotalAccounts,
-	coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
+    (select count(1) from transaction where co <> 0) as TotalTransactions";
+
+        return await sqlConnection.QuerySingleAsync<GeneralProgramSummary>(query);
+    }
+
+    public async Task<AidRatioSummary> GetAidRatioSummaryAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select
+	coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) +
         coalesce(sum(case when va = 'C' then slots * multiplier else 0 end), 0) as TotalIncomingCashSlots,
-    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
+    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) +
         coalesce(sum(case when va = 'D' then slots * multiplier else 0 end), 0) as TotalOutgoingCashSlots,
-    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
+    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) +
         coalesce(sum(case when va = 'R' then slots * multiplier else 0 end), 0) as TotalIncomingTechSlots,
-    coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
-        coalesce(sum(case when va = 'F' then slots * multiplier else 0 end), 0) as TotalOutgoingTechSlots,
-    (select count(1) from transaction) as TotalTransactions
+    coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) +
+        coalesce(sum(case when va = 'F' then slots * multiplier else 0 end), 0) as TotalOutgoingTechSlots
 from (
-	select 
+	select
 		va,
 		sum(aid_activity.slots_full) as slots,
 		case when va in ('F', 'D', 'C', 'R') then 2 else 1 end as multiplier
@@ -42,28 +51,66 @@ from (
 	group by va
 ) root;";
 
-        var dashboard = await sqlConnection.QuerySingleAsync<AdminDashboard>(query);
-
-        var transactionsPerDayTask = GetTransactionsPerDayAsync();
-        var pendingCreditPerDayTask = GetPendingCreditPerAllianceAsync();
-        var accountsPerRoleTask = GetAccountsPerRoleAsync();
-        var totalSlotsPerAlliance = GetTotalSlotsPerAllianceAsync();
-        var freeSlotsPerListTask = GetFreeSlotsPerListAsync();
-        var accountsPerAllianceTask = GetAccountsPerAllianceAsync();
-
-        await Task.WhenAll(transactionsPerDayTask, pendingCreditPerDayTask, accountsPerRoleTask, totalSlotsPerAlliance, freeSlotsPerListTask, accountsPerAllianceTask);
-
-        dashboard.TransactionsPerDay = transactionsPerDayTask.Result;
-        dashboard.PendingCreditByAlliance = pendingCreditPerDayTask.Result;
-        dashboard.AccountsPerRole = accountsPerRoleTask.Result;
-        dashboard.TotalSlotsPerAlliance = totalSlotsPerAlliance.Result;
-        dashboard.FreeSlotsPerList = freeSlotsPerListTask.Result;
-        dashboard.AccountsPerAlliance = accountsPerAllianceTask.Result;
-
-        return dashboard;
+        return await sqlConnection.QuerySingleAsync<AidRatioSummary>(query);
     }
 
-    private async Task<List<TransactionCountByDay>> GetTransactionsPerDayAsync()
+    public async Task<UnusedCreditSummary> GetUnusedCreditSummaryAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select sum(credit * multiplier) as UnusedCredit
+from (
+	select 1 as multiplier, sum(rate) as credit, count(1) as txns
+	from transaction
+	where (lu like 'F%' or lu like 'D%')
+	and aid_id is not null
+    union
+    select -1 as multiplier, sum(rate) as credit, count(1) as txns
+	from transaction
+	where (lu like '%R' or lu like '%C')
+	and aid_id is not null
+    union
+    select -1 as multiplier, sum(rate) as credit, count(1) as txns
+	from transaction
+	where aid_id is null
+	and co in (2, 3, 4)
+    union
+    select 1 as multiplier, sum(rate) as credit, count(1) as txns
+	from transaction
+	where aid_id is null
+	and co in (5, 6)
+    union
+    select 1 as multiplier, sum(cc) + sum(tc) as credit, count(1) as txns
+	from account 
+	join cybernations_db.sent_txn sent 
+		on account.nation_id = sent.nation_id 
+		and account.va = 'H'
+		and sent.va <> 'H'
+	union
+	select -1 as multiplier, sum(cc) + sum(tc) as credit, count(1) as txns
+	from account
+	join cybernations_db.recd_txn recd 
+		on account.nation_id = recd.nation_id
+		and account.va = 'H'
+		and recd.va <> 'H'
+) data;";
+
+        return await sqlConnection.QuerySingleAsync<UnusedCreditSummary>(query);
+    }
+
+    public async Task<SlotUsageSummary> GetSlotUsageSummaryAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select sum(slots_full) as MaxCapacity, sum(slots_used) as CurrentSlotsUsed
+from account
+join aid_activity on account.id = aid_activity.account_id
+where va <> 'H';";
+
+        return await sqlConnection.QuerySingleAsync<SlotUsageSummary>(query);
+    }
+
+    public async Task<List<TransactionCountByDay>> GetTransactionsPerDayAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
@@ -79,7 +126,7 @@ group by date(`date`);";
         return (await sqlConnection.QueryAsync<TransactionCountByDay>(query)).ToList();
     }
     
-    private async Task<List<CreditGroupsByAlliance>> GetPendingCreditPerAllianceAsync()
+    public async Task<List<CreditGroupsByAlliance>> GetPendingCreditPerAllianceAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
 
@@ -106,7 +153,7 @@ group by date(`date`);";
         public int TotalCredit { get; set; }
     }
 
-    private async Task<List<TotalSlotGroupsByAlliance>> GetTotalSlotsPerAllianceAsync()
+    public async Task<List<TotalSlotGroupsByAlliance>> GetTotalSlotsPerAllianceAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
@@ -169,7 +216,7 @@ group by name;";
         public int TotalOutgoingTechSlots { get; set; }
     }
 
-    private async Task<List<AccountCountByRole>> GetAccountsPerRoleAsync()
+    public async Task<List<AccountCountByRole>> GetAccountsPerRoleAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
@@ -195,7 +242,7 @@ group by va;";
         return (await sqlConnection.QueryAsync<TotalSlotCountByRole>(query)).ToList();
     }
 
-    private async Task<List<FreeSlotCountByList>> GetFreeSlotsPerListAsync()
+    public async Task<List<FreeSlotCountByList>> GetFreeSlotsPerListAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
@@ -208,7 +255,7 @@ group by list.name;";
         return (await sqlConnection.QueryAsync<FreeSlotCountByList>(query)).ToList();
     }
 
-    private async Task<List<AccountCountByAlliance>> GetAccountsPerAllianceAsync()
+    public async Task<List<AccountCountByAlliance>> GetAccountsPerAllianceAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"

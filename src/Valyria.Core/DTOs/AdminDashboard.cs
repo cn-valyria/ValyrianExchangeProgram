@@ -1,24 +1,4 @@
-using System;
-using System.Collections.Generic;
-
 namespace Valyria.Core.DTOs;
-
-public class AdminDashboard
-{
-    public int TotalAccounts { get; set; }
-    public int TotalIncomingCashSlots { get; set; }
-    public int TotalOutgoingCashSlots { get; set; }
-    public int TotalIncomingTechSlots { get; set; }
-    public int TotalOutgoingTechSlots { get; set; }
-    public int TotalTransactions { get; set; }
-
-    public List<TransactionCountByDay> TransactionsPerDay { get; set; }
-    public List<CreditGroupsByAlliance> PendingCreditByAlliance { get; set; }
-    public List<AccountCountByRole> AccountsPerRole { get; set; }
-    public List<TotalSlotGroupsByAlliance> TotalSlotsPerAlliance { get; set; }
-    public List<FreeSlotCountByList> FreeSlotsPerList { get; set; }
-    public List<AccountCountByAlliance> AccountsPerAlliance { get; set; }
-}
 
 public class TransactionCountByDay
 {
@@ -72,4 +52,29 @@ public class AccountCountByAlliance
 {
     public string AllianceName { get; set; }
     public int TotalAccounts { get; set; }
+}
+
+public class GeneralProgramSummary
+{
+    public int TotalAccounts { get; set; }
+    public int TotalTransactions { get; set; }
+}
+
+public class AidRatioSummary
+{
+    public int TotalIncomingCashSlots { get; set; }
+    public int TotalOutgoingCashSlots { get; set; }
+    public int TotalIncomingTechSlots { get; set; }
+    public int TotalOutgoingTechSlots { get; set; }
+}
+
+public class UnusedCreditSummary
+{
+    public int UnusedCredit { get; set; }
+}
+
+public class SlotUsageSummary
+{
+    public int MaxCapacity { get; set; }
+    public int CurrentSlotsUsed { get; set; }
 }

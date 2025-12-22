@@ -13,28 +13,16 @@
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <UCard>
-          <div class="text-center space-y-2">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Accounts</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ dashboard.totalAccounts }}</p>
-          </div>
+          <AdminDashboardGeneralProgramStatsCard :data="dashboard.generalProgramSummary" />
         </UCard>
         <UCard>
-          <div class="text-center space-y-2">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Incoming/Outgoing Cash Ratio</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ incomingOutgoingCashRatio }}</p>
-          </div>
+          <AdminDashboardProgramSlotUsageStatCard :data="dashboard.slotUsageSummary" />
         </UCard>
         <UCard>
-          <div class="text-center space-y-2">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Incoming/Outgoing Tech Ratio</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ incomingOutgoingTechRatio }}</p>
-          </div>
+          <AdminDashboardUnusedCreditStatCard :data="dashboard.unusedCreditSummary" />
         </UCard>
         <UCard>
-          <div class="text-center space-y-2">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Aid Transactions</p>
-            <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ dashboard.totalTransactions }}</p>
-          </div>
+          <AdminDashboardSlotRatiosStatCard :data="dashboard.aidRatioSummary" />
         </UCard>
       </div>
 
@@ -70,32 +58,14 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useAdminStore } from '~/stores/admin'
-import { useAuthStore } from '~/stores/auth'
 
-const router = useRouter()
 const toast = useToast()
 
 const adminStore = useAdminStore()
-const authStore = useAuthStore()
 
 const { dashboard } = storeToRefs(adminStore)
-const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref(true)
-
-// Computed property for slot ratios
-const incomingOutgoingCashRatio = computed<string>(() => {
-  if (!dashboard.value.totalIncomingCashSlots || !dashboard.value.totalOutgoingCashSlots) {
-    return '0.00'
-  }
-  return (dashboard.value.totalIncomingCashSlots / dashboard.value.totalOutgoingCashSlots).toFixed(2)
-})
-const incomingOutgoingTechRatio = computed<string>(() => {
-  if (!dashboard.value.totalIncomingTechSlots || !dashboard.value.totalOutgoingTechSlots) {
-    return '0.00'
-  }
-  return (dashboard.value.totalIncomingTechSlots / dashboard.value.totalOutgoingTechSlots).toFixed(2)
-})
 
 const alliances = computed<string[]>(() => {
   if (!dashboard.value.accountsPerAlliance) {
