@@ -2,91 +2,75 @@
   <UContainer>
     <div class="py-8 space-y-8">
       <!-- Header -->
-      <div>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Transactions</h1>
-        <p class="text-gray-600 dark:text-gray-400 mt-2">Manage every transaction that VEP tracks, as well as manual balance adjustments</p>
+      <div class="flex justify-between items-start">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Transactions</h1>
+          <p class="text-gray-600 dark:text-gray-400 mt-2">Manage every transaction that VEP tracks, as well as manual balance adjustments</p>
+        </div>
+        <UButton
+          icon="i-heroicons-funnel"
+          label="Filters"
+          color="primary"
+          @click="filterSlideover.open({ filters })"
+        />
       </div>
 
-      <!-- Filters Card -->
-      <UCard>
-        <div class="space-y-4">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Filters</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <UFormField label="Sent By">
-              <UInput v-model="filters.sentBy" placeholder="Nation ID" />
-            </UFormField>
-            <UFormField label="Received By">
-              <UInput v-model="filters.receivedBy" placeholder="Nation ID" />
-            </UFormField>
-            <UFormField label="Since">
-              <UInput v-model="dateFilters.sentSince" type="date" />
-            </UFormField>
-            <UFormField label="Until">
-              <UInput v-model="dateFilters.sentUntil" type="date" />
-            </UFormField>
-          </div>
-          <div class="flex justify-end">
-            <UButton label="Apply Filters" color="primary" @click="changePage(1)" />
-          </div>
-        </div>
-      </UCard>
-
       <!-- Tabs and Tables -->
-      <UTabs v-model="activeTab" :items="tabs" class="w-full">
-        <!-- Aid-Based Tab -->
-        <template #aid-based>
-          <UCard>
-            <div class="space-y-4">
-              <UTable
-                :data="aidBasedTransactions"
-                :columns="displayAidBasedColumns"
-                :loading="tableIsLoading"
+    <UTabs v-model="activeTab" :items="tabs" class="w-full">
+      <!-- Aid-Based Tab -->
+      <template #aid-based>
+        <UCard>
+          <div class="space-y-4">
+            <UTable
+              :data="aidBasedTransactions"
+              :columns="displayAidBasedColumns"
+              :loading="tableIsLoading"
+            />
+
+            <!-- Pagination -->
+            <div class="flex justify-between items-center">
+              <div class="text-sm text-gray-600 dark:text-gray-400">
+                Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
+              </div>
+              <UPagination
+                v-model:page="currentPage"
+                :total="currentTransactionsPage.totalCount"
+                :items-per-page="limit"
               />
-
-              <!-- Pagination -->
-              <div class="flex justify-between items-center">
-                <div class="text-sm text-gray-600 dark:text-gray-400">
-                  Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
-                </div>
-                <UPagination
-                  v-model:page="currentPage"
-                  :total="currentTransactionsPage.totalCount"
-                  :items-per-page="limit"
-                />
-              </div>
             </div>
-          </UCard>
-        </template>
+          </div>
+        </UCard>
+      </template>
 
-        <!-- Manual Tab -->
-        <template #manual>
-          <UCard>
-            <div class="space-y-4">
-              <div v-if="!isReadOnly" class="flex justify-end">
-                <UButton label="Create Transaction" color="success" @click="createTransaction()" />
+      <!-- Manual Tab -->
+      <template #manual>
+        <UCard>
+          <div class="space-y-4">
+            <div v-if="!isReadOnly" class="flex justify-end">
+              <UButton label="Create Transaction" color="success" @click="createTransaction()" />
+            </div>
+
+            <UTable
+              :data="manualTransactions"
+              :columns="displayManualColumns"
+              :loading="tableIsLoading"
+            />
+
+            <!-- Pagination -->
+            <div class="flex justify-between items-center">
+              <div class="text-sm text-gray-600 dark:text-gray-400">
+                Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
               </div>
-
-              <UTable
-                :data="manualTransactions"
-                :columns="displayManualColumns"
-                :loading="tableIsLoading"
+              <UPagination
+                v-model:page="currentPage"
+                :total="currentTransactionsPage.totalCount"
+                :items-per-page="limit"
               />
-
-              <!-- Pagination -->
-              <div class="flex justify-between items-center">
-                <div class="text-sm text-gray-600 dark:text-gray-400">
-                  Showing {{ Math.min((currentPage - 1) * limit + 1, currentTransactionsPage.totalCount) }} to {{ Math.min(currentPage * limit, currentTransactionsPage.totalCount) }} of {{ currentTransactionsPage.totalCount }} results
-                </div>
-                <UPagination
-                  v-model:page="currentPage"
-                  :total="currentTransactionsPage.totalCount"
-                  :items-per-page="limit"
-                />
-              </div>
             </div>
-          </UCard>
-        </template>
-      </UTabs>
+          </div>
+        </UCard>
+      </template>
+    </UTabs>
     </div>
   </UContainer>
 </template>
@@ -98,10 +82,11 @@ import { useAdminTransactionsStore, type TransactionFilter, type ManualTransacti
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
 import { TRANSACTION_TYPES } from '~/infrastructure/constants'
-import { transactionClassifications } from '~/infrastructure/dataLists'
+import { transactionClassifications, accountRoles } from '~/infrastructure/dataLists'
 import type { Transaction } from '~/stores/shared/transaction'
 import ManualTransactionDialog from '~/components/admin/ManualTransactionDialog.vue'
 import AidBasedTransactionDialog from '~/components/admin/AidBasedTransactionDialog.vue'
+import TransactionsFilter from '~/components/admin/TransactionsFilter.vue'
 
 const router = useRouter()
 const toast = useToast()
@@ -109,6 +94,7 @@ const overlay = useOverlay()
 
 const aidBasedModal = overlay.create(AidBasedTransactionDialog)
 const manualModal = overlay.create(ManualTransactionDialog)
+const filterSlideover = overlay.create(TransactionsFilter)
 
 const adminTransactionsStore = useAdminTransactionsStore()
 const adminAccountsStore = useAdminAccountsStore()
@@ -133,18 +119,8 @@ const isReadOnly = computed(() => {
   return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
 })
 
-// Date filter strings (for UInput compatibility)
-const dateFilters = ref({
-  sentSince: '',
-  sentUntil: ''
-})
-
-const filters = ref<TransactionFilter>({
-  sentBy: null,
-  receivedBy: null,
-  sentSince: null,
-  sentUntil: null
-})
+// New filter structure
+const filters = ref<TransactionFilter>({} as TransactionFilter)
 
 // Tab configuration for UTabs component
 const tabs = [
@@ -381,6 +357,11 @@ const getStatusColor = (statusId: string | number): 'primary' | 'success' | 'err
   }
 }
 
+// Apply filters and close slideover
+const applyFilters = async (): Promise<void> => {
+  await changePage(1)
+}
+
 // Change page handler
 const changePage = async (newPageNumber: number): Promise<void> => {
   tableIsLoading.value = true
@@ -389,12 +370,7 @@ const changePage = async (newPageNumber: number): Promise<void> => {
   try {
     await adminTransactionsStore.reloadCurrentTransactionsPage({
       type: activeTab.value,
-      filter: {
-        sentBy: filters.value.sentBy ? Number(filters.value.sentBy) : undefined,
-        receivedBy: filters.value.receivedBy ? Number(filters.value.receivedBy) : undefined,
-        sentSince: filters.value.sentSince || undefined,
-        sentUntil: filters.value.sentUntil || undefined
-      },
+      filter: filters.value,
       limit: limit.value,
       offset: limit.value * (currentPage.value - 1)
     })
@@ -410,15 +386,6 @@ const changePage = async (newPageNumber: number): Promise<void> => {
     tableIsLoading.value = false
   }
 }
-
-// Watch for date filter changes and convert to Date objects
-watch(() => dateFilters.value.sentSince, (newValue) => {
-  filters.value.sentSince = newValue ? new Date(newValue) : null
-})
-
-watch(() => dateFilters.value.sentUntil, (newValue) => {
-  filters.value.sentUntil = newValue ? new Date(newValue) : null
-})
 
 // Watch for tab changes
 watch(activeTab, async (_) => {

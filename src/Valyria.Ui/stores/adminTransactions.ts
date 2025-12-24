@@ -5,10 +5,15 @@ import type { Transaction } from './shared/transaction'
 import type { TransactionsPage } from './shared/transactionsPage'
 
 export interface TransactionFilter {
-  sentBy?: number
-  receivedBy?: number
+  sentBy?: string
+  receivedBy?: string
   sentSince?: Date
   sentUntil?: Date
+  rolePairing?: string
+  aidStatus?: number 
+  classification?: number
+  money?: number 
+  tech?: number 
 }
 
 export interface ManualTransaction {
