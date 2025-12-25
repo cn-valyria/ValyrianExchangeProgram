@@ -4,21 +4,22 @@
       <UForm ref="form" :schema="schema" :state="state" @submit="onSubmit" @error="onError" class="p-4 space-y-6">
         <!-- Search and Direction -->
         <div class="space-y-4">
-          <UFormField label="Search" hint="Search by ruler name, nation name, or alliance name">
-            <UInput v-model="search" placeholder="Enter name to search..." />
+          <UFormField label="Search Text" help="Search by ruler name, nation name, or alliance name">
+            <UInput v-model="search" placeholder="Enter name to search..." class="w-full" />
           </UFormField>
-          <UFormField label="Direction">
+          <UFormField label="Search Direction">
             <USelectMenu
               v-model="direction"
-              :options="directionOptions"
+              :items="directionOptions"
               multiple
               placeholder="Select direction(s)"
+              class="w-full"
             />
           </UFormField>
         </div>
 
         <!-- Date Range -->
-        <UFormField label="Aid Sent On">
+        <!-- <UFormField label="Aid Sent On">
           <UPopover :popper="{ placement: 'bottom-start' }">
             <UButton
               icon="i-heroicons-calendar-days-20-solid"
@@ -30,28 +31,52 @@
               <UCalendar v-model="dateRange" @update:model-value="close" />
             </template>
           </UPopover>
+        </UFormField> -->
+        <UFormField label="Aid Sent On">
+          <UPopover>
+            <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
+              <template v-if="aidSentDateRange.start">
+                <template v-if="aidSentDateRange.end">
+                  {{ dateFormatter.format(aidSentDateRange.start.toDate(getLocalTimeZone())) }} - {{ dateFormatter.format(aidSentDateRange.end.toDate(getLocalTimeZone())) }}
+                </template>
+
+                <template v-else>
+                  {{ dateFormatter.format(aidSentDateRange.start.toDate(getLocalTimeZone())) }}
+                </template>
+              </template>
+              <template v-else>
+                Pick a date
+              </template>
+            </UButton>
+
+            <template #content>
+              <UCalendar v-model="aidSentDateRange" class="p-2" :number-of-months="2" range />
+            </template>
+          </UPopover>
         </UFormField>
 
         <!-- Role Pairing -->
         <div class="space-y-4">
-          <UFormField label="Sending Role" hint="Filter by sending role">
+          <UFormField label="Sending Role">
             <USelectMenu
               v-model="sendingRole"
-              :options="roleOptions"
-              value-attribute="code"
-              option-attribute="description"
+              :items="roleOptions"
+              value-key="code"
+              label-key="description"
               placeholder="Any role"
               clearable
+              class="w-full"
             />
           </UFormField>
-          <UFormField label="Receiving Role" hint="Filter by receiving role">
+          <UFormField label="Receiving Role">
             <USelectMenu
               v-model="receivingRole"
-              :options="roleOptions"
-              value-attribute="code"
-              option-attribute="description"
+              :items="roleOptions"
+              value-key="code"
+              label-key="description"
               placeholder="Any role"
               clearable
+              class="w-full"
             />
           </UFormField>
         </div>
@@ -61,29 +86,31 @@
           <UFormField label="Aid Status">
             <USelectMenu
               v-model="state.aidStatus"
-              :options="aidStatusOptions"
-              value-attribute="id"
-              option-attribute="label"
+              :items="aidStatusOptions"
+              value-key="id"
+              label-key="label"
               placeholder="Any status"
               clearable
+              class="w-full"
             />
           </UFormField>
-          <!-- <UFormField label="Money">
-            <USelectMenu
-              v-model="state.resourceType"
-              :options="resourceTypeOptions"
-              placeholder="Any type"
-              clearable
-            />
-          </UFormField> -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <UFormField label="Money">
+              <UInput v-model="state.money" class="w-full" />
+            </UFormField>
+            <UFormField label="Tech">
+              <UInput v-model="state.tech" class="w-full" />
+            </UFormField>
+          </div>
           <UFormField label="Classification">
             <USelectMenu
               v-model="state.classification"
-              :options="classificationOptions"
-              value-attribute="id"
-              option-attribute="description"
+              :items="classificationOptions"
+              value-key="id"
+              label-key="description"
               placeholder="Any classification"
               clearable
+              class="w-full"
             />
           </UFormField>
         </div>
@@ -108,6 +135,7 @@
 </template>
 
 <script setup lang="ts">
+import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
 import { z } from 'zod';
 import type { FormErrorEvent, FormSubmitEvent } from '@nuxt/ui';
 import { transactionClassifications, accountRoles } from '~/infrastructure/dataLists'
@@ -159,15 +187,11 @@ const aidStatusOptions = [
   { id: 4, label: 'Expired' }
 ]
 
-// Computed label for date range picker
-const dateRangeLabel = computed(() => {
-  if (!dateRange.value || !dateRange.value.start) return 'Select date range'
-  const start = new Date(dateRange.value.start.year, dateRange.value.start.month - 1, dateRange.value.start.day).toLocaleDateString()
-  const end = dateRange.value.end
-    ? new Date(dateRange.value.end.year, dateRange.value.end.month - 1, dateRange.value.end.day).toLocaleDateString()
-    : start
-  return `${start} - ${end}`
+const dateFormatter = new DateFormatter('en-US', {
+  dateStyle: 'medium'
 })
+
+const aidSentDateRange = shallowRef({ start: null, end: null })
 
 const onSubmit = async (event: FormSubmitEvent<any>) => {
   if (search.value) {
