@@ -8,6 +8,7 @@ using Valyria.Core.DTOs.CN;
 using Valyria.Core.Interfaces;
 using Valyria.Infrastructure.Services.CnFileImport;
 using Valyria.Infrastructure.Services.CnFileImport.Models;
+using Valyria.Infrastructure.Services.Discord;
 
 namespace Valyria.Batch.DataLoader;
 
@@ -23,6 +24,7 @@ public class DataLoaderWorker : BackgroundService
     private readonly BlobContainerClient _aidBlobClient;
     private readonly BlobContainerClient _warBlobClient;
     private readonly IHostApplicationLifetime _applicationLifetime;
+    private readonly IDiscordWebhookService _discordWebhookService;
 
     // Should be roughly 12am - 12pm CST. I'm just lazy and don't feel like redoing the CnFileGrabber logic
     private bool IsMorningRun => DateTime.UtcNow.Hour >= 6 && DateTime.UtcNow.Hour <= 18;
@@ -37,7 +39,8 @@ public class DataLoaderWorker : BackgroundService
         [FromKeyedServices("alliance")] BlobContainerClient allianceBlobClient,
         [FromKeyedServices("aid")] BlobContainerClient aidBlobClient,
         [FromKeyedServices("war")] BlobContainerClient warBlobClient,
-        IHostApplicationLifetime applicationLifetime)
+        IHostApplicationLifetime applicationLifetime,
+        IDiscordWebhookService discordWebhookService)
     {
         _logger = logger;
         _vepDataLoaderRepository = vepDataLoaderRepository;
@@ -49,6 +52,7 @@ public class DataLoaderWorker : BackgroundService
         _aidBlobClient = aidBlobClient;
         _warBlobClient = warBlobClient;
         _applicationLifetime = applicationLifetime;
+        _discordWebhookService = discordWebhookService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -232,6 +236,10 @@ public class DataLoaderWorker : BackgroundService
         {
             _logger.LogInformation("It's a new day, so loading new lists...");
             await _vepDataLoaderRepository.LoadTodaysListsAsync();
+
+            // Send Discord notification for outgoing aid lists after successful refresh
+            await _discordWebhookService.SendListNotificationAsync(1);
+            await _discordWebhookService.SendListNotificationAsync(3);
         }
         else
         {

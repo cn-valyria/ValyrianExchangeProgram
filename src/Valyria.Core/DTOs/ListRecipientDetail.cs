@@ -13,5 +13,6 @@ public class ListRecipientDetail
     public int Debt { get; set; }
     public int RecentActivity { get; set; }
     public string Discord { get; set; }
+    public long? DiscordUniqueId { get; set; }
     public int DaysOnCurrentList { get; set; }
 }
