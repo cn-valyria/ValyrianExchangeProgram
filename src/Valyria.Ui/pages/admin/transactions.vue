@@ -11,7 +11,7 @@
           icon="i-heroicons-funnel"
           label="Filters"
           color="primary"
-          @click="filterSlideover.open({ filters })"
+          @click="filterSlideover.open()"
         />
       </div>
 

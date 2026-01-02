@@ -1,7 +1,7 @@
 <template>
-  <USlideover title="Filter Transactions" :close="{ onClick: () => emit('close', false, state) }">
+  <USlideover title="Filter Transactions" :close="{ onClick: () => emit('close') }">
     <template #body>
-      <UForm ref="form" :schema="schema" :state="state" @submit="onSubmit" @error="onError" class="p-4 space-y-6">
+      <UForm ref="form" :validate="validate" :state="filters" @submit="onSubmit" @error="onError" class="p-4 space-y-6">
         <!-- Search and Direction -->
         <div class="space-y-4">
           <UFormField label="Search Text" help="Search by ruler name, nation name, or alliance name">
@@ -19,19 +19,6 @@
         </div>
 
         <!-- Date Range -->
-        <!-- <UFormField label="Aid Sent On">
-          <UPopover :popper="{ placement: 'bottom-start' }">
-            <UButton
-              icon="i-heroicons-calendar-days-20-solid"
-              :label="dateRangeLabel"
-              variant="outline"
-              block
-            />
-            <template #panel="{ close }">
-              <UCalendar v-model="dateRange" @update:model-value="close" />
-            </template>
-          </UPopover>
-        </UFormField> -->
         <UFormField label="Aid Sent On">
           <UPopover>
             <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
@@ -85,7 +72,7 @@
         <div class="space-y-4">
           <UFormField label="Aid Status">
             <USelectMenu
-              v-model="state.aidStatus"
+              v-model="filters.aidStatus"
               :items="aidStatusOptions"
               value-key="id"
               label-key="label"
@@ -96,15 +83,15 @@
           </UFormField>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormField label="Money">
-              <UInput v-model="state.money" class="w-full" />
+              <UInput v-model="filters.money" class="w-full" />
             </UFormField>
             <UFormField label="Tech">
-              <UInput v-model="state.tech" class="w-full" />
+              <UInput v-model="filters.tech" class="w-full" />
             </UFormField>
           </div>
           <UFormField label="Classification">
             <USelectMenu
-              v-model="state.classification"
+              v-model="filters.classification"
               :items="classificationOptions"
               value-key="id"
               label-key="description"
@@ -135,39 +122,17 @@
 </template>
 
 <script setup lang="ts">
-import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
-import { z } from 'zod';
-import type { FormErrorEvent, FormSubmitEvent } from '@nuxt/ui';
+import { DateFormatter, getLocalTimeZone } from '@internationalized/date'
+import type { FormError, FormErrorEvent, FormSubmitEvent } from '@nuxt/ui';
 import { transactionClassifications, accountRoles } from '~/infrastructure/dataLists'
+import { useAdminTransactionsStore } from '~/stores/adminTransactions'
 
-interface Props {
-  filters: TransactionFilter
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  filters: () => ({} as TransactionFilter)
-})
-
-const emit = defineEmits<{ close: [boolean, TransactionFilter] }>()
+const emit = defineEmits<{ close: [] }>()
 
 const toast = useToast()
 const form = ref()
-
-// Define the form state
-const state = reactive<TransactionFilter>(props.filters)
-
-// Define the Zod schema
-const schema = z.object({
-  sentBy: z.string().optional().nullable(),
-  receivedBy: z.string().optional().nullable(),
-  sentSince: z.date().optional().nullable(),
-  sentUntil: z.date().optional().nullable(),
-  rolePairing: z.string().optional().nullable(),
-  aidStatus: z.number().optional().nullable() ,
-  classification: z.number().optional().nullable(),
-  money: z.number().optional().nullable() ,
-  tech: z.number().optional().nullable()
-})
+const store = useAdminTransactionsStore()
+const { filters } = storeToRefs(store)
 
 // UI-only filter values
 const search = ref('')
@@ -193,37 +158,42 @@ const dateFormatter = new DateFormatter('en-US', {
 
 const aidSentDateRange = shallowRef({ start: null, end: null })
 
+const validate = (state: any): FormError[] => {
+  const errors = []
+  if (search.value && direction.value.length === 0) {
+    errors.push({ name: 'direction', message: 'Must specify direction (sent/received) of the search text' })
+  }
+  return errors
+}
+
 const onSubmit = async (event: FormSubmitEvent<any>) => {
   if (search.value) {
     if (direction.value.includes('Sent')) {
-      state.sentBy = search.value
+      filters.value.sentBy = search.value
     }
     if (direction.value.includes('Received')) {
-      state.receivedBy = search.value
-    }
-    // If no direction selected, search both
-    if (direction.value.length === 0) {
-      state.sentBy = search.value
-      state.receivedBy = search.value
+      filters.value.receivedBy = search.value
     }
   }
 
   // Convert date range to Date objects
   if (dateRange.value && dateRange.value.start) {
-    state.sentSince = new Date(dateRange.value.start.year, dateRange.value.start.month - 1, dateRange.value.start.day)
+    filters.value.sentSince = new Date(dateRange.value.start.year, dateRange.value.start.month - 1, dateRange.value.start.day)
     if (dateRange.value.end) {
-      state.sentUntil = new Date(dateRange.value.end.year, dateRange.value.end.month - 1, dateRange.value.end.day)
+      filters.value.sentUntil = new Date(dateRange.value.end.year, dateRange.value.end.month - 1, dateRange.value.end.day)
     } else {
-      state.sentUntil = state.sentSince
+      filters.value.sentUntil = filters.value.sentSince
     }
   }
 
   // Convert sending + receiving role to role pairing
   if (sendingRole.value || receivingRole.value) {
-    state.rolePairing = `${sendingRole.value ?? ''}${receivingRole.value ?? ''}`
+    filters.value.rolePairing = `${sendingRole.value ?? ''}${receivingRole.value ?? ''}`
   }
 
-  emit('close', true, state)
+  store.$patch({ filters: filters.value })
+
+  emit('close')
 }
 
 const onError = async (event: FormErrorEvent) => {
@@ -231,7 +201,7 @@ const onError = async (event: FormErrorEvent) => {
     toast.add({
       description: `Form validation failed: ${event.errors.map(error => error.message).join(', ')}`,
       title: 'Validation Error',
-      color: 'success',
+      color: 'error',
       duration: 3000
     })
   }
@@ -239,15 +209,15 @@ const onError = async (event: FormErrorEvent) => {
 
 // Clear all filters
 const clearFilters = (): void => {
-  state.sentBy = null
-  state.receivedBy = null
-  state.sentSince = null 
-  state.sentUntil = null
-  state.aidStatus = null
-  state.money = null
-  state.tech = null
-  state.classification = null
+  filters.value.sentBy = null
+  filters.value.receivedBy = null
+  filters.value.sentSince = null
+  filters.value.sentUntil = null
+  filters.value.aidStatus = null
+  filters.value.money = null
+  filters.value.tech = null
+  filters.value.classification = null
 
-  emit('close', false, state)
+  emit('close')
 }
 </script>

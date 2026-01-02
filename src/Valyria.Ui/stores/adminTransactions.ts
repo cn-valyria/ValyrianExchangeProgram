@@ -36,6 +36,7 @@ export const useAdminTransactionsStore = defineStore('adminTransactions', {
       totalCount: 0,
       results: [],
     } as TransactionsPage,
+    filters: {} as TransactionFilter,
   }),
 
   getters: {
