@@ -51,6 +51,7 @@ join account_list_performance alp
     on lr.account_id = alp.account_id
     and lr.list_id = alp.list_id
     and date_add(alp.day_started, interval (alp.days_until_removed + 1) day) >= curdate()
+where @listId = 0 or lr.list_id = @listId 
 order by lr.list_id, lr.priority;";
 
     public ListsRepository(string connectionString) => _connectionString = connectionString;
@@ -68,10 +69,10 @@ order by lr.list_id, lr.priority;";
             },
             splitOn: "AccountId");
 
-        var recipients = await sqlConnection.QueryAsync<ListRecipientDetail>(GetListRecipientsQuery);
+        var recipients = await GetListRecipientsAsync();
 
         foreach (var list in lists)
-            list.Recipients = recipients.Where(r => r.ListId == list.Id).ToList();
+            list.Recipients = [.. recipients.Where(r => r.ListId == list.Id)];
 
         return [.. lists];
     }
@@ -90,7 +91,8 @@ order by lr.list_id, lr.priority;";
             new { id },
             splitOn: "AccountId"
         )).First();
-        list.Recipients = [.. await sqlConnection.QueryAsync<ListRecipientDetail>(GetListRecipientsQuery)];
+
+        list.Recipients = await GetListRecipientsAsync(id);
 
         return list;
     }
@@ -112,21 +114,28 @@ where id = @listId";
     public async Task<List<ListRecipientDetail>> GetListRecipientsForAccountAsync(int accountId)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
-        var allRecipients = await sqlConnection.QueryAsync<ListRecipientDetail>(GetListRecipientsQuery);
 
-        var sendingCash = allRecipients.Where(r => r.ListId == 1);
-        var receivingCash = allRecipients.Where(r => r.ListId == 2);
-        var sendingTech = allRecipients.Where(r => r.ListId == 3);
-        var receivingTech = allRecipients.Where(r => r.ListId == 4);
+        // Get all recipients since we don't know which list the account is in
+        var allRecipients = await GetListRecipientsAsync();
 
         // Potential transactions are always the inverse of whichever list the current account is in, 
         // i.e. an account that is sending cash has potential transactions with nations that are receiving cash
-        if (sendingCash.Any(r => r.AccountId == accountId)) return receivingCash.ToList();
-        if (receivingCash.Any(r => r.AccountId == accountId)) return sendingCash.ToList();
-        if (sendingTech.Any(r => r.AccountId == accountId)) return receivingTech.ToList();
-        if (receivingTech.Any(r => r.AccountId == accountId)) return sendingTech.ToList();
+        var thisAccountsListId = allRecipients.FirstOrDefault(r => r.AccountId == accountId)?.ListId;
+        return thisAccountsListId switch
+        {
+            1 => [.. allRecipients.Where(r => r.ListId == 2)],
+            2 => [.. allRecipients.Where(r => r.ListId == 1)],
+            3 => [.. allRecipients.Where(r => r.ListId == 4)],
+            4 => [.. allRecipients.Where(r => r.ListId == 3)],
 
-        // Safe exit if we didn't find the account anywhere for some reason
-        return new List<ListRecipientDetail>();
+            // Safe exit if we didn't find the account anywhere for some reason
+            _ => []
+        };
+    }
+
+    private async Task<List<ListRecipientDetail>> GetListRecipientsAsync(int listId = 0)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        return [.. await sqlConnection.QueryAsync<ListRecipientDetail>(GetListRecipientsQuery, new { listId })];
     }
 }

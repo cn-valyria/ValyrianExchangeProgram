@@ -6,6 +6,7 @@ builder.AddAzureContainerAppEnvironment("env");
 var jwtSecret = builder.AddParameter("JwtSecret");
 var vepDbConnectionString = builder.AddParameter("VepDbConnectionString");
 var cnDbConnectionString = builder.AddParameter("CnDbConnectionString");
+var discordWebhookUrl = builder.AddParameter("DiscordWebhookUrl");
 
 // Add the API project with HTTP and HTTPS endpoints
 var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
@@ -28,6 +29,7 @@ builder.AddProject<Projects.Valyria_Batch_DataLoader>("valyria-batch-dataloader"
     .WithReference(warBlob).WaitFor(warBlob)
     .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
     .WithEnvironment("CybernationsDbConnectionString", cnDbConnectionString)
+    .WithEnvironment("DiscordWebhookUrl", discordWebhookUrl)
     .PublishAsScheduledAzureContainerAppJob(cronExpression: "0/5 0-2,12-14 * * *");
 #pragma warning restore ASPIREAZURE002
 
