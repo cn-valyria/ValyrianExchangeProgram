@@ -32,7 +32,7 @@
                   <div class="flex items-center gap-2">
                     <USwitch
                       :model-value="!!selectedList.messagesSentOn"
-                      :disabled="isUpdatingMessagesSent"
+                      :disabled="isUpdatingMessagesSent || isReadOnly"
                       label="Messages Sent"
                       @update:model-value="handleMessagesSentToggle"
                     />
@@ -167,6 +167,11 @@ const isUpdatingMessagesSent = ref<boolean>(false)
 const selectedTab = ref<number>(0)
 const currentBatchIndex = ref<number>(0)
 const BATCH_SIZE = 25
+
+// Check if user has read-only access
+const isReadOnly = computed(() => {
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+})
 
 // Computed property for today's formatted date
 const todayFormatted = computed<string>(() => {

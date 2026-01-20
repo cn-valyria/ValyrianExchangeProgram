@@ -19,9 +19,20 @@ export default defineNuxtRouteMiddleware((to) => {
 
   if (isAdminRoute && authStore.user) {
     const userRoles = authStore.user.roles.map((r) => r.name)
-    const allowedRoles = to.path === '/admin/lists' 
-      ? ['Super Admin', 'Admin - Lists']
-      : ['Super Admin']
+
+    // Define allowed roles based on the route
+    let allowedRoles: string[] = []
+
+    if (to.path === '/admin/settings') {
+      // Only Super Admin can access settings
+      allowedRoles = ['Super Admin']
+    } else if (to.path === '/admin/lists') {
+      // Lists accessible by Super Admin, Admin - Lists, and Admin (Read-only)
+      allowedRoles = ['Super Admin', 'Admin - Lists', 'Admin (Read-only)']
+    } else if (to.path.startsWith('/admin')) {
+      // Other admin pages accessible by Super Admin and Admin (Read-only)
+      allowedRoles = ['Super Admin', 'Admin (Read-only)']
+    }
 
     if (!userRoles.some((role) => allowedRoles.includes(role))) {
       console.warn('Tried to access an admin page without the admin role.')

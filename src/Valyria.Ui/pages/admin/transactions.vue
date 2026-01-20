@@ -39,7 +39,7 @@
             <div class="space-y-4">
               <UTable
                 :data="aidBasedTransactions"
-                :columns="aidBasedColumns"
+                :columns="displayAidBasedColumns"
                 :loading="tableIsLoading"
               />
 
@@ -62,13 +62,13 @@
         <template #manual>
           <UCard>
             <div class="space-y-4">
-              <div class="flex justify-end">
+              <div v-if="!isReadOnly" class="flex justify-end">
                 <UButton label="Create Transaction" color="success" @click="createTransaction()" />
               </div>
 
               <UTable
                 :data="manualTransactions"
-                :columns="manualColumns"
+                :columns="displayManualColumns"
                 :loading="tableIsLoading"
               />
 
@@ -127,6 +127,11 @@ const manualDialogIsVisible = ref<boolean>(false)
 const transactionBeingEdited = ref<Transaction | undefined>(undefined)
 const transactionIdBeingDeleted = ref<number>(0)
 const classifications = transactionClassifications
+
+// Check if user has read-only access
+const isReadOnly = computed(() => {
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+})
 
 // Date filter strings (for UInput compatibility)
 const dateFilters = ref({
@@ -306,6 +311,39 @@ const manualColumns: TableColumn<ManualTransaction>[] = [
     cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.rate)
   }
 ]
+
+// Display columns based on read-only status
+const displayAidBasedColumns = computed(() => {
+  if (isReadOnly.value) {
+    // Change "Actions" column to "View" only and filter out Delete button
+    return aidBasedColumns.map(col => {
+      if (col.header === 'Actions') {
+        return {
+          ...col,
+          cell: ({ row }: any) => {
+            const transaction = row.original
+            return h(resolveComponent('UButton'), {
+              label: 'View',
+              color: 'primary',
+              size: 'xs',
+              onClick: () => editTransaction(transaction, TRANSACTION_TYPES.aidBased)
+            })
+          }
+        }
+      }
+      return col
+    })
+  }
+  return aidBasedColumns
+})
+
+const displayManualColumns = computed(() => {
+  if (isReadOnly.value) {
+    // Filter out Actions column entirely for manual transactions
+    return manualColumns.filter(col => col.header !== 'Actions')
+  }
+  return manualColumns
+})
 
 // Helper function to get classification description
 const getClassificationDescription = (classificationId: number | null): string => {

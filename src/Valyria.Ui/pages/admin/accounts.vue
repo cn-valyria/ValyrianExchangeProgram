@@ -28,6 +28,7 @@
                 </template>
               </USwitch>
               <UButton
+                v-if="!isReadOnly"
                 color="success"
                 icon="i-heroicons-plus"
                 @click="createAccount()"
@@ -40,7 +41,7 @@
           <!-- Table -->
           <UTable
             :data="filteredAccounts"
-            :columns="columns"
+            :columns="displayColumns"
             :loading="loading"
             :sort="{ column: 'nationId', direction: 'asc' }"
           />
@@ -76,6 +77,11 @@ const loading = ref<boolean>(false)
 const searchQuery = ref<string>('')
 const showOnHold = ref<boolean>(false)
 const roles = accountRoles
+
+// Check if user has read-only access
+const isReadOnly = computed(() => {
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+})
 
 // Table columns definition
 const columns: TableColumn<AdminAccount>[] = [
@@ -222,6 +228,15 @@ const filteredAccounts = computed(() => {
       getRoleDescription(account.role)?.toLowerCase().includes(query)
     )
   })
+})
+
+// Display columns based on read-only status
+const displayColumns = computed(() => {
+  if (isReadOnly.value) {
+    // Filter out the Actions column (last column with header 'Actions')
+    return columns.filter(col => col.header !== 'Actions')
+  }
+  return columns
 })
 
 // Create new account

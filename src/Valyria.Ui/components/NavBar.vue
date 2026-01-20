@@ -58,7 +58,7 @@
           <NuxtLink to="/leaderboard" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             Leaderboard
           </NuxtLink>
-          <template v-if="accountIsAdmin">
+          <template v-if="accountIsAdmin || accountIsReadOnlyAdmin">
             <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Admin Portal</div>
             <NuxtLink to="/admin" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
               Home
@@ -70,7 +70,7 @@
               Transactions
             </NuxtLink>
           </template>
-          <NuxtLink v-if="accountIsAdmin || accountCanSeeLists" to="/admin/lists" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+          <NuxtLink v-if="accountIsAdmin || accountCanSeeLists || accountIsReadOnlyAdmin" to="/admin/lists" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             Lists
           </NuxtLink>
           <NuxtLink v-if="accountIsAdmin" to="/admin/settings" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
@@ -115,6 +115,10 @@ const accountCanSeeLists = computed(() => {
   return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin - Lists") ?? false
 })
 
+const accountIsReadOnlyAdmin = computed(() => {
+  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+})
+
 const accountMenuItems = computed(() => {
   const items: DropdownMenuItem[][] = [
     [
@@ -131,10 +135,10 @@ const accountMenuItems = computed(() => {
     ]
   ]
 
-  if (accountIsAdmin.value || accountCanSeeLists.value) {
+  if (accountIsAdmin.value || accountCanSeeLists.value || accountIsReadOnlyAdmin.value) {
     const adminItems = []
 
-    if (accountIsAdmin.value) {
+    if (accountIsAdmin.value || accountIsReadOnlyAdmin.value) {
       adminItems.push({
         label: 'Admin Portal',
         slot: 'header',
