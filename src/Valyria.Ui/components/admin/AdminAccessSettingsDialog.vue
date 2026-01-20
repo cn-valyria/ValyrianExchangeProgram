@@ -8,7 +8,7 @@
     <template #body>
       <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
         <UFormField label="Account ID">
-          <UInput v-model="state.accountId" placeholder="Account ID" />
+          <UInputMenu v-model="state.accountId" :items="accounts" value-key="id" label-key="rulerName" placeholder="Account ID" />
         </UFormField>
 
         <UFormField label="Role">
@@ -28,7 +28,7 @@
     <template #footer>
       <div class="flex justify-end gap-2">
         <UButton label="Cancel" color="neutral" @click="handleClose" />
-        <UButton color="primary" @click="submitForm()">
+        <UButton color="primary" :loading="buttonIsLoading" @click="submitForm()">
           Save
         </UButton>
       </div>
@@ -38,8 +38,13 @@
 
 <script setup lang="ts">
 import z from 'zod';
+import { ERROR_MESSAGES } from '~/infrastructure/constants';
 
 const toast = useToast()
+const adminAccessStore = useAdminAccessStore()
+const adminAccountsStore = useAdminAccountsStore()
+
+const { accounts } = storeToRefs(adminAccountsStore)
 
 interface Props {
   editingAdmin?: AdminAccessSetting
@@ -52,6 +57,15 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{ close: [boolean] }>()
 const submitButton = ref<HTMLButtonElement>()
 
+const buttonIsLoading = ref(false)
+
+// Admin role options
+const adminRoleOptions = [
+  { label: 'Super Admin', value: 1 },
+  { label: 'Admin (Read-only)', value: 2 },
+  { label: 'Admin - Lists', value: 3 }
+]
+
 // Define the form state
 const state = reactive<AdminAccessSetting>(props.editingAdmin)
 
@@ -61,22 +75,46 @@ const schema = z.object({
   adminRoleId: z.number().nullable()
 })
 
-// Admin role options
-const adminRoleOptions = [
-  { label: 'Super Admin', value: 1 },
-  { label: 'Admin - Lists', value: 3 }
-]
-
 const handleClose = () => {
   emit("close", false);
 }
 
 const submitForm = () => {
+  console.log(schema.safeParse(state))
   submitButton.value?.click()
 }
 
 const onSubmit = async () => {
-  toast.add({ color: 'error', title: 'Error', description: 'LWW still implementing this.', duration: 3000 })
-  handleClose()
+  console.log(state)
+  buttonIsLoading.value = true
+  try {
+    await adminAccessStore.createAdminAccess(state)
+    toast.add({ color: 'success', title: 'Success', description: 'Access added successfully!', duration: 3000 })
+    handleClose()
+  } catch (e) {
+    console.error(e)
+    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
+  }
+
+  buttonIsLoading.value = false
 }
+
+onMounted(async () => {
+  if (accounts.value.length === 0) {
+    try {
+      await adminAccountsStore.loadAllAccounts(false)
+      console.log('Accounts loaded:', accounts.value)
+    } catch (error) {
+      console.error('Failed to load accounts:', error)
+      toast.add({
+        color: 'error',
+        title: 'Error',
+        description: 'Failed to load accounts. Please try again.',
+        duration: 5000
+      })
+    }
+  } else {
+    console.log('Accounts already loaded into state')
+  }
+})
 </script>

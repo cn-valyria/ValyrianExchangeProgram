@@ -254,23 +254,23 @@ const addAdminAccess = (): void => {
 
 const removeAdminAccess = async (accountId: number, adminRoleId: number): Promise<void> => {
   // TODO: Put this back once I'm comfortable with people being able to do this lol
-  // const success = await adminAccessStore.deleteAdminAccess({ accountId, adminRoleId })
+  const success = await adminAccessStore.deleteAdminAccess({ accountId, adminRoleId })
 
-  // if (success) {
-  //   toast.add({
-  //     color: 'success',
-  //     title: 'Success',
-  //     description: 'Admin access removed successfully.',
-  //     duration: 3000
-  //   })
-  // } else {
+  if (success) {
+    toast.add({
+      color: 'success',
+      title: 'Success',
+      description: 'Admin access removed successfully.',
+      duration: 3000
+    })
+  } else {
     toast.add({
       color: 'error',
       title: 'Error',
       description: 'Failed to remove admin access. LWW still implementing this.',
       duration: 3000
     })
-  // }
+  }
 }
 
 // Team Events functions
