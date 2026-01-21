@@ -235,7 +235,7 @@ const schema = z.object({
   hasFederalAidCommission: z.boolean().nullable(),
   hasDisasterReliefAgency: z.boolean().nullable(),
   discord: z.string().nullable().optional(),
-  discordUniqueId: z.number().nullable().optional(),
+  discordUniqueId: z.bigint().nullable().optional(),
   nationName: z.string().nullable().optional(),
   rulerName: z.string().nullable().optional(),
   allianceName: z.string().nullable().optional()
@@ -331,7 +331,7 @@ const discordUniqueIdInput = computed({
   },
   set(val: string) {
     if (val !== "" && !isNaN(parseInt(val))) {
-      state.discordUniqueId = parseInt(val)
+      state.discordUniqueId = BigInt(val)
     } else {
       state.discordUniqueId = null
     }

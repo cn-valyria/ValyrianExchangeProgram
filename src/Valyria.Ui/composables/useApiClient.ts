@@ -1,3 +1,5 @@
+import { JSONParse, JSONStringify } from "json-with-bigint"
+
 interface ApiClientOptions extends RequestInit {
   skipAuth?: boolean
   body?: any
@@ -32,7 +34,7 @@ export const useApiClient = () => {
         const response = await fetch(`${baseURL}${endpoint}`, {
           ...fetchOptions,
           headers,
-          body: body ? JSON.stringify(body) : undefined,
+          body: body ? JSONStringify(body) : undefined,
         })
 
         let data: T | null = null
@@ -48,7 +50,8 @@ export const useApiClient = () => {
         } else {
           const contentType = response.headers.get('content-type')
           if (contentType && contentType.includes('application/json')) {
-            data = await response.json()
+            const dataAsText = await response.text()
+            data = JSONParse(dataAsText)
           }
         }
 
