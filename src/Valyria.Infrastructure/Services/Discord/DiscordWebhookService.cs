@@ -58,7 +58,7 @@ public class DiscordWebhookService : IDiscordWebhookService
                     new()
                     {
                         Title = list.Subject,
-                        Description = list.Message,
+                        Description = list.Message.Replace("{{date}}", DateTime.Today.ToString("MMM dd")),
                         Color = null
                     }
                 ],
