@@ -7,8 +7,8 @@ export interface AdminAccount {
   nationName: string
   rulerName: string
   allianceName: string
-  discord: string
-  discordUniqueId: bigint
+  discord: string | null
+  discordUniqueId: bigint | null
   uniqueCode: string
   role: string
   activity: RecentActivity

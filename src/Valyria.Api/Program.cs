@@ -1,5 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Valyria.Api;
@@ -13,7 +15,34 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // This will make validation errors more visible in logs
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
+            var errors = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .Select(e => new
+                {
+                    Field = e.Key,
+                    Errors = e.Value!.Errors.Select(er => er.ErrorMessage).ToArray()
+                });
+
+            logger.LogWarning("Model validation failed for {Path}. Errors: {@Errors}",
+                context.HttpContext.Request.Path, errors);
+
+            return new BadRequestObjectResult(new
+            {
+                errors,
+                title = "One or more validation errors occurred.",
+                status = 400,
+                traceId = context.HttpContext.TraceIdentifier
+            });
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -92,6 +121,12 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Add middleware logging
+builder.Services.AddHttpLogging(logging =>
+{
+   logging.LoggingFields = HttpLoggingFields.All; 
+});
+
 var app = builder.Build();
 
 // Map Aspire default endpoints (health checks, etc.)
@@ -114,6 +149,7 @@ if (!app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseHttpLogging();
 app.MapControllers();
 
 app.Run();

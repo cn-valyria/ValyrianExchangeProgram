@@ -396,7 +396,13 @@ const onError = async (event: FormErrorEvent) => {
 const update = async () => {
   buttonIsLoading.value = true
   try {
-    await adminAccountsStore.updateAccount(state)
+    // Prepare the payload, ensuring null values are sent for empty fields
+    const payload = {
+      ...state,
+      discordUniqueId: state.discordUniqueId ?? null,
+      discord: state.discord || null
+    }
+    await adminAccountsStore.updateAccount(payload)
     toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
     handleClose();
   } catch (e) {
@@ -410,7 +416,13 @@ const update = async () => {
 const create = async () => {
   buttonIsLoading.value = true
   try {
-    await adminAccountsStore.createAccount(state)
+    // Prepare the payload, ensuring null values are sent for empty fields
+    const payload = {
+      ...state,
+      discordUniqueId: state.discordUniqueId ?? null,
+      discord: state.discord || null
+    }
+    await adminAccountsStore.createAccount(payload)
     toast.add({ color: 'success', title: 'Success', description: 'Account created successfully!', duration: 3000 })
     handleClose();
   } catch (e) {
