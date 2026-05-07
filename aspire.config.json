@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/Valyria.AppHost/Valyria.AppHost.csproj"
+  }
+}
