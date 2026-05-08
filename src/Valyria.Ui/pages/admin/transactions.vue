@@ -11,7 +11,7 @@
           icon="i-heroicons-funnel"
           label="Filters"
           color="primary"
-          @click="filterSlideover.open()"
+          @click="openFilterSlideover()"
         />
       </div>
 
@@ -120,7 +120,7 @@ const isReadOnly = computed(() => {
 })
 
 // New filter structure
-const filters = ref<TransactionFilter>({} as TransactionFilter)
+const { filters } = storeToRefs(adminTransactionsStore)
 
 // Tab configuration for UTabs component
 const tabs = [
@@ -357,8 +357,10 @@ const getStatusColor = (statusId: string | number): 'primary' | 'success' | 'err
   }
 }
 
-// Apply filters and close slideover
-const applyFilters = async (): Promise<void> => {
+// Handle filter slideover functionality
+const openFilterSlideover = async (): Promise<void> => {
+  const instance = filterSlideover.open({ filters: filters.value })
+  await instance.result
   await changePage(1)
 }
 

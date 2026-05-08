@@ -42,65 +42,67 @@
           </UPopover>
         </UFormField>
 
-        <!-- Role Pairing -->
-        <div class="space-y-4">
-          <UFormField label="Sending Role">
-            <USelectMenu
-              v-model="sendingRole"
-              :items="roleOptions"
-              value-key="code"
-              label-key="description"
-              placeholder="Any role"
-              clearable
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Receiving Role">
-            <USelectMenu
-              v-model="receivingRole"
-              :items="roleOptions"
-              value-key="code"
-              label-key="description"
-              placeholder="Any role"
-              clearable
-              class="w-full"
-            />
-          </UFormField>
-        </div>
-
-        <!-- Aid Status, Money/Tech, Classification -->
-        <div class="space-y-4">
-          <UFormField label="Aid Status">
-            <USelectMenu
-              v-model="filters.aidStatus"
-              :items="aidStatusOptions"
-              value-key="id"
-              label-key="label"
-              placeholder="Any status"
-              clearable
-              class="w-full"
-            />
-          </UFormField>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UFormField label="Money">
-              <UInput v-model="filters.money" class="w-full" />
+        <fieldset disabled class="space-y-4 mt-4 px-2">
+          <!-- Role Pairing -->
+          <div class="space-y-4">
+            <UFormField label="Sending Role">
+              <USelectMenu
+                v-model="sendingRole"
+                :items="roleOptions"
+                value-key="code"
+                label-key="description"
+                placeholder="Any role"
+                clearable
+                class="w-full"
+              />
             </UFormField>
-            <UFormField label="Tech">
-              <UInput v-model="filters.tech" class="w-full" />
+            <UFormField label="Receiving Role">
+              <USelectMenu
+                v-model="receivingRole"
+                :items="roleOptions"
+                value-key="code"
+                label-key="description"
+                placeholder="Any role"
+                clearable
+                class="w-full"
+              />
             </UFormField>
           </div>
-          <UFormField label="Classification">
-            <USelectMenu
-              v-model="filters.classification"
-              :items="classificationOptions"
-              value-key="id"
-              label-key="description"
-              placeholder="Any classification"
-              clearable
-              class="w-full"
-            />
-          </UFormField>
-        </div>
+
+          <!-- Aid Status, Money/Tech, Classification -->
+          <div class="space-y-4">
+            <UFormField label="Aid Status">
+              <USelectMenu
+                v-model="_filters.aidStatus"
+                :items="aidStatusOptions"
+                value-key="id"
+                label-key="label"
+                placeholder="Any status"
+                clearable
+                class="w-full"
+              />
+            </UFormField>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UFormField label="Money">
+                <UInput v-model="_filters.money" class="w-full" />
+              </UFormField>
+              <UFormField label="Tech">
+                <UInput v-model="_filters.tech" class="w-full" />
+              </UFormField>
+            </div>
+            <UFormField label="Classification">
+              <USelectMenu
+                v-model="_filters.classification"
+                :items="classificationOptions"
+                value-key="id"
+                label-key="description"
+                placeholder="Any classification"
+                clearable
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+        </fieldset>
 
         <!-- Actions -->
         <div class="flex gap-2 pt-4">
@@ -122,24 +124,124 @@
 </template>
 
 <script setup lang="ts">
-import { DateFormatter, getLocalTimeZone } from '@internationalized/date'
+import { DateFormatter, getLocalTimeZone, CalendarDate } from '@internationalized/date'
 import type { FormError, FormErrorEvent, FormSubmitEvent } from '@nuxt/ui';
 import { transactionClassifications, accountRoles } from '~/infrastructure/dataLists'
-import { useAdminTransactionsStore } from '~/stores/adminTransactions'
+import { type TransactionFilter, useAdminTransactionsStore } from '~/stores/adminTransactions'
+
+const props = defineProps<{
+  filters: TransactionFilter
+}>()
 
 const emit = defineEmits<{ close: [] }>()
 
 const toast = useToast()
 const form = ref()
 const store = useAdminTransactionsStore()
-const { filters } = storeToRefs(store)
 
-// UI-only filter values
-const search = ref('')
-const direction = ref<string[]>([])
-const dateRange = ref()
-const sendingRole = ref<string | null>()
-const receivingRole = ref<string | null>()
+// Local filter state that will be patched to store
+const _filters = reactive<TransactionFilter>({ ...props.filters })
+
+// Intermediate state for search/direction (needed to avoid circular dependency)
+const _searchText = ref(_filters.sentBy || _filters.receivedBy || '')
+const _directionSelection = ref<string[]>([
+  ...(_filters.sentBy ? ['Sent'] : []),
+  ...(_filters.receivedBy ? ['Received'] : [])
+])
+
+// Computed properties with getters/setters
+const search = computed({
+  get: () => {
+    // Extract from _filters (sentBy or receivedBy), fallback to intermediate state
+    return _filters.sentBy || _filters.receivedBy || _searchText.value
+  },
+  set: (value: string) => {
+    _searchText.value = value
+    // Update filters if direction is set
+    if (_directionSelection.value.length > 0) {
+      _filters.sentBy = _directionSelection.value.includes('Sent') ? (value || null) : null
+      _filters.receivedBy = _directionSelection.value.includes('Received') ? (value || null) : null
+    }
+  }
+})
+
+const direction = computed({
+  get: () => {
+    // Derive from _filters, fallback to intermediate state
+    const directions: string[] = []
+    if (_filters.sentBy) directions.push('Sent')
+    if (_filters.receivedBy) directions.push('Received')
+    return directions.length > 0 ? directions : _directionSelection.value
+  },
+  set: (value: string[]) => {
+    _directionSelection.value = value
+    // Update filters if search has a value
+    if (_searchText.value) {
+      _filters.sentBy = value.includes('Sent') ? _searchText.value : null
+      _filters.receivedBy = value.includes('Received') ? _searchText.value : null
+    }
+  }
+})
+
+const aidSentDateRange = computed({
+  get: () => {
+    // Convert Date objects back to CalendarDate format
+    if (_filters.sentSince) {
+      const start = _filters.sentSince
+      const end = _filters.sentUntil
+
+      return {
+        start: start ? new CalendarDate(start.getFullYear(), start.getMonth() + 1, start.getDate()) : null,
+        end: end && end !== start ? new CalendarDate(end.getFullYear(), end.getMonth() + 1, end.getDate()) : null
+      }
+    }
+    return { start: null, end: null }
+  },
+  set: (value: { start: any, end: any }) => {
+    // Convert CalendarDate to Date objects and update filters
+    if (value && value.start) {
+      _filters.sentSince = new Date(value.start.year, value.start.month - 1, value.start.day)
+      if (value.end) {
+        _filters.sentUntil = new Date(value.end.year, value.end.month - 1, value.end.day)
+      } else {
+        _filters.sentUntil = _filters.sentSince
+      }
+    } else {
+      _filters.sentSince = null
+      _filters.sentUntil = null
+    }
+  }
+})
+
+const sendingRole = computed({
+  get: () => {
+    // Extract sending role from rolePairing
+    if (_filters.rolePairing && _filters.rolePairing.length > 0) {
+      return _filters.rolePairing.charAt(0) || null
+    }
+    return null
+  },
+  set: (value: string | null) => {
+    // Update rolePairing in filters
+    const currentReceivingRole = receivingRole.value
+    _filters.rolePairing = `${value ?? ''}${currentReceivingRole ?? ''}`
+  }
+})
+
+const receivingRole = computed({
+  get: () => {
+    // Extract receiving role from rolePairing
+    if (_filters.rolePairing && _filters.rolePairing.length > 1) {
+      return _filters.rolePairing.charAt(1) || null
+    }
+    return null
+  },
+  set: (value: string | null) => {
+    // Update rolePairing in filters
+    const currentSendingRole = sendingRole.value
+    _filters.rolePairing = `${currentSendingRole ?? ''}${value ?? ''}`
+  }
+})
 
 // Filter options
 const directionOptions = ['Sent', 'Received']
@@ -156,8 +258,6 @@ const dateFormatter = new DateFormatter('en-US', {
   dateStyle: 'medium'
 })
 
-const aidSentDateRange = shallowRef({ start: null, end: null })
-
 const validate = (state: any): FormError[] => {
   const errors = []
   if (search.value && direction.value.length === 0) {
@@ -167,32 +267,7 @@ const validate = (state: any): FormError[] => {
 }
 
 const onSubmit = async (event: FormSubmitEvent<any>) => {
-  if (search.value) {
-    if (direction.value.includes('Sent')) {
-      filters.value.sentBy = search.value
-    }
-    if (direction.value.includes('Received')) {
-      filters.value.receivedBy = search.value
-    }
-  }
-
-  // Convert date range to Date objects
-  if (dateRange.value && dateRange.value.start) {
-    filters.value.sentSince = new Date(dateRange.value.start.year, dateRange.value.start.month - 1, dateRange.value.start.day)
-    if (dateRange.value.end) {
-      filters.value.sentUntil = new Date(dateRange.value.end.year, dateRange.value.end.month - 1, dateRange.value.end.day)
-    } else {
-      filters.value.sentUntil = filters.value.sentSince
-    }
-  }
-
-  // Convert sending + receiving role to role pairing
-  if (sendingRole.value || receivingRole.value) {
-    filters.value.rolePairing = `${sendingRole.value ?? ''}${receivingRole.value ?? ''}`
-  }
-
-  store.$patch({ filters: filters.value })
-
+  store.$patch({ filters: _filters })
   emit('close')
 }
 
@@ -209,15 +284,10 @@ const onError = async (event: FormErrorEvent) => {
 
 // Clear all filters
 const clearFilters = (): void => {
-  filters.value.sentBy = null
-  filters.value.receivedBy = null
-  filters.value.sentSince = null
-  filters.value.sentUntil = null
-  filters.value.aidStatus = null
-  filters.value.money = null
-  filters.value.tech = null
-  filters.value.classification = null
-
-  emit('close')
+  search.value = null
+  direction.value = null
+  aidSentDateRange.value = null
+  sendingRole.value = null
+  receivingRole.value = null
 }
 </script>
