@@ -13,36 +13,25 @@
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Manual Data</h2>
 
           <fieldset :disabled="isInUpdateState" class="space-y-4">
-            <UFormField label="Account" name="nation">
-              <USelectMenu
-                v-model="selectedAccount"
-                :options="props.accounts"
-                searchable
-                searchable-placeholder="Search accounts..."
-                placeholder="No account selected"
-                value-attribute="nationId"
-                option-attribute="rulerName"
-                by="nationId"
-              >
-                <template #default>
-                  <span v-if="selectedAccount">{{ selectedAccount.rulerName }}</span>
-                  <span v-else class="text-gray-400">No account selected</span>
-                </template>
-              </USelectMenu>
-            </UFormField>
+            <UInputMenu 
+              v-model="selectedAccount"
+              :items="accounts"
+              label-key="rulerName"
+              placeholder="No account selected"
+              class="w-full" />
           </fieldset>
 
           <fieldset disabled class="space-y-4 mt-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <UFormField label="Nation Name">
-                <UInput v-model="transactionNation.nationName" />
+                <UInput v-model="transactionNation.nationName" class="w-full" />
               </UFormField>
               <UFormField label="Ruler Name">
-                <UInput v-model="transactionNation.rulerName" />
+                <UInput v-model="transactionNation.rulerName" class="w-full" />
               </UFormField>
             </div>
             <UFormField label="Alliance Name">
-              <UInput v-model="transactionNation.allianceName" />
+              <UInput v-model="transactionNation.allianceName" class="w-full" />
             </UFormField>
           </fieldset>
         </div>
@@ -52,13 +41,14 @@
           <UFormField label="Adjustment Type" name="adjustmentType">
             <USelectMenu
               v-model="state.adjustmentType"
-              :options="adjustmentTypes"
+              :items="adjustmentTypes"
               placeholder="Select adjustment type"
+              class="w-full"
             />
           </UFormField>
 
           <UFormField label="Reason">
-            <UInput v-model="state.reason" />
+            <UInput v-model="state.reason" class="w-full" />
           </UFormField>
         </div>
 
@@ -71,10 +61,11 @@
               <UFormField label="Classification" name="classification">
                 <USelectMenu
                   v-model="state.classification"
-                  :options="classifications"
-                  value-attribute="id"
-                  option-attribute="description"
+                  :items="classifications"
+                  value-key="id"
+                  label-key="description"
                   placeholder="Select classification"
+                  class="w-full"
                 />
               </UFormField>
 
@@ -82,6 +73,7 @@
                 <UInput
                   v-model="state.rate"
                   type="number"
+                  class="w-full"
                 />
               </UFormField>
             </div>
@@ -89,16 +81,16 @@
             <fieldset disabled>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <UFormField label="Cash Moved (Cash)">
-                  <UInput v-model="state.cashMovedCashCredit" />
+                  <UInput v-model="state.cashMovedCashCredit" class="w-full" />
                 </UFormField>
                 <UFormField label="Cash Moved (Tech)">
-                  <UInput v-model="state.cashMovedTechCredit" />
+                  <UInput v-model="state.cashMovedTechCredit" class="w-full" />
                 </UFormField>
                 <UFormField label="Tech Moved (Cash)">
-                  <UInput v-model="state.techMovedCashCredit" />
+                  <UInput v-model="state.techMovedCashCredit" class="w-full" />
                 </UFormField>
                 <UFormField label="Tech Moved (Tech)">
-                  <UInput v-model="state.techMovedTechCredit" />
+                  <UInput v-model="state.techMovedTechCredit" class="w-full" />
                 </UFormField>
               </div>
             </fieldset>
@@ -148,7 +140,7 @@ const adminTransactionsStore = useAdminTransactionsStore()
 
 const buttonIsLoading = ref(false)
 const submitButton = ref<HTMLButtonElement>()
-const adjustmentTypes = [ADJUSTMENT_TYPES.credit, ADJUSTMENT_TYPES.debt]
+const adjustmentTypes: string[] = [ADJUSTMENT_TYPES.credit, ADJUSTMENT_TYPES.debt]
 const classifications = transactionClassifications
 
 // Define the form state
@@ -268,6 +260,7 @@ const onSubmit = async () => {
 }
 
 const recalculateCredits = () => {
+  console.log(state.nation, selectedAccount.value, state.rate, state.adjustmentType)
   if (state.nation === undefined || state.nation === null) {
     zeroOutCredits()
     return
