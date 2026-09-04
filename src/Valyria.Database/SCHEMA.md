@@ -77,6 +77,31 @@ All triggers record changes to their respective audit tables with:
 - `get_pending_credit_per_alliance()` - Report pending credit by alliance and age
 - `search_transactions()` - Flexible transaction search with multiple filters
 
+### [V5__vep_3_deals.sql](migrations/V5__vep_3_deals.sql)
+**VEP 3.0: Deal-Based System Migration**
+
+This migration introduces the deal-based system to replace the balance-ledger approach.
+
+**Tables created:**
+- `deal` - Bilateral aid exchange agreements between two accounts
+- `deal_activity` - Track aid sent/received for each deal on 10-day schedule
+- `deal_flag` - Track inactive or problematic deals requiring admin attention
+- `wait_queue` - Priority queue for accounts waiting to be matched with deals
+
+**Views created:**
+- `account_deal_summary` - Replaces `balance` view with deal-based slot calculations
+
+**Stored procedures created:**
+- `track_deal_activity()` - Link newly imported aid records to existing deals
+- `check_deal_inactivity()` - Flag inactive deals and create replacement deals
+- `match_deals_daily()` - Daily deal matching to fill empty slots
+
+**Migration Strategy:**
+- Hard cutover from balance system to deal system (no transition period)
+- All accounts start fresh with zero deals
+- Historical balance/credit/debt data can be archived separately
+- Replaces `load_todays_lists()` with `match_deals_daily()`
+
 ## Database Architecture
 
 ### Two-Database Design
@@ -110,7 +135,7 @@ Daily File Import → todays_file_* (staging)
          Application queries
 ```
 
-### Transaction System Flow
+### Transaction System Flow (VEP 2.5 - Legacy)
 
 ```
 Aid created in Cybernations → aid table
@@ -124,6 +149,26 @@ Aid created in Cybernations → aid table
               balance view (credit/debt calculation)
                             ↓
               load_todays_lists() (priority recalculation)
+```
+
+### Deal System Flow (VEP 3.0 - Current)
+
+```
+Aid created in Cybernations → aid table
+                            ↓
+              track_deal_activity()
+                            ↓
+              deal_activity table (links aid to deals)
+                            ↓
+              check_deal_inactivity()
+                            ↓
+              deal_flag table (flags inactive deals)
+                            ↓
+              match_deals_daily()
+                            ↓
+              deal table (active bilateral agreements)
+                            ↓
+              account_deal_summary view (slot calculations)
 ```
 
 ## Key Concepts
@@ -241,10 +286,20 @@ When adding new migrations:
 ## Schema Maintenance
 
 ### Daily Operations
+
+**VEP 3.0 (Current):**
+1. Import daily files to `todays_file_*` tables
+2. Run update procedures: `CALL update_nation_data();` etc.
+3. Process transactions: `CALL load_todays_transactions();` (still needed for historical tracking)
+4. Track deal activity: `CALL track_deal_activity();`
+5. Check inactive deals: `CALL check_deal_inactivity();`
+6. Match new deals: `CALL match_deals_daily();`
+
+**VEP 2.5 (Legacy - deprecated):**
 1. Import daily files to `todays_file_*` tables
 2. Run update procedures: `CALL update_nation_data();` etc.
 3. Process transactions: `CALL load_todays_transactions();`
-4. Update lists: `CALL load_todays_lists();`
+4. Update lists: `CALL load_todays_lists();` ⚠️ Replaced by `match_deals_daily()`
 
 ### Weekly/Monthly
 - Review audit table growth
