@@ -21,25 +21,7 @@ public class AccountDetail
     public bool HasForeignMinistry { get; set; }
     public bool HasFederalAidCommission { get; set; }
     public bool HasDisasterReliefAgency { get; set; }
-    public int SlotsUsed { get; set; }
-    public int SlotsFull { get; set; }
-    public int TotalCashSent { get; set; }
-    public int TotalCashReceived { get; set; }
-    public int TotalTechSent { get; set; }
-    public int TotalTechReceived { get; set; }
-    public int Credit { get; set; }
-    public int Debt { get; set; }
-    public int CashSentTechCredit { get; set; }
-    public int CashReceivedTechCredit { get; set; }
-    public int CashSentCashCredit { get; set; }
-    public int CashReceivedCashCredit { get; set; }
-    public int TechSentCashCredit { get; set; }
-    public int TechReceivedCashCredit { get; set; }
-    public int TechSentTechCredit { get; set; }
-    public int TechReceivedTechCredit { get; set; }
-    public int PreviousListOrder { get; set; }
-    public int TotalTimesInDebt { get; set; }
-    public decimal AvgDaysToClearDebt { get; set; }
-    public int TotalTimesWithCredit { get; set; }
-    public decimal AvgDaysToFillCredit { get; set; }
+    // VEP 3.0: Replaced balance/credit/debt with deals-based system
+    // Slot information now comes from AccountDealsSummary
+    // Historical transaction data still available via transaction history
 }

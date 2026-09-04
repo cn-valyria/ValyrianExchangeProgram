@@ -38,3 +38,21 @@ public enum AidStatus
     Cancled = 3, // Yes this is intentionally misspelled; admin is dumb and can't spell apparently
     Expired = 4
 }
+
+public enum DealDirection
+{
+    Bidirectional,
+    Unidirectional
+}
+
+public enum DealStatus
+{
+    Active,
+    Cancelled
+}
+
+public enum DealFlagType
+{
+    OneDayInactive,
+    FiveDayReplacement
+}
