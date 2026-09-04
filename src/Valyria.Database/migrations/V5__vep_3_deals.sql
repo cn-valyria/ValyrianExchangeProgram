@@ -45,11 +45,12 @@ CREATE TABLE IF NOT EXISTS `deal` (
     FOREIGN KEY (`account_1_id`) REFERENCES `account`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`account_2_id`) REFERENCES `account`(`id`) ON DELETE CASCADE,
 
-    -- Ensure only one deal per account pair using canonical ordering
-    UNIQUE KEY `unique_partner_pair` (
-        LEAST(`account_1_id`, `account_2_id`),
-        GREATEST(`account_1_id`, `account_2_id`)
-    ),
+    -- Ensure only one deal per account pair
+    -- Application layer enforces account_1_id < account_2_id before insertion
+    UNIQUE KEY `unique_partner_pair` (`account_1_id`, `account_2_id`),
+
+    -- Enforce account_1_id < account_2_id to prevent reverse duplicates
+    CONSTRAINT `chk_account_order` CHECK (`account_1_id` < `account_2_id`),
 
     INDEX `idx_account_1_active` (`account_1_id`, `status`),
     INDEX `idx_account_2_active` (`account_2_id`, `status`),
