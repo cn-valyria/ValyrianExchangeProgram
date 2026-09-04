@@ -14,5 +14,6 @@ public interface IDataLoaderRepository
     // VEP data loader methods
     Task<int> LoadTodaysTransactionsAsync();
     Task LoadTodaysListsAsync();
+    Task ProcessDealsAsync();
     Task RemoveAccountsWithFullSlotsFromListsAsync();
 }

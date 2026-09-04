@@ -184,6 +184,20 @@ public class DataLoaderRepository : IDataLoaderRepository
         await sqlConnection.ExecuteAsync("update list set recipients_last_updated_on = now();");
     }
 
+    public async Task ProcessDealsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+
+        // Track deal activity from newly imported aid
+        await sqlConnection.ExecuteAsync("track_deal_activity", commandType: CommandType.StoredProcedure);
+
+        // Check for inactive deals and flag them
+        await sqlConnection.ExecuteAsync("check_deal_inactivity", commandType: CommandType.StoredProcedure);
+
+        // Match new deals for accounts with available slots
+        await sqlConnection.ExecuteAsync("match_deals_daily", commandType: CommandType.StoredProcedure);
+    }
+
     public async Task RemoveAccountsWithFullSlotsFromListsAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
