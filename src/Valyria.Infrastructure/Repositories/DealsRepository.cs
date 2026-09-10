@@ -71,7 +71,7 @@ public class DealsRepository : IDealsRepository
                 CASE WHEN d.account_1_id = @accountId THEN n2.id ELSE n1.id END AS NationId,
                 CASE WHEN d.account_1_id = @accountId THEN n2.nation_name ELSE n1.nation_name END AS NationName,
                 CASE WHEN d.account_1_id = @accountId THEN n2.ruler_name ELSE n1.ruler_name END AS RulerName,
-                CASE WHEN d.account_1_id = @accountId THEN al2.alliance_name ELSE al1.alliance_name END AS AllianceName
+                CASE WHEN d.account_1_id = @accountId THEN al2.name ELSE al1.name END AS AllianceName
             FROM deal d
             LEFT JOIN account a1 ON d.account_1_id = a1.id
             LEFT JOIN account a2 ON d.account_2_id = a2.id
@@ -146,13 +146,13 @@ public class DealsRepository : IDealsRepository
                 n1.id AS NationId,
                 n1.nation_name AS NationName,
                 n1.ruler_name AS RulerName,
-                al1.alliance_name AS AllianceName,
+                al1.name AS AllianceName,
                 -- Account 2
                 a2.id AS AccountId,
                 n2.id AS NationId,
                 n2.nation_name AS NationName,
                 n2.ruler_name AS RulerName,
-                al2.alliance_name AS AllianceName
+                al2.name AS AllianceName
             FROM deal d
             JOIN account a1 ON d.account_1_id = a1.id
             JOIN account a2 ON d.account_2_id = a2.id
@@ -226,7 +226,7 @@ public class DealsRepository : IDealsRepository
                 n.id AS NationId,
                 n.nation_name AS NationName,
                 n.ruler_name AS RulerName,
-                al.alliance_name AS AllianceName
+                al.name AS AllianceName
             FROM wait_queue wq
             JOIN account a ON wq.account_id = a.id
             JOIN cybernations_db.nation n ON a.nation_id = n.id
@@ -260,13 +260,13 @@ public class DealsRepository : IDealsRepository
                 n1.id AS NationId,
                 n1.nation_name AS NationName,
                 n1.ruler_name AS RulerName,
-                al1.alliance_name AS AllianceName,
+                al1.name AS AllianceName,
                 -- Innocent account
                 a2.id AS AccountId,
                 n2.id AS NationId,
                 n2.nation_name AS NationName,
                 n2.ruler_name AS RulerName,
-                al2.alliance_name AS AllianceName
+                al2.name AS AllianceName
             FROM deal_flag df
             JOIN account a1 ON df.flagged_account_id = a1.id
             JOIN account a2 ON df.innocent_account_id = a2.id
