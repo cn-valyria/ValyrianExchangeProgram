@@ -80,7 +80,7 @@ public class DealsController : ControllerBase
     }
 
     /// <summary>
-    /// Create a new deal between two accounts
+    /// Create a new deal between two slots
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin")]

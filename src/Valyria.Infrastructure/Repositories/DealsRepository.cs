@@ -45,16 +45,10 @@ public class DealsRepository : IDealsRepository
             };
         }
 
-        // Get active deals with partner info
-        var deals = await connection.QueryAsync<DealDetail, AccountSimplified, DealDetail>(@"
+        // Get active deals with my slot and partner slot info
+        var deals = await connection.QueryAsync<DealDetail, SlotDetail, AccountSimplified, SlotDetail, AccountSimplified, DealDetail>(@"
             SELECT
                 d.id AS Id,
-                d.direction AS Direction,
-                CASE
-                    WHEN d.direction = 'bidirectional' THEN 'Both'
-                    WHEN d.account_1_id = @accountId THEN 'Sender'
-                    ELSE 'Receiver'
-                END AS MyRole,
                 da.activity_date AS LastActivityDate,
                 DATEDIFF(CURDATE(), da.activity_date) AS DaysSinceActivity,
                 CASE
@@ -66,34 +60,60 @@ public class DealsRepository : IDealsRepository
                     WHEN DATEDIFF(CURDATE(), da.activity_date) >= 1 THEN 'Deal may become inactive soon'
                     ELSE NULL
                 END AS ActionNeeded,
-                -- Partner account info
-                CASE WHEN d.account_1_id = @accountId THEN a2.id ELSE a1.id END AS AccountId,
-                CASE WHEN d.account_1_id = @accountId THEN n2.id ELSE n1.id END AS NationId,
-                CASE WHEN d.account_1_id = @accountId THEN n2.nation_name ELSE n1.nation_name END AS NationName,
-                CASE WHEN d.account_1_id = @accountId THEN n2.ruler_name ELSE n1.ruler_name END AS RulerName,
-                CASE WHEN d.account_1_id = @accountId THEN al2.name ELSE al1.name END AS AllianceName
+                -- My slot
+                ms.id AS Id,
+                ms.slot_number AS SlotNumber,
+                ms.tech_sent_cycles AS TechSentCycles,
+                ms.tech_received_cycles AS TechReceivedCycles,
+                ms.cash_sent_cycles AS CashSentCycles,
+                ms.cash_received_cycles AS CashReceivedCycles,
+                TRUE AS HasActiveDeal,
+                -- My account
+                ma.id AS AccountId,
+                mn.id AS NationId,
+                mn.nation_name AS NationName,
+                mn.ruler_name AS RulerName,
+                mal.name AS AllianceName,
+                -- Partner slot
+                ps.id AS Id,
+                ps.slot_number AS SlotNumber,
+                ps.tech_sent_cycles AS TechSentCycles,
+                ps.tech_received_cycles AS TechReceivedCycles,
+                ps.cash_sent_cycles AS CashSentCycles,
+                ps.cash_received_cycles AS CashReceivedCycles,
+                TRUE AS HasActiveDeal,
+                -- Partner account
+                pa.id AS AccountId,
+                pn.id AS NationId,
+                pn.nation_name AS NationName,
+                pn.ruler_name AS RulerName,
+                pal.name AS AllianceName
             FROM deal d
-            LEFT JOIN account a1 ON d.account_1_id = a1.id
-            LEFT JOIN account a2 ON d.account_2_id = a2.id
-            LEFT JOIN cybernations_db.nation n1 ON a1.nation_id = n1.id
-            LEFT JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
-            LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
-            LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
+            JOIN slot ms ON ms.id IN (d.slot_1_id, d.slot_2_id) AND ms.account_id = @accountId
+            JOIN slot ps ON ps.id = IF(d.slot_1_id = ms.id, d.slot_2_id, d.slot_1_id)
+            JOIN account ma ON ms.account_id = ma.id
+            JOIN account pa ON ps.account_id = pa.id
+            LEFT JOIN cybernations_db.nation mn ON ma.nation_id = mn.id
+            LEFT JOIN cybernations_db.nation pn ON pa.nation_id = pn.id
+            LEFT JOIN cybernations_db.alliance mal ON mn.alliance_id = mal.id
+            LEFT JOIN cybernations_db.alliance pal ON pn.alliance_id = pal.id
             LEFT JOIN (
                 SELECT deal_id, MAX(activity_date) AS activity_date
                 FROM deal_activity
                 GROUP BY deal_id
             ) da ON d.id = da.deal_id
-            WHERE (d.account_1_id = @accountId OR d.account_2_id = @accountId)
-                AND d.status = 'active'
-            ORDER BY DaysSinceActivity DESC",
-            (deal, partner) =>
+            WHERE d.status = 'active'
+            ORDER BY DaysSinceActivity DESC, ms.slot_number",
+            (deal, mySlot, myAccount, partnerSlot, partnerAccount) =>
             {
-                deal.Partner = partner;
+                mySlot.Account = myAccount;
+                partnerSlot.Account = partnerAccount;
+                deal.MySlot = mySlot;
+                deal.PartnerSlot = partnerSlot;
                 return deal;
             },
             new { accountId },
-            splitOn: "AccountId");
+            splitOn: "Id,AccountId,Id,AccountId");
 
         summary.ActiveDeals = deals.ToList();
 
@@ -129,46 +149,71 @@ public class DealsRepository : IDealsRepository
     {
         using var connection = new MySqlConnection(_connectionString);
 
-        var deal = await connection.QueryAsync<Deal, AccountSimplified, AccountSimplified, Deal>(@"
+        var deal = await connection.QueryAsync<Deal, SlotDetail, AccountSimplified, SlotDetail, AccountSimplified, Deal>(@"
             SELECT
                 d.id AS Id,
-                d.account_1_id AS Account1Id,
-                d.account_2_id AS Account2Id,
-                d.direction AS Direction,
+                d.slot_1_id AS Slot1Id,
+                d.slot_2_id AS Slot2Id,
                 d.status AS Status,
                 d.created_on AS CreatedOn,
                 d.created_by AS CreatedBy,
                 d.cancelled_on AS CancelledOn,
                 d.cancelled_by AS CancelledBy,
                 d.cancellation_reason AS CancellationReason,
-                -- Account 1
+                -- Slot 1
+                s1.id AS Id,
+                s1.slot_number AS SlotNumber,
+                s1.tech_sent_cycles AS TechSentCycles,
+                s1.tech_received_cycles AS TechReceivedCycles,
+                s1.cash_sent_cycles AS CashSentCycles,
+                s1.cash_received_cycles AS CashReceivedCycles,
+                EXISTS (
+                    SELECT 1 FROM deal ad
+                    WHERE s1.id IN (ad.slot_1_id, ad.slot_2_id) AND ad.status = 'active'
+                ) AS HasActiveDeal,
+                -- Slot 1 account
                 a1.id AS AccountId,
                 n1.id AS NationId,
                 n1.nation_name AS NationName,
                 n1.ruler_name AS RulerName,
                 al1.name AS AllianceName,
-                -- Account 2
+                -- Slot 2
+                s2.id AS Id,
+                s2.slot_number AS SlotNumber,
+                s2.tech_sent_cycles AS TechSentCycles,
+                s2.tech_received_cycles AS TechReceivedCycles,
+                s2.cash_sent_cycles AS CashSentCycles,
+                s2.cash_received_cycles AS CashReceivedCycles,
+                EXISTS (
+                    SELECT 1 FROM deal ad
+                    WHERE s2.id IN (ad.slot_1_id, ad.slot_2_id) AND ad.status = 'active'
+                ) AS HasActiveDeal,
+                -- Slot 2 account
                 a2.id AS AccountId,
                 n2.id AS NationId,
                 n2.nation_name AS NationName,
                 n2.ruler_name AS RulerName,
                 al2.name AS AllianceName
             FROM deal d
-            JOIN account a1 ON d.account_1_id = a1.id
-            JOIN account a2 ON d.account_2_id = a2.id
+            JOIN slot s1 ON d.slot_1_id = s1.id
+            JOIN slot s2 ON d.slot_2_id = s2.id
+            JOIN account a1 ON s1.account_id = a1.id
+            JOIN account a2 ON s2.account_id = a2.id
             JOIN cybernations_db.nation n1 ON a1.nation_id = n1.id
             JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
             LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
             LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
             WHERE d.id = @dealId",
-            (deal, account1, account2) =>
+            (deal, slot1, account1, slot2, account2) =>
             {
-                deal.Account1 = account1;
-                deal.Account2 = account2;
+                slot1.Account = account1;
+                slot2.Account = account2;
+                deal.Slot1 = slot1;
+                deal.Slot2 = slot2;
                 return deal;
             },
             new { dealId },
-            splitOn: "AccountId,AccountId");
+            splitOn: "Id,AccountId,Id,AccountId");
 
         return deal.FirstOrDefault();
     }
@@ -177,19 +222,18 @@ public class DealsRepository : IDealsRepository
     {
         using var connection = new MySqlConnection(_connectionString);
 
-        // Ensure account_1_id < account_2_id for constraint compatibility
-        var account1 = Math.Min(request.Account1Id, request.Account2Id);
-        var account2 = Math.Max(request.Account1Id, request.Account2Id);
+        // Ensure slot_1_id < slot_2_id for constraint compatibility
+        var slot1 = Math.Min(request.Slot1Id, request.Slot2Id);
+        var slot2 = Math.Max(request.Slot1Id, request.Slot2Id);
 
         var dealId = await connection.QuerySingleAsync<int>(@"
-            INSERT INTO deal (account_1_id, account_2_id, direction, created_by)
-            VALUES (@account1, @account2, @direction, @createdBy);
+            INSERT INTO deal (slot_1_id, slot_2_id, created_by)
+            VALUES (@slot1, @slot2, @createdBy);
             SELECT LAST_INSERT_ID();",
             new
             {
-                account1,
-                account2,
-                direction = request.Direction.ToString().ToLower(),
+                slot1,
+                slot2,
                 createdBy = request.CreatedBy
             });
 
@@ -298,5 +342,96 @@ public class DealsRepository : IDealsRepository
                 admin_notes = @adminNotes
             WHERE id = @flagId",
             new { flagId, resolvedBy, adminNotes });
+    }
+
+    public async Task<AccountSlotsResponse> GetAccountSlotsAsync(int accountId)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        var account = await connection.QueryFirstOrDefaultAsync<AccountSimplified>(@"
+            SELECT
+                a.id AS AccountId,
+                n.id AS NationId,
+                n.nation_name AS NationName,
+                n.ruler_name AS RulerName,
+                al.name AS AllianceName
+            FROM account a
+            LEFT JOIN cybernations_db.nation n ON a.nation_id = n.id
+            LEFT JOIN cybernations_db.alliance al ON n.alliance_id = al.id
+            WHERE a.id = @accountId",
+            new { accountId });
+
+        if (account == null)
+        {
+            return null;
+        }
+
+        var slots = await GetSlotsAsync(connection, accountId, availableOnly: false);
+        slots.ForEach(slot => slot.Account = account);
+
+        return new AccountSlotsResponse
+        {
+            AccountId = accountId,
+            Account = account,
+            Slots = slots
+        };
+    }
+
+    public async Task<bool> UpdateSlotAsync(SlotUpdateRequest request, string updatedBy)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        var rowsAffected = await connection.ExecuteAsync(@"
+            UPDATE slot
+            SET tech_sent_cycles = @TechSentCycles,
+                tech_received_cycles = @TechReceivedCycles,
+                cash_sent_cycles = @CashSentCycles,
+                cash_received_cycles = @CashReceivedCycles,
+                updated_by = @updatedBy
+            WHERE id = @SlotId",
+            new
+            {
+                request.SlotId,
+                request.TechSentCycles,
+                request.TechReceivedCycles,
+                request.CashSentCycles,
+                request.CashReceivedCycles,
+                updatedBy
+            });
+
+        return rowsAffected > 0;
+    }
+
+    public async Task<List<SlotDetail>> GetAvailableSlotsAsync(int accountId)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        return await GetSlotsAsync(connection, accountId, availableOnly: true);
+    }
+
+    private static async Task<List<SlotDetail>> GetSlotsAsync(IDbConnection connection, int accountId, bool availableOnly)
+    {
+        var slots = await connection.QueryAsync<SlotDetail>(@"
+            SELECT *
+            FROM (
+                SELECT
+                    s.id AS Id,
+                    s.slot_number AS SlotNumber,
+                    s.tech_sent_cycles AS TechSentCycles,
+                    s.tech_received_cycles AS TechReceivedCycles,
+                    s.cash_sent_cycles AS CashSentCycles,
+                    s.cash_received_cycles AS CashReceivedCycles,
+                    EXISTS (
+                        SELECT 1 FROM deal d
+                        WHERE s.id IN (d.slot_1_id, d.slot_2_id) AND d.status = 'active'
+                    ) AS HasActiveDeal
+                FROM slot s
+                WHERE s.account_id = @accountId
+            ) slots
+            WHERE @availableOnly = FALSE OR HasActiveDeal = FALSE
+            ORDER BY SlotNumber",
+            new { accountId, availableOnly });
+
+        return slots.ToList();
     }
 }

@@ -41,13 +41,27 @@ public interface IDealsRepository
     /// Resolve a deal flag (admin action)
     /// </summary>
     Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes);
+
+    /// <summary>
+    /// Get all slots for a specific account (admin view)
+    /// </summary>
+    Task<AccountSlotsResponse> GetAccountSlotsAsync(int accountId);
+
+    /// <summary>
+    /// Update the cycle values of a slot (admin action). Returns false if the slot does not exist.
+    /// </summary>
+    Task<bool> UpdateSlotAsync(SlotUpdateRequest request, string updatedBy);
+
+    /// <summary>
+    /// Get all slots for a specific account that are not part of an active deal
+    /// </summary>
+    Task<List<SlotDetail>> GetAvailableSlotsAsync(int accountId);
 }
 
 public class CreateDealRequest
 {
-    public int Account1Id { get; set; }
-    public int Account2Id { get; set; }
-    public DealDirection Direction { get; set; }
+    public int Slot1Id { get; set; }
+    public int Slot2Id { get; set; }
     public string CreatedBy { get; set; }
 }
 

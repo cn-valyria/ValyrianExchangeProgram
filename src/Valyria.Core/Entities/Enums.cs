@@ -39,12 +39,6 @@ public enum AidStatus
     Expired = 4
 }
 
-public enum DealDirection
-{
-    Bidirectional,
-    Unidirectional
-}
-
 public enum DealStatus
 {
     Active,
