@@ -194,36 +194,16 @@ public class DataLoaderRepository : IDataLoaderRepository
         // Check for inactive deals and flag them
         await sqlConnection.ExecuteAsync("check_deal_inactivity", commandType: CommandType.StoredProcedure);
 
-        // Match new deals for accounts with available slots
-        // Use batch-based approach for better performance
-        await sqlConnection.ExecuteAsync("populate_wait_queue", commandType: CommandType.StoredProcedure);
+        // Match new deals for accounts with available slots. match_deals_run builds
+        // the wait queue and candidate pairs once, then loops internally until no
+        // more matches can be made (capped at 500 iterations inside the proc)
+        var parameters = new DynamicParameters();
+        parameters.Add("p_deals_created", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-        // Process batches until no more matches can be made
-        // Each batch matches all compatible accounts in wait_queue (one deal per account per batch)
-        const int maxIterations = 500; // Safety limit (accounts can have max 6 slots)
-        int iteration = 0;
-        int dealsCreated;
-
-        do
-        {
-            var parameters = new DynamicParameters();
-            parameters.Add("p_deals_created", dbType: DbType.Int32, direction: ParameterDirection.Output);
-
-            await sqlConnection.ExecuteAsync(
-                "match_deals_batch",
-                parameters,
-                commandType: CommandType.StoredProcedure);
-
-            dealsCreated = parameters.Get<int>("p_deals_created");
-            iteration++;
-
-            // Safety check to prevent infinite loops
-            if (iteration >= maxIterations)
-            {
-                break;
-            }
-        }
-        while (dealsCreated > 0);
+        await sqlConnection.ExecuteAsync(
+            "match_deals_run",
+            parameters,
+            commandType: CommandType.StoredProcedure);
     }
 
     public async Task RemoveAccountsWithFullSlotsFromListsAsync()
