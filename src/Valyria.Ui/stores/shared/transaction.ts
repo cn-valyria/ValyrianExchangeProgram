@@ -1,6 +1,11 @@
 import type { AidStatus } from "./enums"
 import type { NationSimplified } from "./nationSimplified"
 
+export interface TransactionCode {
+  sendingRole: string | null
+  receivingRole: string | null
+}
+
 export interface Transaction {
   id: number
   aidId: number | null

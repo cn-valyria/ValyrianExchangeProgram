@@ -20,16 +20,20 @@
             </div>
           </div>
 
-          <!-- Bottom Section: Balance (Left) and Activity Score (Right) -->
+          <!-- Bottom Section: Slot Usage (Left) and Deal Health (Right) -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Left: Balance Info -->
+            <!-- Left: Slot Usage -->
             <div class="flex justify-center lg:justify-end lg:pr-4">
-              <AccountBalance :credit="account.credit" :debt="account.debt" :role="account.role" />
+              <AccountSlotUsage
+                :slotsUsed="dealsSummary.slotsUsed"
+                :slotsTotal="dealsSummary.slotsTotal"
+                :role="account.role"
+              />
             </div>
 
-            <!-- Right: Activity Score -->
+            <!-- Right: Deal Health -->
             <div class="flex justify-center lg:justify-start lg:pl-4 lg:border-l border-gray-200 dark:border-gray-700">
-              <AccountActivityScore :score="account.avgDaysToClearDebt" :totalTimesInDebt="account.totalTimesInDebt" />
+              <AccountDealHealth :deals="dealsSummary.activeDeals" :notifications="dealsSummary.notifications" />
             </div>
           </div>
         </div>
@@ -40,20 +44,15 @@
     <UContainer class="py-8">
       <div class="space-y-6">
 
-        <!-- Aid List Card -->
-        <AccountAidList :account="account" :aidList="aidList" />
-
-        <!-- Credit History Card -->
-        <AccountCreditHistory
-          :accountId="account.id"
-          :accountRole="account.role"
-          :creditHistory="creditHistory"
+        <!-- Active Deals Card -->
+        <AccountActiveDeals
+          :account="account"
+          :deals="dealsSummary.activeDeals"
+          :notifications="dealsSummary.notifications"
         />
 
-        <!-- List Performance -->
-        <AccountListPerformance
-          :listPerformance="listPerformance"
-        />
+        <!-- Deal History Card -->
+        <AccountDealHistory :accountId="accountId" />
       </div>
     </UContainer>
   </div>
@@ -71,7 +70,7 @@ const toast = useToast()
 const accountStore = useAccountStore()
 const authStore = useAuthStore()
 
-const { account, aidList, creditHistory, listPerformance } = storeToRefs(accountStore)
+const { account, dealsSummary } = storeToRefs(accountStore)
 const { loggedInUser } = storeToRefs(authStore)
 
 const loading = ref<boolean>(true)
@@ -99,10 +98,11 @@ onMounted(async () => {
   }
 
   try {
-    await accountStore.loadAccount(accountId.value)
-    await accountStore.loadAidList(accountId.value)
-    await accountStore.loadTransactionHistory(accountId.value)
-    await accountStore.loadListPerformance(accountId.value)
+    await Promise.all([
+      accountStore.loadAccount(accountId.value),
+      accountStore.loadDealsSummary(accountId.value),
+      accountStore.loadDealHistory(accountId.value)
+    ])
   } catch (error) {
     console.error('Failed to load account data:', error)
     toast.add({

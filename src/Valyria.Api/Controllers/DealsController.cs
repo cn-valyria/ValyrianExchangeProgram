@@ -32,6 +32,11 @@ public class DealsController : ControllerBase
     {
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountDeals), accountId);
 
+        if (!CanAccessAccount(accountId))
+        {
+            return Forbid();
+        }
+
         try
         {
             var result = await _dealsRepository.GetAccountDealsAsync(accountId);
@@ -44,6 +49,73 @@ public class DealsController : ControllerBase
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountDeals)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get a page of every deal (active and cancelled) an account has been part of
+    /// </summary>
+    [HttpGet("account/{accountId}/history")]
+    public async Task<IActionResult> GetAccountDealHistory(int accountId, [FromQuery] int? limit, [FromQuery] int? offset)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountDealHistory), accountId);
+
+        if (!CanAccessAccount(accountId))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var result = await _dealsRepository.GetAccountDealHistoryAsync(accountId, limit ?? 10, offset ?? 0);
+
+            _logger.LogInformation("{MethodName} execution complete. Found {TotalCount} total deals",
+                nameof(GetAccountDealHistory), result.TotalCount);
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountDealHistory)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get the aid activity for a deal, from the perspective of one of its participants
+    /// </summary>
+    [HttpGet("{id}/activity")]
+    public async Task<IActionResult> GetDealActivity(int id, [FromQuery] int accountId)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}, accountId={AccountId}",
+            nameof(GetDealActivity), id, accountId);
+
+        if (!CanAccessAccount(accountId))
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var result = await _dealsRepository.GetDealActivityAsync(id, accountId);
+
+            if (result == null)
+            {
+                _logger.LogWarning("Deal with id={DealId} not found for accountId={AccountId}", id, accountId);
+                return NotFound(new { error = $"Deal with id {id} not found" });
+            }
+
+            _logger.LogInformation("{MethodName} execution complete. Found {Count} activity records",
+                nameof(GetDealActivity), result.Count);
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetDealActivity)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
@@ -210,6 +282,20 @@ public class DealsController : ControllerBase
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
+    }
+
+    /// <summary>
+    /// Non-admins may only access their own account's deals. Admin roles match the UI's admin page access.
+    /// </summary>
+    private bool CanAccessAccount(int accountId)
+    {
+        if (User.IsInRole("Super Admin") || User.IsInRole("Admin (Read-only)"))
+        {
+            return true;
+        }
+
+        var accountIdClaim = User.FindFirst("AccountId")?.Value;
+        return int.TryParse(accountIdClaim, out var callerAccountId) && callerAccountId == accountId;
     }
 }
 

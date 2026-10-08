@@ -13,6 +13,17 @@ public interface IDealsRepository
     Task<AccountDealsSummary> GetAccountDealsAsync(int accountId);
 
     /// <summary>
+    /// Get a page of every deal (active and cancelled) an account has been part of, newest first
+    /// </summary>
+    Task<DealHistoryPage> GetAccountDealHistoryAsync(int accountId, int limit, int offset);
+
+    /// <summary>
+    /// Get the aid activity for a deal from one participant's perspective.
+    /// Returns null if the account is not part of the deal.
+    /// </summary>
+    Task<List<DealActivityDetail>> GetDealActivityAsync(int dealId, int accountId);
+
+    /// <summary>
     /// Get details for a specific deal by ID
     /// </summary>
     Task<Deal> GetDealByIdAsync(int dealId);

@@ -1,9 +1,6 @@
 import { defineStore } from 'pinia'
-import type { AidStatus, NationalWarStatus, RecentActivity } from './shared/enums'
+import type { NationalWarStatus, RecentActivity } from './shared/enums'
 import type { NationSimplified } from './shared/nationSimplified'
-import type { Transaction } from './shared/transaction'
-import type { TransactionsPage } from './shared/transactionsPage'
-import type { ListPerformance } from './shared/listPerformance'
 
 export interface Account {
   id: number
@@ -23,94 +20,97 @@ export interface Account {
   hasForeignMinistry: boolean
   hasFederalAidCommission: boolean
   hasDisasterReliefAgency: boolean
-  slotsUsed: number
-  slotsFull: number
-  totalCashSent: number
-  totalCashReceived: number
-  totalTechSent: number
-  totalTechReceived: number
-  credit: number
-  debt: number
-  cashSentTechCredit: number
-  cashReceivedTechCredit: number
-  cashSentCashCredit: number
-  cashReceivedCashCredit: number
-  techSentCashCredit: number
-  techReceivedCashCredit: number
-  techSentTechCredit: number
-  techReceivedTechCredit: number
-  previousListOrder: number
-  totalTimesInDebt: number
-  avgDaysToClearDebt: number
-  totalTimesWithCredit: number
-  avgDaysToFillCredit: number
 }
 
-export interface AidItem {
-  nation: NationSimplified
-  slotsFree: number
-  credit: number
-  debt: number
-  recentActivity: RecentActivity
-  discord: string
+export interface AccountSimplified extends NationSimplified {
+  accountId: number
 }
 
-export interface TransactionCode {
-  sendingRole: string | null
-  receivingRole: string | null
-}
-
-export interface AccountTransactionHistory {
-  currentPage: TransactionsPage,
-  totalCreditTxns: number,
-  totalDebtTxns: number
-}
-
-export interface CreditHistoryItem {
+export interface SlotDetail {
   id: number
-  otherNation: NationSimplified | null
-  type: string
-  status: AidStatus
-  rate: number
+  slotNumber: number
+  techSentCycles: number
+  techReceivedCycles: number
+  cashSentCycles: number
+  cashReceivedCycles: number
+  account: AccountSimplified
+  hasActiveDeal: boolean
+}
+
+export interface DealDetail {
+  id: number
+  createdOn: string
+  mySlot: SlotDetail
+  partnerSlot: SlotDetail
+  partnerDiscord: string | null
+  lastActivityDate: string | null
+  daysSinceActivity: number
+  needsAction: boolean
+  actionNeeded: string | null
+}
+
+export interface DealNotification {
+  type: 'warning' | 'error' | 'info'
+  message: string
+  dealId: number | null
+}
+
+export interface AccountDealsSummary {
+  slotsUsed: number
+  slotsTotal: number
+  slotsAvailable: number
+  slotsFull: boolean
+  activeDeals: DealDetail[]
+  notifications: DealNotification[]
+}
+
+// Mirrors Valyria.Core.Entities.DealStatus, which is serialized as a number
+export enum DealStatus {
+  Active = 0,
+  Cancelled = 1,
+}
+
+export interface DealHistoryItem {
+  id: number
+  status: DealStatus
+  createdOn: string
+  cancelledOn: string | null
+  cancellationReason: string | null
+  mySlotNumber: number
+  aidSentCount: number
+  aidReceivedCount: number
+  lastActivityDate: string | null
+  partner: AccountSimplified
+}
+
+export interface DealHistoryPage {
+  totalCount: number
+  results: DealHistoryItem[]
+}
+
+export interface DealActivity {
+  id: number
+  aidId: number | null
+  activityDate: string
+  isOutgoing: boolean
   money: number
   technology: number
-  balanceChangeType: string
-  sentOn: string
 }
 
 export const useAccountStore = defineStore('account', {
   state: () => ({
     account: {} as Account,
-    aidList: [] as AidItem[],
-    accountTransactionHistory: {
-      currentPage: { totalCount: 0, results: [] } as TransactionsPage,
-      totalCreditTxns: 0,
-      totalDebtTxns: 0
-    } as AccountTransactionHistory,
-    listPerformance: [] as ListPerformance[],
+    dealsSummary: {
+      slotsUsed: 0,
+      slotsTotal: 0,
+      slotsAvailable: 0,
+      slotsFull: false,
+      activeDeals: [],
+      notifications: [],
+    } as AccountDealsSummary,
+    dealHistory: { totalCount: 0, results: [] } as DealHistoryPage,
+    dealActivity: {} as Record<number, DealActivity[]>,
   }),
-
-  getters: {
-    creditHistory: (state): CreditHistoryItem[] => {
-      const account = state.account
-      if (account.nationId === undefined) {
-        return []
-      }
-
-      const transactions = state.accountTransactionHistory.currentPage.results
-      return transactions.map((txn: Transaction) => ({
-        id: txn.id,
-        otherNation: buildOtherNation(txn, account),
-        type: buildTransactionType(txn, account),
-        status: txn.status,
-        rate: txn.rate,
-        money: txn.money,
-        technology: txn.technology,
-        balanceChangeType: buildBalanceChangeType(txn, account),
-        sentOn: txn.startsOn || '',
-      }))
-    },
-  },
 
   actions: {
     async loadAccount(accountId: number) {
@@ -128,110 +128,57 @@ export const useAccountStore = defineStore('account', {
       }
     },
 
-    async loadAidList(accountId: number) {
+    async loadDealsSummary(accountId: number) {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<AidItem[]>(`/api/accounts/${accountId}/aidList`)
+      const { data, error } = await apiFetch<AccountDealsSummary>(`/api/deals/account/${accountId}`)
 
       if (error.value) {
-        console.error('Failed to load aid list:', error.value)
+        console.error('Failed to load deals:', error.value)
         throw error.value
       }
 
       if (data.value) {
-        this.aidList = data.value as AidItem[]
+        this.dealsSummary = data.value as AccountDealsSummary
       }
     },
 
-    async loadTransactionHistory(accountId: number, limit?: number, offset?: number) {
+    async loadDealHistory(accountId: number, limit?: number, offset?: number) {
       const { apiFetch } = useApiClient()
 
       const params = new URLSearchParams()
       if (limit !== undefined) params.append('limit', limit.toString())
       if (offset !== undefined) params.append('offset', offset.toString())
 
-      const url = `/api/accounts/${accountId}/transactions${
+      const url = `/api/deals/account/${accountId}/history${
         params.toString().length > 0 ? '?' + params.toString() : ''
       }`
 
-      const { data, error } = await apiFetch<AccountTransactionHistory>(url)
+      const { data, error } = await apiFetch<DealHistoryPage>(url)
 
       if (error.value) {
-        console.error('Failed to load transaction history:', error.value)
+        console.error('Failed to load deal history:', error.value)
         throw error.value
       }
 
       if (data.value) {
-        const response = data.value as AccountTransactionHistory
-        this.accountTransactionHistory.currentPage = response.currentPage
-        this.accountTransactionHistory.totalCreditTxns = response.totalCreditTxns
-        this.accountTransactionHistory.totalDebtTxns = response.totalDebtTxns
+        this.dealHistory = data.value as DealHistoryPage
       }
     },
 
-    async loadListPerformance(accountId: number, includeIncoming?: boolean) {
+    async loadDealActivity(accountId: number, dealId: number) {
       const { apiFetch } = useApiClient()
 
-      const params = new URLSearchParams()
-      if (includeIncoming !== undefined) params.append('includeIncoming', includeIncoming.toString())
-
-      const url = `/api/accounts/${accountId}/listPerformance${
-        params.toString().length > 0 ? '?' + params.toString() : ''
-      }`
-
-      const { data, error } = await apiFetch<ListPerformance[]>(url)
+      const { data, error } = await apiFetch<DealActivity[]>(`/api/deals/${dealId}/activity?accountId=${accountId}`)
 
       if (error.value) {
-        console.error('Failed to load list performance:', error.value)
+        console.error('Failed to load deal activity:', error.value)
         throw error.value
       }
 
       if (data.value) {
-        this.listPerformance = data.value as ListPerformance[]
+        this.dealActivity[dealId] = data.value as DealActivity[]
       }
     },
   },
 })
-
-// Helper functions
-function buildOtherNation(txn: Transaction, account: Account) {
-  if (txn.aidId === null) {
-    return null
-  } else if (txn.sentBy && txn.sentBy.nationId !== account.nationId) {
-    return txn.sentBy
-  } else if (txn.receivedBy && txn.receivedBy.nationId !== account.nationId) {
-    return txn.receivedBy
-  } else {
-    throw new Error('Unable to find a valid nation for the given transaction and account.')
-  }
-}
-
-function buildTransactionType(txn: Transaction, account: Account) {
-  const incoming = 'Incoming'
-  const outgoing = 'Outgoing'
-
-  if (txn.aidId === null) {
-    return txn.sentBy !== null ? outgoing : incoming
-  } else if (txn.sentBy && txn.sentBy.nationId === account.nationId) {
-    return outgoing
-  } else if (txn.receivedBy && txn.receivedBy.nationId === account.nationId) {
-    return incoming
-  } else {
-    throw new Error('Unable to determine the transaction type for the given transaction and account.')
-  }
-}
-
-function buildBalanceChangeType(txn: Transaction, account: Account) {
-  const credit = 'Credit'
-  const debt = 'Debt'
-
-  if (txn.aidId === null) {
-    return txn.sentBy !== null ? credit : debt
-  } else if (txn.sentBy && txn.sentBy.nationId === account.nationId) {
-    return credit
-  } else if (txn.receivedBy && txn.receivedBy.nationId === account.nationId) {
-    return debt
-  } else {
-    throw new Error('Unable to determine the balance change type for the given transaction and account.')
-  }
-}

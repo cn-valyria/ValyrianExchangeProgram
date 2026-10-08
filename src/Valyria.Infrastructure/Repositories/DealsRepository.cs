@@ -49,15 +49,18 @@ public class DealsRepository : IDealsRepository
         var deals = await connection.QueryAsync<DealDetail, SlotDetail, AccountSimplified, SlotDetail, AccountSimplified, DealDetail>(@"
             SELECT
                 d.id AS Id,
+                d.created_on AS CreatedOn,
+                pa.discord AS PartnerDiscord,
                 da.activity_date AS LastActivityDate,
-                DATEDIFF(CURDATE(), da.activity_date) AS DaysSinceActivity,
+                -- New deals with no activity yet count from the day the deal was created
+                DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) AS DaysSinceActivity,
                 CASE
-                    WHEN DATEDIFF(CURDATE(), da.activity_date) >= 5 THEN TRUE
+                    WHEN DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) >= 5 THEN TRUE
                     ELSE FALSE
                 END AS NeedsAction,
                 CASE
-                    WHEN DATEDIFF(CURDATE(), da.activity_date) >= 5 THEN 'Send aid to maintain deal'
-                    WHEN DATEDIFF(CURDATE(), da.activity_date) >= 1 THEN 'Deal may become inactive soon'
+                    WHEN DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) >= 5 THEN 'Send aid to maintain deal'
+                    WHEN DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) >= 1 THEN 'Deal may become inactive soon'
                     ELSE NULL
                 END AS ActionNeeded,
                 -- My slot
@@ -125,7 +128,12 @@ public class DealsRepository : IDealsRepository
                     WHEN df.flag_type = '1_day_inactive' THEN 'warning'
                     ELSE 'info'
                 END AS Type,
-                CONCAT('Deal with ', n.nation_name, ' has been flagged: ', df.flag_type) AS Message,
+                CASE
+                    WHEN df.flag_type = '5_day_replacement' THEN
+                        CONCAT('Your deal with ', n.nation_name, ' has had no aid for 5+ days and is being replaced.')
+                    ELSE
+                        CONCAT('Your deal with ', n.nation_name, ' has had no recent aid. Send or accept aid to keep it active.')
+                END AS Message,
                 df.deal_id AS DealId
             FROM deal_flag df
             JOIN deal d ON df.deal_id = d.id
@@ -143,6 +151,100 @@ public class DealsRepository : IDealsRepository
         summary.Notifications = notifications.ToList();
 
         return summary;
+    }
+
+    public async Task<DealHistoryPage> GetAccountDealHistoryAsync(int accountId, int limit, int offset)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        var totalCount = await connection.QuerySingleAsync<int>(@"
+            SELECT COUNT(*)
+            FROM deal d
+            JOIN slot ms ON ms.id IN (d.slot_1_id, d.slot_2_id) AND ms.account_id = @accountId",
+            new { accountId });
+
+        var deals = await connection.QueryAsync<DealHistoryItem, AccountSimplified, DealHistoryItem>(@"
+            SELECT
+                d.id AS Id,
+                d.status AS Status,
+                d.created_on AS CreatedOn,
+                d.cancelled_on AS CancelledOn,
+                d.cancellation_reason AS CancellationReason,
+                ms.slot_number AS MySlotNumber,
+                (
+                    SELECT COUNT(*) FROM deal_activity da
+                    WHERE da.deal_id = d.id AND da.expected_sender_nation_id = ma.nation_id
+                ) AS AidSentCount,
+                (
+                    SELECT COUNT(*) FROM deal_activity da
+                    WHERE da.deal_id = d.id AND da.expected_receiver_nation_id = ma.nation_id
+                ) AS AidReceivedCount,
+                (
+                    SELECT MAX(da.activity_date) FROM deal_activity da
+                    WHERE da.deal_id = d.id
+                ) AS LastActivityDate,
+                -- Partner account
+                pa.id AS AccountId,
+                pn.id AS NationId,
+                pn.nation_name AS NationName,
+                pn.ruler_name AS RulerName,
+                pal.name AS AllianceName
+            FROM deal d
+            JOIN slot ms ON ms.id IN (d.slot_1_id, d.slot_2_id) AND ms.account_id = @accountId
+            JOIN slot ps ON ps.id = IF(d.slot_1_id = ms.id, d.slot_2_id, d.slot_1_id)
+            JOIN account ma ON ms.account_id = ma.id
+            JOIN account pa ON ps.account_id = pa.id
+            LEFT JOIN cybernations_db.nation pn ON pa.nation_id = pn.id
+            LEFT JOIN cybernations_db.alliance pal ON pn.alliance_id = pal.id
+            ORDER BY d.created_on DESC, d.id DESC
+            LIMIT @limit OFFSET @offset",
+            (deal, partner) =>
+            {
+                deal.Partner = partner;
+                return deal;
+            },
+            new { accountId, limit, offset },
+            splitOn: "AccountId");
+
+        return new DealHistoryPage
+        {
+            TotalCount = totalCount,
+            Results = deals.ToList()
+        };
+    }
+
+    public async Task<List<DealActivityDetail>> GetDealActivityAsync(int dealId, int accountId)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        var myNationId = await connection.QueryFirstOrDefaultAsync<int?>(@"
+            SELECT a.nation_id
+            FROM deal d
+            JOIN slot s ON s.id IN (d.slot_1_id, d.slot_2_id) AND s.account_id = @accountId
+            JOIN account a ON s.account_id = a.id
+            WHERE d.id = @dealId",
+            new { dealId, accountId });
+
+        if (myNationId == null)
+        {
+            return null;
+        }
+
+        var activity = await connection.QueryAsync<DealActivityDetail>(@"
+            SELECT
+                da.id AS Id,
+                da.aid_id AS AidId,
+                da.activity_date AS ActivityDate,
+                da.expected_sender_nation_id = @myNationId AS IsOutgoing,
+                COALESCE(aid.money, 0) AS Money,
+                COALESCE(aid.technology, 0) AS Technology
+            FROM deal_activity da
+            LEFT JOIN cybernations_db.aid aid ON da.aid_id = aid.id
+            WHERE da.deal_id = @dealId
+            ORDER BY da.activity_date DESC, da.id DESC",
+            new { dealId, myNationId });
+
+        return activity.ToList();
     }
 
     public async Task<Deal> GetDealByIdAsync(int dealId)
