@@ -115,15 +115,15 @@
                   Access Your Account Dashboard
                 </h3>
                 <p class="text-gray-600 dark:text-gray-300">
-                  Once authenticated, you'll have access to your personal account page where you can track your balance in real-time.
+                  Once authenticated, you'll have access to your personal account page, where you can see all of your deals at a glance.
                 </p>
                 <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
-                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Your balance reflects:</p>
+                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Your account page shows:</p>
                   <ul class="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1 ml-2">
-                    <li>Total aid you've sent</li>
-                    <li>Total aid you've received</li>
-                    <li>Current credit or debt status</li>
-                    <li>During wartime: special status indicators based on your position in the system</li>
+                    <li>How many of your aid slots are in deals</li>
+                    <li>Each active deal: your partner, what you send them, and what they send you</li>
+                    <li>Any deals that need your attention</li>
+                    <li>Your full deal history, including every aid package exchanged</li>
                   </ul>
                 </div>
 
@@ -140,45 +140,66 @@
 
       <UDivider />
 
-      <!-- Sending Aid Section -->
+      <!-- Deals Section -->
       <section class="space-y-8">
         <div class="text-center space-y-4">
           <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
-            Sending Aid
+            How Deals Work
           </h2>
           <p class="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            When you're expected to send aid, VEP makes the process straightforward and organized
+            VEP pairs you with partners and tells you exactly what to send, so all you have to do is send aid
           </p>
         </div>
 
         <div class="grid gap-8 md:grid-cols-2">
-          <!-- Aid Target List -->
+          <!-- Slots and Matching -->
           <UCard>
             <div class="space-y-4">
               <div class="flex items-center gap-3">
                 <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <Icon name="heroicons:list-bullet" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                  <Icon name="heroicons:link" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                  Target List
+                  Slots and Matching
                 </h3>
               </div>
               <p class="text-gray-600 dark:text-gray-300">
-                You'll receive a prioritized list of aid target nations with direct links to send aid. The list automatically
-                updates daily, ensuring you always have current targets.
+                Every nation in VEP has 4 aid slots, plus one more with a Foreign Ministry and one more with a Disaster
+                Relief Agency. Each slot is set up to send and receive a certain amount of aid every 10 days, based on
+                your role. VEP matches each open slot with a partner's slot that needs the opposite, and checks for new
+                matches every day.
+              </p>
+            </div>
+          </UCard>
+
+          <!-- Keeping Deals Active -->
+          <UCard>
+            <div class="space-y-4">
+              <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                  <Icon name="heroicons:arrows-right-left" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                  Keeping Deals Active
+                </h3>
+              </div>
+              <p class="text-gray-600 dark:text-gray-300">
+                Each deal on your account page lists what you send and what you receive. Send your partner what's listed
+                under <strong>You Send</strong>, and accept what they send you. If you're the one sending, click your
+                partner's name to go straight to the aid form.
               </p>
               <UAlert
                 color="warning"
                 variant="subtle"
                 title="Important"
-                description="Always work through the list from top to bottom. This ensures prompt turnover and keeps the system running smoothly for everyone."
+                description="Deals that go without aid are flagged, and a deal that stays inactive is cancelled so both slots can be matched with new partners. Keep your deals active by sending aid on time."
                 icon="i-heroicons-exclamation-triangle"
               />
             </div>
           </UCard>
 
           <!-- Wartime Considerations -->
-          <UCard>
+          <UCard class="md:col-span-2">
             <div class="space-y-4">
               <div class="flex items-center gap-3">
                 <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
@@ -194,8 +215,8 @@
               </p>
               <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                 <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                  VEP does not currently filter targets based on wartime restrictions. Please coordinate with your alliance
-                  leadership to identify and avoid any inappropriate aid targets during conflicts.
+                  VEP does not currently consider wartime restrictions when matching deals. If you're matched with a partner
+                  you can't send aid to, contact VEP management so the deal can be replaced.
                 </p>
               </div>
             </div>
@@ -204,7 +225,7 @@
 
         <div class="lg:col-span-3">
           <UCard class="overflow-hidden">
-            <img src="~/assets/img/howitworks-aidlist.png" alt="Account Example" class="w-full rounded-lg" />
+            <img src="~/assets/img/howitworks-aidlist.png" alt="Active Deals Example" class="w-full rounded-lg" />
           </UCard>
         </div>
       </section>
@@ -234,14 +255,14 @@
                 Automated Reminders
               </h3>
               <p class="text-gray-600 dark:text-gray-300">
-                Receive regular notifications via in-game messages and Discord when your aid slots open up. These reminders
-                are provided as a convenience to help you stay on top of your aid schedule.
+                VEP may send reminders through Discord to help you stay on top of your deals. These reminders are provided
+                as a convenience only.
               </p>
               <UAlert
                 color="info"
                 variant="subtle"
                 title="Source of Truth"
-                description="While notifications are helpful, the VEP website is always the authoritative source for your account status and aid targets."
+                description="While notifications are helpful, the VEP website is always the authoritative source for your account status and your deals."
                 icon="i-heroicons-information-circle"
               />
             </div>
@@ -277,7 +298,7 @@
       <!-- Simple Summary -->
       <section class="bg-gradient-to-r from-primary-600 to-purple-600 rounded-2xl p-8 sm:p-12 text-center">
         <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">
-          Send Aid. Track Balance. Succeed.
+          Get Matched. Send Aid. Succeed.
         </h2>
         <p class="text-lg text-primary-100 max-w-2xl mx-auto">
           It's that easy! Welcome to the Valyrian Exchange Program.

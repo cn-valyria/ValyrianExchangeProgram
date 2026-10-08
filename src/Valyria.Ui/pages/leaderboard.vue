@@ -94,6 +94,11 @@
 <script setup lang="ts">
 import type { TopScorerAccount } from '~/stores/shared/topScorerAccount'
 
+// Hidden until there's a deal-based ranking to replace the VEP 2.5 Activity Score
+definePageMeta({
+  middleware: () => navigateTo('/')
+})
+
 const config = useRuntimeConfig()
 const toast = useToast()
 

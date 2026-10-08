@@ -22,10 +22,10 @@
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-24">
-      <!-- Balance Management Section -->
+      <!-- Deal Matching Section -->
       <section class="space-y-8">
         <h2 class="text-3xl sm:text-4xl font-bold text-center text-gray-900 dark:text-white">
-          An account that always pays its debts
+          Tech deals that manage themselves
         </h2>
 
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
@@ -37,7 +37,7 @@
 
           <div class="lg:col-span-2 space-y-4">
             <h3 class="text-2xl font-semibold text-gray-900 dark:text-white">
-              Manage your own balance instead of individual deals
+              Get matched with partners automatically
             </h3>
             <div class="prose dark:prose-invert text-gray-600 dark:text-gray-300 space-y-4">
               <p>
@@ -47,11 +47,11 @@
                 healthy deals long-term.
               </p>
               <p>
-                The Valyrian Exchange Program is a new paradigm in tech dealing. Instead of managing individual deals,
-                you are given a simple ledger - known as your balance - that tracks how much aid you've sent, how much
-                you're owed, and how much you're due to send. VEP enrolls well over one hundred nations, with an even
-                split of buyers and sellers, so you're guaranteed a consistent source of incoming aid and outgoing
-                targets. Never worry about 1x1 deals again; get signed up in VEP today!
+                The Valyrian Exchange Program does the dealmaking for you. Each of your aid slots is matched with a
+                partner nation that needs the opposite of what you have, and your account page shows exactly who your
+                partners are and what to send each of them. When a deal ends, VEP finds you a new partner, so your
+                slots stay full. VEP enrolls well over one hundred nations, with an even split of buyers and sellers,
+                so there's always someone to deal with. Never hunt for tech deals again; get signed up in VEP today!
               </p>
             </div>
           </div>
@@ -95,8 +95,8 @@
               <div class="space-y-2">
                 <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Constant Aid</h5>
                 <p class="text-gray-600 dark:text-gray-300">
-                  In VEP, it's assumed that if you have an open aid slot, then you'd like to either receive aid or
-                  send more out. We want to make sure that you're using your aid slots to their max capacity!
+                  Open slots don't stay open for long. VEP matches empty slots with new partners every day, so your
+                  aid slots are always working at their max capacity!
                 </p>
               </div>
             </div>
@@ -111,10 +111,11 @@
                 </div>
               </div>
               <div class="space-y-2">
-                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Fair Rates</h5>
+                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Dynamic Rates</h5>
                 <p class="text-gray-600 dark:text-gray-300">
-                  9/100: $9 million in cash for 100 technology levels. That's been VEP's rate since it was founded,
-                  and it's the fixed rate for VEP's future.
+                  Use your aid slots however you feel is best for your nation's growth! Whether you want a simple 9/100 
+                  deal, pure incoming/outgoing-only deals, or anything in between (including a mix of different options!), 
+                  VEP has you covered.
                 </p>
               </div>
             </div>
@@ -129,10 +130,10 @@
                 </div>
               </div>
               <div class="space-y-2">
-                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Automated Transactions</h5>
+                <h5 class="text-lg font-semibold text-gray-900 dark:text-white">Automated Tracking</h5>
                 <p class="text-gray-600 dark:text-gray-300">
-                  All aid is imported and tallied against your balance every morning, in CN time, so you'll never
-                  need to track aid screens again.
+                  All aid is imported every morning, in CN time, and matched to your deals automatically, so you'll
+                  never need to track aid screens again.
                 </p>
               </div>
             </div>
@@ -149,7 +150,7 @@
     <section class="bg-gradient-to-r from-primary-600 to-purple-600">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center space-y-6">
         <h2 class="text-3xl sm:text-4xl font-bold text-white">
-          Start managing your account now!
+          Check in on your deals now!
         </h2>
         <p class="text-xl text-primary-100 max-w-2xl mx-auto">
           If you already have an account, dig into our additional resources to learn more about the nuts and bolts of
@@ -165,7 +166,7 @@
     <footer class="bg-gray-50 dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <p class="text-center text-gray-600 dark:text-gray-400">
-          Built with <span class="text-red-500">❤️</span> by lilweirdward and dev0win. Founded by Lord Draculea.
+          Built with <span class="text-red-500">❤️</span> by lilweirdward and dev0win. Inspired by Lord Draculea.
         </p>
       </div>
     </footer>

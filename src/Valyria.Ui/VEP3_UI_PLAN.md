@@ -35,9 +35,10 @@ Store: `stores/account.ts` now holds `account`, `dealsSummary`, `dealHistory` an
 
 | Page | Today | Change |
 |---|---|---|
-| `pages/index.vue` | Hero copy talks about balances/debts; "Transactions" feature card | Rewrite copy around deals and slots ("get matched with a partner, exchange aid every 10 days"). ⬜ |
-| `pages/how-it-works.vue` | Explains balance, credit/debt, aid list; screenshots of old account page | Rewrite sections: slots → matching → deal → keeping a deal active (10-day cycle, 1-day warning, 5-day cancellation). Replace `howitworks-account.png` / `howitworks-aidlist.png` with new screenshots. ⬜ |
-| `pages/leaderboard.vue` + `components/leaderboard/*` | Ranked by Activity Score (avg days to clear debt) via `/api/accounts/topScorers` | 🔧 Needs a deal-based metric (e.g. on-time rate or average days between deal activity, deals completed without flags). **Decision needed:** metric definition. Until then, hide the page or keep it behind a flag. ⬜ |
+| `pages/index.vue` | Hero copy talks about balances/debts; "Transactions" feature card | Copy rewritten around automatic partner matching; feature cards updated (daily matching, aid matched to deals). ✅ |
+| `pages/how-it-works.vue` | Explains balance, credit/debt, aid list | Step 3 describes the new account page. "Sending Aid" became "How Deals Work" (slots and matching, keeping deals active, wartime). Reminders copy no longer promises slot-open notifications. The inactivity rules are described without specific day counts until section 5 item 1 is settled. ✅ |
+| Screenshots | Show the VEP 2.5 account page | ⬜ Replace in place, keeping the same filenames so no code changes are needed: `account-example.png` (home: whole account page), `howitworks-accessaccount.png` (account page header), `howitworks-aidlist.png` (Active Deals card). `howitworks-account.png` is unused and can be deleted. |
+| `pages/leaderboard.vue` + `components/leaderboard/*` | Ranked by Activity Score (avg days to clear debt) via `/api/accounts/topScorers` | **Hidden for now:** nav links removed and the route redirects home. The page, components and `/api/accounts/topScorers` are left in place until a deal-based ranking is designed (it'll need new features beyond the UI). |
 | `components/NavBar.vue` | Admin links to Transactions and Lists | Admin menu now links to Aid Activity and Deals. ✅ |
 
 ## 3. Admin ✅
@@ -70,4 +71,5 @@ Backend changes for this section:
 2. `check_deal_inactivity` always records `account_1` as the "flagged" (offender) party, based on slot order rather than on who failed to send. The UI therefore avoids blaming either side in flag messages.
 3. **Authorization (to-do):** the `[Authorize(Roles = "Admin")]` checks referenced a role that no longer exists. They've been removed, along with the account-ownership check on the account-scoped deal endpoints. No endpoint verifies roles or account ownership right now; only the UI does. Revisit once it's confirmed whether role claims are registered correctly.
 4. `CreatedBy` / `CancelledBy` / `ResolvedBy` / slot `UpdatedBy` come from `User.Identity.Name`. The JWT has no name claim, so these will likely all record `"unknown"`. Same root cause as item 3.
-5. The aid-activity search left-joins `account` twice over the whole `aid` table, with an OR across both sides. Fine at current volumes, but worth an index check if it gets slow.
+5. **The data loader is still running the VEP 2.5 lists pipeline.** `DataLoaderWorker.LoadTodaysListsAsync` still calls `load_todays_lists` and sends the Discord "you're due to send cash/tech today!" pings to list 1 and list 3 recipients. Those pings are now meaningless and should be removed or replaced with deal-based reminders (e.g. a new partner, or a deal at risk). The in-game list messages admins used to send from the Lists page are gone along with that page.
+6. The aid-activity search left-joins `account` twice over the whole `aid` table, with an OR across both sides. Fine at current volumes, but worth an index check if it gets slow.
