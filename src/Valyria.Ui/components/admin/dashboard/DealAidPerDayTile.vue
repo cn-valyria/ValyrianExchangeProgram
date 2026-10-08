@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Last 5 Days' Transactions</p>
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Last 5 Days' Deal Aid</p>
     <div class="h-64">
       <Line :data="chartData" :options="chartOptions" />
     </div>
@@ -11,28 +11,24 @@
 import { Chart as ChartJS, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Filler } from 'chart.js'
 import { Line } from 'vue-chartjs'
 import dateFormat from 'dateformat'
+import type { DealAidCountByDay } from '~/stores/admin'
 
 // Register Chart.js components
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Filler)
 
-interface TransactionData {
-  dayTxnRecorded: string
-  txnCount: number
-}
-
 interface Props {
-  data: TransactionData[] | undefined
+  data: DealAidCountByDay[] | undefined
 }
 
 const props = defineProps<Props>()
 
 const chartData = computed(() => {
   return {
-    labels: props.data?.map(x => dateFormat(new Date(x.dayTxnRecorded), "mmm-dd")) ?? [],
+    labels: props.data?.map(x => dateFormat(new Date(x.day), "mmm-dd")) ?? [],
     datasets: [
       {
-        label: 'Transactions',
-        data: props.data?.map(x => x.txnCount) ?? [],
+        label: 'Aid matched to deals',
+        data: props.data?.map(x => x.aidCount) ?? [],
         fill: true,
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderColor: 'rgb(59, 130, 246)',

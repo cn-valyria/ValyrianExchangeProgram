@@ -31,54 +31,26 @@ select 	account.id as Id,
     account.fm as HasForeignMinistry,
     account.fac as HasFederalAidCommission,
     account.dra as HasDisasterReliefAgency,
-    aid_activity.slots_used as SlotsUsed,
-    aid_activity.slots_full as SlotsFull,
-    coalesce(sent_aid.money, 0) div 1000000 as TotalCashSent,
-    coalesce(recd_aid.money, 0) div 1000000 as TotalCashReceived,
-    coalesce(sent_aid.technology, 0) as TotalTechSent,
-    coalesce(recd_aid.technology, 0) as TotalTechReceived,
-    balance.Credit,
-    balance.Debt,
-    balance.ctB as CashSentTechCredit,
-    balance.ctS as CashReceivedTechCredit,
-    balance.ccB as CashSentCashCredit,
-    balance.ccS as CashReceivedCashCredit,
-    balance.tcB as TechSentCashCredit,
-    balance.tcS as TechReceivedCashCredit,
-    balance.ttB as TechSentTechCredit,
-    balance.ttS as TechReceivedTechCredit,
-    999 as PreviousListOrder,
-	coalesce(outgoing_perf.times_in_list, 0) as TotalTimesInDebt,
-    coalesce(outgoing_perf.average_days_until_removed, 0.0) as AvgDaysToClearDebt,
-	coalesce(incoming_perf.times_in_list, 0) as TotalTimesWithCredit,
-    coalesce(incoming_perf.average_days_until_removed, 0.0) as AvgDaysToFillCredit
+    coalesce(deal_summary.slots_used, 0) as SlotsUsed,
+    coalesce(deal_summary.slots_total, 0) as SlotsTotal,
+    coalesce(open_flags.flag_count, 0) as OpenFlagCount
 from vep_db.account account
-join vep_db.balance balance on account.nation_id = balance.nation_id
-join vep_db.aid_activity on account.id = aid_activity.account_id
 join cybernations_db.nation nation on account.nation_id = nation.id
-join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
+left join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
+left join vep_db.account_deal_summary deal_summary on account.id = deal_summary.account_id
 left join (
-	select sending_nation_id as nation_id, sum(money) as money, sum(technology) as technology
-	from cybernations_db.aid
-	group by sending_nation_id
-) sent_aid on nation.id = sent_aid.nation_id
-left join (
-	select receiving_nation_id as nation_id, sum(money) as money, sum(technology) as technology
-	from cybernations_db.aid
-	group by receiving_nation_id
-) recd_aid on nation.id = recd_aid.nation_id
-left join (
-	select account_id, count(1) as times_in_list, avg(days_until_removed) as average_days_until_removed
-    from account_list_performance
-    where list_id in (1, 3)
+    select account_id, count(distinct deal_id) as flag_count
+    from (
+        select df.flagged_account_id as account_id, df.deal_id
+        from vep_db.deal_flag df
+        where df.resolved_on is null
+        union all
+        select df.innocent_account_id as account_id, df.deal_id
+        from vep_db.deal_flag df
+        where df.resolved_on is null
+    ) flagged
     group by account_id
-) outgoing_perf on account.id = outgoing_perf.account_id
-left join (
-	select account_id, count(1) as times_in_list, avg(days_until_removed) as average_days_until_removed
-    from account_list_performance
-    where list_id in (2, 4)
-    group by account_id
-) incoming_perf on account.id = incoming_perf.account_id";
+) open_flags on account.id = open_flags.account_id";
 
     public AccountsRepository(string connectionString) => _connectionString = connectionString;
 

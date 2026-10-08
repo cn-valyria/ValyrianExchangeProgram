@@ -21,7 +21,9 @@ public class AccountDetail
     public bool HasForeignMinistry { get; set; }
     public bool HasFederalAidCommission { get; set; }
     public bool HasDisasterReliefAgency { get; set; }
-    // VEP 3.0: Replaced balance/credit/debt with deals-based system
-    // Slot information now comes from AccountDealsSummary
-    // Historical transaction data still available via transaction history
+    // VEP 3.0: Replaced balance/credit/debt with deals-based system.
+    // Full deal details come from AccountDealsSummary; these are summary counts for admin lists.
+    public int SlotsUsed { get; set; }
+    public int SlotsTotal { get; set; }
+    public int OpenFlagCount { get; set; }
 }

@@ -1,18 +1,8 @@
 import { defineStore } from 'pinia'
 
-export interface TransactionCountByDay {
-  dayTxnRecorded: string
-  txnCount: number
-}
-
-export interface CreditGroup {
-  dateRange: string
-  totalCredit: number
-}
-
-export interface CreditGroupsByAlliance {
-  allianceName: string
-  creditGroups: CreditGroup[]
+export interface DealAidCountByDay {
+  day: string
+  aidCount: number
 }
 
 export interface TotalSlotsGroup {
@@ -30,9 +20,9 @@ export interface AccountCountByRole {
   totalAccounts: number
 }
 
-export interface FreeSlotCountByList {
-  listName: string
-  freeSlots: number
+export interface OpenSlotCountByRole {
+  role: string
+  openSlots: number
 }
 
 export interface AccountCountByAlliance {
@@ -42,9 +32,10 @@ export interface AccountCountByAlliance {
 
 export interface GeneralProgramSummary {
   totalAccounts: number
-  totalTransactions: number
+  activeDeals: number
 }
 
+// Number of slots that send or receive each kind of aid
 export interface AidRatioSummary {
   totalIncomingCashSlots: number
   totalOutgoingCashSlots: number
@@ -52,25 +43,26 @@ export interface AidRatioSummary {
   totalOutgoingTechSlots: number
 }
 
-export interface UnusedCreditSummary {
-  unusedCredit: number
+export interface DealHealthSummary {
+  accountsWaiting: number
+  slotsWaiting: number
+  openFlags: number
 }
 
 export interface SlotUsageSummary {
-  maxCapacity: number 
+  maxCapacity: number
   currentSlotsUsed: number
 }
 
 export interface Dashboard {
   generalProgramSummary: GeneralProgramSummary
   aidRatioSummary: AidRatioSummary
-  unusedCreditSummary: UnusedCreditSummary
+  dealHealthSummary: DealHealthSummary
   slotUsageSummary: SlotUsageSummary
-  transactionsPerDay: TransactionCountByDay[]
-  pendingCreditByAlliance: CreditGroupsByAlliance[]
+  dealAidPerDay: DealAidCountByDay[]
   accountsPerRole: AccountCountByRole[]
   totalSlotsPerAlliance: TotalSlotGroupsByAlliance[]
-  freeSlotsPerList: FreeSlotCountByList[]
+  openSlotsPerRole: OpenSlotCountByRole[]
   accountsPerAlliance: AccountCountByAlliance[]
 }
 
@@ -87,24 +79,22 @@ export const useAdminStore = defineStore('admin', {
       const [
         generalProgramSummaryResponse,
         aidRatioSummaryResponse,
-        unusedCreditSummaryResponse,
+        dealHealthSummaryResponse,
         slotUsageSummaryResponse,
-        transactionsPerDayResponse,
-        pendingCreditResponse,
+        dealAidPerDayResponse,
         accountsPerRoleResponse,
         totalSlotsResponse,
-        freeSlotsResponse,
+        openSlotsResponse,
         accountsPerAllianceResponse,
       ] = await Promise.all([
         apiFetch<GeneralProgramSummary>('/api/admin/dashboard/general-program-summary'),
         apiFetch<AidRatioSummary>('/api/admin/dashboard/aid-ratio-summary'),
-        apiFetch<UnusedCreditSummary>('/api/admin/dashboard/unused-credit-summary'),
+        apiFetch<DealHealthSummary>('/api/admin/dashboard/deal-health-summary'),
         apiFetch<SlotUsageSummary>('/api/admin/dashboard/slot-usage-summary'),
-        apiFetch<TransactionCountByDay[]>('/api/admin/dashboard/transactions-per-day'),
-        apiFetch<CreditGroupsByAlliance[]>('/api/admin/dashboard/pending-credit-per-alliance'),
+        apiFetch<DealAidCountByDay[]>('/api/admin/dashboard/deal-aid-per-day'),
         apiFetch<AccountCountByRole[]>('/api/admin/dashboard/accounts-per-role'),
         apiFetch<TotalSlotGroupsByAlliance[]>('/api/admin/dashboard/total-slots-per-alliance'),
-        apiFetch<FreeSlotCountByList[]>('/api/admin/dashboard/free-slots-per-list'),
+        apiFetch<OpenSlotCountByRole[]>('/api/admin/dashboard/open-slots-per-role'),
         apiFetch<AccountCountByAlliance[]>('/api/admin/dashboard/accounts-per-alliance'),
       ])
 
@@ -117,21 +107,17 @@ export const useAdminStore = defineStore('admin', {
         console.error('Failed to load dashboard summary:', aidRatioSummaryResponse.error.value)
         throw aidRatioSummaryResponse.error.value
       }
-      if (unusedCreditSummaryResponse.error.value) {
-        console.error('Failed to load dashboard summary:', unusedCreditSummaryResponse.error.value)
-        throw unusedCreditSummaryResponse.error.value
+      if (dealHealthSummaryResponse.error.value) {
+        console.error('Failed to load deal health summary:', dealHealthSummaryResponse.error.value)
+        throw dealHealthSummaryResponse.error.value
       }
       if (slotUsageSummaryResponse.error.value) {
         console.error('Failed to load dashboard summary:', slotUsageSummaryResponse.error.value)
         throw slotUsageSummaryResponse.error.value
       }
-      if (transactionsPerDayResponse.error.value) {
-        console.error('Failed to load transactions per day:', transactionsPerDayResponse.error.value)
-        throw transactionsPerDayResponse.error.value
-      }
-      if (pendingCreditResponse.error.value) {
-        console.error('Failed to load pending credit:', pendingCreditResponse.error.value)
-        throw pendingCreditResponse.error.value
+      if (dealAidPerDayResponse.error.value) {
+        console.error('Failed to load deal aid per day:', dealAidPerDayResponse.error.value)
+        throw dealAidPerDayResponse.error.value
       }
       if (accountsPerRoleResponse.error.value) {
         console.error('Failed to load accounts per role:', accountsPerRoleResponse.error.value)
@@ -141,9 +127,9 @@ export const useAdminStore = defineStore('admin', {
         console.error('Failed to load total slots:', totalSlotsResponse.error.value)
         throw totalSlotsResponse.error.value
       }
-      if (freeSlotsResponse.error.value) {
-        console.error('Failed to load free slots:', freeSlotsResponse.error.value)
-        throw freeSlotsResponse.error.value
+      if (openSlotsResponse.error.value) {
+        console.error('Failed to load open slots:', openSlotsResponse.error.value)
+        throw openSlotsResponse.error.value
       }
       if (accountsPerAllianceResponse.error.value) {
         console.error('Failed to load accounts per alliance:', accountsPerAllianceResponse.error.value)
@@ -154,13 +140,12 @@ export const useAdminStore = defineStore('admin', {
       this.dashboard = {
         generalProgramSummary: generalProgramSummaryResponse.data.value!,
         aidRatioSummary: aidRatioSummaryResponse.data.value!,
-        unusedCreditSummary: unusedCreditSummaryResponse.data.value!,
+        dealHealthSummary: dealHealthSummaryResponse.data.value!,
         slotUsageSummary: slotUsageSummaryResponse.data.value!,
-        transactionsPerDay: transactionsPerDayResponse.data.value!,
-        pendingCreditByAlliance: pendingCreditResponse.data.value!,
+        dealAidPerDay: dealAidPerDayResponse.data.value!,
         accountsPerRole: accountsPerRoleResponse.data.value!,
         totalSlotsPerAlliance: totalSlotsResponse.data.value!,
-        freeSlotsPerList: freeSlotsResponse.data.value!,
+        openSlotsPerRole: openSlotsResponse.data.value!,
         accountsPerAlliance: accountsPerAllianceResponse.data.value!,
       }
     },

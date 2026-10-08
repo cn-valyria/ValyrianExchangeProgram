@@ -23,7 +23,7 @@ public class AdminRepository : IAdminRepository
         const string query = @"
 select
 	(select count(1) from account where va <> 'H') as TotalAccounts,
-    (select count(1) from transaction where co <> 0) as TotalTransactions";
+    (select count(1) from deal where status = 'active') as ActiveDeals";
 
         return await sqlConnection.QuerySingleAsync<GeneralProgramSummary>(query);
     }
@@ -33,124 +33,51 @@ select
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
 select
-	coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) +
-        coalesce(sum(case when va = 'C' then slots * multiplier else 0 end), 0) as TotalIncomingCashSlots,
-    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) +
-        coalesce(sum(case when va = 'D' then slots * multiplier else 0 end), 0) as TotalOutgoingCashSlots,
-    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) +
-        coalesce(sum(case when va = 'R' then slots * multiplier else 0 end), 0) as TotalIncomingTechSlots,
-    coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) +
-        coalesce(sum(case when va = 'F' then slots * multiplier else 0 end), 0) as TotalOutgoingTechSlots
-from (
-	select
-		va,
-		sum(aid_activity.slots_full) as slots,
-		case when va in ('F', 'D', 'C', 'R') then 2 else 1 end as multiplier
-	from account
-	join aid_activity on account.id = aid_activity.account_id and account.va <> 'H'
-	group by va
-) root;";
+    coalesce(sum(slot.cash_received_cycles > 0), 0) as TotalIncomingCashSlots,
+    coalesce(sum(slot.cash_sent_cycles > 0), 0) as TotalOutgoingCashSlots,
+    coalesce(sum(slot.tech_received_cycles > 0), 0) as TotalIncomingTechSlots,
+    coalesce(sum(slot.tech_sent_cycles > 0), 0) as TotalOutgoingTechSlots
+from slot
+join account on slot.account_id = account.id
+where account.va <> 'H';";
 
         return await sqlConnection.QuerySingleAsync<AidRatioSummary>(query);
     }
 
-    public async Task<UnusedCreditSummary> GetUnusedCreditSummaryAsync()
+    public async Task<DealHealthSummary> GetDealHealthSummaryAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
-select sum(credit * multiplier) as UnusedCredit
-from (
-	select 1 as multiplier, sum(rate) as credit, count(1) as txns
-	from transaction
-	where (lu like 'F%' or lu like 'D%')
-	and aid_id is not null
-    union
-    select -1 as multiplier, sum(rate) as credit, count(1) as txns
-	from transaction
-	where (lu like '%R' or lu like '%C')
-	and aid_id is not null
-    union
-    select -1 as multiplier, sum(rate) as credit, count(1) as txns
-	from transaction
-	where aid_id is null
-	and co in (2, 3, 4)
-    union
-    select 1 as multiplier, sum(rate) as credit, count(1) as txns
-	from transaction
-	where aid_id is null
-	and co in (5, 6)
-    union
-    select 1 as multiplier, sum(cc) + sum(tc) as credit, count(1) as txns
-	from account 
-	join cybernations_db.sent_txn sent 
-		on account.nation_id = sent.nation_id 
-		and account.va = 'H'
-		and sent.va <> 'H'
-	union
-	select -1 as multiplier, sum(cc) + sum(tc) as credit, count(1) as txns
-	from account
-	join cybernations_db.recd_txn recd 
-		on account.nation_id = recd.nation_id
-		and account.va = 'H'
-		and recd.va <> 'H'
-) data;";
+select
+    (select count(1) from wait_queue) as AccountsWaiting,
+    (select coalesce(sum(slots_needed), 0) from wait_queue) as SlotsWaiting,
+    (select count(1) from deal_flag where resolved_on is null) as OpenFlags;";
 
-        return await sqlConnection.QuerySingleAsync<UnusedCreditSummary>(query);
+        return await sqlConnection.QuerySingleAsync<DealHealthSummary>(query);
     }
 
     public async Task<SlotUsageSummary> GetSlotUsageSummaryAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
-select sum(slots_full) as MaxCapacity, sum(slots_used) as CurrentSlotsUsed
-from account
-join aid_activity on account.id = aid_activity.account_id
-where va <> 'H';";
+select coalesce(sum(slots_total), 0) as MaxCapacity, coalesce(sum(slots_used), 0) as CurrentSlotsUsed
+from account_deal_summary
+where role <> 'H';";
 
         return await sqlConnection.QuerySingleAsync<SlotUsageSummary>(query);
     }
 
-    public async Task<List<TransactionCountByDay>> GetTransactionsPerDayAsync()
+    public async Task<List<DealAidCountByDay>> GetDealAidPerDayAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
-select date(`date`) as DayTxnRecorded, count(1) as TxnCount
-from transaction
-join cybernations_db.aid on transaction.aid_id = aid.id
-join account sending_account on aid.sending_nation_id = sending_account.nation_id
-join account receiving_account on aid.receiving_nation_id = receiving_account.nation_id
-where `date` > curdate() - interval 5 day
-and sending_account.va <> 'H' and receiving_account.va <> 'H'
-group by date(`date`);";
+select activity_date as Day, count(1) as AidCount
+from deal_activity
+where activity_date > curdate() - interval 5 day
+group by activity_date
+order by activity_date;";
 
-        return (await sqlConnection.QueryAsync<TransactionCountByDay>(query)).ToList();
-    }
-    
-    public async Task<List<CreditGroupsByAlliance>> GetPendingCreditPerAllianceAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-
-        var results = new List<CreditGroupsByAlliance>();
-        var rawData = await sqlConnection.QueryAsync<PendingCreditRawData>("get_pending_credit_per_alliance", CommandType.StoredProcedure);
-        foreach (var grouping in rawData.GroupBy(x => x.AllianceName))
-        {
-            var newGroup = new CreditGroupsByAlliance
-            {
-                AllianceName = grouping.Key,
-                CreditGroups = grouping.Select(data => new CreditGroup { DateRange = data.DateRange, TotalCredit = data.TotalCredit }).ToList()
-            };
-
-            results.Add(newGroup);
-        }
-
-        return results;
-    }
-
-    private class PendingCreditRawData
-    {
-        public string DateRange { get; set; }
-        public string AllianceName { get; set; }
-        public int TotalCredit { get; set; }
+        return (await sqlConnection.QueryAsync<DealAidCountByDay>(query)).ToList();
     }
 
     public async Task<List<TotalSlotGroupsByAlliance>> GetTotalSlotsPerAllianceAsync()
@@ -158,28 +85,16 @@ group by date(`date`);";
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
 select
-	name as AllianceName,
-	coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
-        coalesce(sum(case when va = 'C' then slots * multiplier else 0 end), 0) as TotalIncomingCashSlots,
-    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
-        coalesce(sum(case when va = 'D' then slots * multiplier else 0 end), 0) as TotalOutgoingCashSlots,
-    coalesce(sum(case when va = 'B' then slots * multiplier else 0 end), 0) + 
-        coalesce(sum(case when va = 'R' then slots * multiplier else 0 end), 0) as TotalIncomingTechSlots,
-    coalesce(sum(case when va in ('S', 'N') then slots * multiplier else 0 end), 0) + 
-        coalesce(sum(case when va = 'F' then slots * multiplier else 0 end), 0) as TotalOutgoingTechSlots
-from (
-	select 
-		alliance.name,
-		va,
-		sum(aid_activity.slots_full) as slots,
-		case when va in ('F', 'D', 'C', 'R') then 2 else 1 end as multiplier
-	from account
-	join aid_activity on account.id = aid_activity.account_id and account.va <> 'H'
-    join cybernations_db.nation on account.nation_id = nation.id
-    join cybernations_db.alliance on nation.alliance_id = alliance.id
-	group by alliance.name, va
-) root
-group by name;";
+    alliance.name as AllianceName,
+    coalesce(sum(slot.cash_received_cycles > 0), 0) as TotalIncomingCashSlots,
+    coalesce(sum(slot.cash_sent_cycles > 0), 0) as TotalOutgoingCashSlots,
+    coalesce(sum(slot.tech_received_cycles > 0), 0) as TotalIncomingTechSlots,
+    coalesce(sum(slot.tech_sent_cycles > 0), 0) as TotalOutgoingTechSlots
+from slot
+join account on slot.account_id = account.id and account.va <> 'H'
+join cybernations_db.nation on account.nation_id = nation.id
+join cybernations_db.alliance on nation.alliance_id = alliance.id
+group by alliance.name;";
 
         var results = new List<TotalSlotGroupsByAlliance>
         {
@@ -229,30 +144,17 @@ group by va;";
         return (await sqlConnection.QueryAsync<AccountCountByRole>(query)).ToList();
     }
 
-    private async Task<List<TotalSlotCountByRole>> GetTotalSlotsPerRoleAsync()
+    public async Task<List<OpenSlotCountByRole>> GetOpenSlotsPerRoleAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
-select va as Role, sum(slots_full) as TotalSlots
-from account
-join aid_activity on account.id = aid_activity.account_id
-where va <> 'H'
-group by va;";
+select role as Role, sum(slots_available) as OpenSlots
+from account_deal_summary
+where role <> 'H'
+group by role
+order by role;";
 
-        return (await sqlConnection.QueryAsync<TotalSlotCountByRole>(query)).ToList();
-    }
-
-    public async Task<List<FreeSlotCountByList>> GetFreeSlotsPerListAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select list.name as ListName, sum(slots_full) - sum(slots_used) as FreeSlots
-from list
-join list_recipient on list.id = list_recipient.list_id
-join aid_activity on list_recipient.account_id = aid_activity.account_id
-group by list.name;";
-
-        return (await sqlConnection.QueryAsync<FreeSlotCountByList>(query)).ToList();
+        return (await sqlConnection.QueryAsync<OpenSlotCountByRole>(query)).ToList();
     }
 
     public async Task<List<AccountCountByAlliance>> GetAccountsPerAllianceAsync()

@@ -1,21 +1,9 @@
 namespace Valyria.Core.DTOs;
 
-public class TransactionCountByDay
+public class DealAidCountByDay
 {
-    public DateTime DayTxnRecorded { get; set; }
-    public int TxnCount { get; set; }
-}
-
-public class CreditGroupsByAlliance
-{
-    public string AllianceName { get; set; }
-    public List<CreditGroup> CreditGroups { get; set; }
-}
-
-public class CreditGroup
-{
-    public string DateRange { get; set; }
-    public int TotalCredit { get; set; }
+    public DateTime Day { get; set; }
+    public int AidCount { get; set; }
 }
 
 public class TotalSlotGroupsByAlliance
@@ -36,16 +24,10 @@ public class AccountCountByRole
     public int TotalAccounts { get; set; }
 }
 
-public class TotalSlotCountByRole
+public class OpenSlotCountByRole
 {
     public char Role { get; set; }
-    public int TotalSlots { get; set; }
-}
-
-public class FreeSlotCountByList
-{
-    public string ListName { get; set; }
-    public int FreeSlots { get; set; }
+    public int OpenSlots { get; set; }
 }
 
 public class AccountCountByAlliance
@@ -57,9 +39,12 @@ public class AccountCountByAlliance
 public class GeneralProgramSummary
 {
     public int TotalAccounts { get; set; }
-    public int TotalTransactions { get; set; }
+    public int ActiveDeals { get; set; }
 }
 
+/// <summary>
+/// Number of slots that send or receive each kind of aid
+/// </summary>
 public class AidRatioSummary
 {
     public int TotalIncomingCashSlots { get; set; }
@@ -68,9 +53,11 @@ public class AidRatioSummary
     public int TotalOutgoingTechSlots { get; set; }
 }
 
-public class UnusedCreditSummary
+public class DealHealthSummary
 {
-    public int UnusedCredit { get; set; }
+    public int AccountsWaiting { get; set; }
+    public int SlotsWaiting { get; set; }
+    public int OpenFlags { get; set; }
 }
 
 public class SlotUsageSummary

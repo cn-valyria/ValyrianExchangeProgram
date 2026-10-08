@@ -32,11 +32,6 @@ public class DealsController : ControllerBase
     {
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountDeals), accountId);
 
-        if (!CanAccessAccount(accountId))
-        {
-            return Forbid();
-        }
-
         try
         {
             var result = await _dealsRepository.GetAccountDealsAsync(accountId);
@@ -61,11 +56,6 @@ public class DealsController : ControllerBase
     public async Task<IActionResult> GetAccountDealHistory(int accountId, [FromQuery] int? limit, [FromQuery] int? offset)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountDealHistory), accountId);
-
-        if (!CanAccessAccount(accountId))
-        {
-            return Forbid();
-        }
 
         try
         {
@@ -92,11 +82,6 @@ public class DealsController : ControllerBase
     {
         _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}, accountId={AccountId}",
             nameof(GetDealActivity), id, accountId);
-
-        if (!CanAccessAccount(accountId))
-        {
-            return Forbid();
-        }
 
         try
         {
@@ -155,7 +140,6 @@ public class DealsController : ControllerBase
     /// Create a new deal between two slots
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateDeal([FromBody] CreateDealRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(CreateDeal));
@@ -184,7 +168,6 @@ public class DealsController : ControllerBase
     /// Cancel an existing deal
     /// </summary>
     [HttpPut("{id}/cancel")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CancelDeal(int id, [FromBody] CancelDealRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}", nameof(CancelDeal), id);
@@ -207,10 +190,60 @@ public class DealsController : ControllerBase
     }
 
     /// <summary>
+    /// Get a page of all active deals, optionally filtered by nation, ruler, or alliance name (admin only)
+    /// </summary>
+    [HttpGet("admin/active")]
+    public async Task<IActionResult> GetActiveDeals([FromQuery] string? search, [FromQuery] int? limit, [FromQuery] int? offset)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName}", nameof(GetActiveDeals));
+
+        try
+        {
+            var result = await _dealsRepository.GetActiveDealsAsync(search, limit ?? 25, offset ?? 0);
+
+            _logger.LogInformation("{MethodName} execution complete. Found {TotalCount} active deals",
+                nameof(GetActiveDeals), result.TotalCount);
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetActiveDeals)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
+    /// Search all aid sent or received by VEP accounts (admin only)
+    /// </summary>
+    [HttpGet("admin/aid-activity")]
+    public async Task<IActionResult> SearchAidActivity([FromQuery] AidActivityFilters filters, [FromQuery] int? limit, [FromQuery] int? offset)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName}", nameof(SearchAidActivity));
+        _logger.LogInformation("Received query params: {@query}", Request.Query);
+
+        try
+        {
+            var result = await _dealsRepository.SearchAidActivityAsync(filters, limit ?? 25, offset ?? 0);
+
+            _logger.LogInformation("{MethodName} execution complete. Found {TotalCount} aid records",
+                nameof(SearchAidActivity), result.TotalCount);
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(SearchAidActivity)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
     /// Get all accounts in the wait queue (admin only)
     /// </summary>
     [HttpGet("admin/wait-queue")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetWaitQueue()
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(GetWaitQueue));
@@ -236,7 +269,6 @@ public class DealsController : ControllerBase
     /// Get all flagged deals (admin only)
     /// </summary>
     [HttpGet("admin/flagged")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetFlaggedDeals()
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(GetFlaggedDeals));
@@ -262,7 +294,6 @@ public class DealsController : ControllerBase
     /// Resolve a deal flag (admin only)
     /// </summary>
     [HttpPut("admin/flags/{flagId}/resolve")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ResolveDealFlag(int flagId, [FromBody] ResolveFlagRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with flagId={FlagId}", nameof(ResolveDealFlag), flagId);
@@ -283,20 +314,6 @@ public class DealsController : ControllerBase
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
-
-    /// <summary>
-    /// Non-admins may only access their own account's deals. Admin roles match the UI's admin page access.
-    /// </summary>
-    private bool CanAccessAccount(int accountId)
-    {
-        if (User.IsInRole("Super Admin") || User.IsInRole("Admin (Read-only)"))
-        {
-            return true;
-        }
-
-        var accountIdClaim = User.FindFirst("AccountId")?.Value;
-        return int.TryParse(accountIdClaim, out var callerAccountId) && callerAccountId == accountId;
-    }
 }
 
 public class CancelDealRequest
@@ -306,5 +323,5 @@ public class CancelDealRequest
 
 public class ResolveFlagRequest
 {
-    public string AdminNotes { get; set; }
+    public string? AdminNotes { get; set; }
 }

@@ -66,12 +66,12 @@
             <NuxtLink to="/admin/accounts" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
               Accounts
             </NuxtLink>
-            <NuxtLink to="/admin/transactions" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
-              Transactions
+            <NuxtLink to="/admin/aid-activity" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+              Aid Activity
             </NuxtLink>
           </template>
-          <NuxtLink v-if="accountIsAdmin || accountCanSeeLists || accountIsReadOnlyAdmin" to="/admin/lists" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
-            Lists
+          <NuxtLink v-if="accountIsAdmin || accountCanSeeDeals || accountIsReadOnlyAdmin" to="/admin/deals" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            Deals
           </NuxtLink>
           <NuxtLink v-if="accountIsAdmin" to="/admin/settings" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             Settings
@@ -111,7 +111,8 @@ const accountIsAdmin = computed(() => {
   return loggedInUser.value?.roles?.some((role: any) => role.name === "Super Admin") ?? false
 })
 
-const accountCanSeeLists = computed(() => {
+// The "Admin - Lists" role predates VEP 3.0; the Deals page replaced the Lists page it was made for
+const accountCanSeeDeals = computed(() => {
   return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin - Lists") ?? false
 })
 
@@ -135,7 +136,7 @@ const accountMenuItems = computed(() => {
     ]
   ]
 
-  if (accountIsAdmin.value || accountCanSeeLists.value || accountIsReadOnlyAdmin.value) {
+  if (accountIsAdmin.value || accountCanSeeDeals.value || accountIsReadOnlyAdmin.value) {
     const adminItems = []
 
     if (accountIsAdmin.value || accountIsReadOnlyAdmin.value) {
@@ -155,16 +156,16 @@ const accountMenuItems = computed(() => {
         to: '/admin/accounts'
       })
       adminItems.push({
-        label: 'Transactions',
-        icon: 'i-heroicons-arrow-path',
-        to: '/admin/transactions'
+        label: 'Aid Activity',
+        icon: 'i-heroicons-arrows-right-left',
+        to: '/admin/aid-activity'
       })
     }
 
     adminItems.push({
-      label: 'Lists',
-      icon: 'i-heroicons-list-bullet',
-      to: '/admin/lists'
+      label: 'Deals',
+      icon: 'i-heroicons-link',
+      to: '/admin/deals'
     })
 
     if (accountIsAdmin.value) {

@@ -8,13 +8,12 @@ public interface IAdminRepository
 {
     Task<GeneralProgramSummary> GetGeneralProgramSummaryAsync();
     Task<SlotUsageSummary> GetSlotUsageSummaryAsync();
-    Task<UnusedCreditSummary> GetUnusedCreditSummaryAsync();
+    Task<DealHealthSummary> GetDealHealthSummaryAsync();
     Task<AidRatioSummary> GetAidRatioSummaryAsync();
-    Task<List<TransactionCountByDay>> GetTransactionsPerDayAsync();
-    Task<List<CreditGroupsByAlliance>> GetPendingCreditPerAllianceAsync();
+    Task<List<DealAidCountByDay>> GetDealAidPerDayAsync();
     Task<List<AccountCountByRole>> GetAccountsPerRoleAsync();
     Task<List<TotalSlotGroupsByAlliance>> GetTotalSlotsPerAllianceAsync();
-    Task<List<FreeSlotCountByList>> GetFreeSlotsPerListAsync();
+    Task<List<OpenSlotCountByRole>> GetOpenSlotsPerRoleAsync();
     Task<List<AccountCountByAlliance>> GetAccountsPerAllianceAsync();
     Task<List<AdminAccessSetting>> GetAdminAccessSettingsAsync();
     Task<bool> CreateAdminAccessAsync(int accountId, int adminRoleId);

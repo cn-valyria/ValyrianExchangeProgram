@@ -38,30 +38,36 @@ Store: `stores/account.ts` now holds `account`, `dealsSummary`, `dealHistory` an
 | `pages/index.vue` | Hero copy talks about balances/debts; "Transactions" feature card | Rewrite copy around deals and slots ("get matched with a partner, exchange aid every 10 days"). ⬜ |
 | `pages/how-it-works.vue` | Explains balance, credit/debt, aid list; screenshots of old account page | Rewrite sections: slots → matching → deal → keeping a deal active (10-day cycle, 1-day warning, 5-day cancellation). Replace `howitworks-account.png` / `howitworks-aidlist.png` with new screenshots. ⬜ |
 | `pages/leaderboard.vue` + `components/leaderboard/*` | Ranked by Activity Score (avg days to clear debt) via `/api/accounts/topScorers` | 🔧 Needs a deal-based metric (e.g. on-time rate or average days between deal activity, deals completed without flags). **Decision needed:** metric definition. Until then, hide the page or keep it behind a flag. ⬜ |
-| `components/NavBar.vue` | Admin links to Transactions and Lists | Update the admin menu to match section 3. ⬜ |
+| `components/NavBar.vue` | Admin links to Transactions and Lists | Admin menu now links to Aid Activity and Deals. ✅ |
 
-## 3. Admin
+## 3. Admin ✅
 
-| Page / component | Today | Change |
+| Page / component | Was | Now |
 |---|---|---|
-| `pages/admin/lists.vue`, `stores/adminLists.ts` | Aid lists 1–4 with credit/debt | **Replace** with `pages/admin/deals.vue`: all active deals (search by nation), cancel deal (`PUT /deals/{id}/cancel`), create a manual deal from two free slots (`GET /slots/available/{id}`, `POST /deals`). 🔧 needs a "list all deals" endpoint. ⬜ |
-| *(new)* `pages/admin/queue.vue` (or a tab on deals) | — | Wait queue (`GET /deals/admin/wait-queue`): slots needed, waiting since, priority. ⬜ |
-| *(new)* flags view (tab on deals) | — | `GET /deals/admin/flagged` + resolve with notes (`PUT /deals/admin/flags/{id}/resolve`). ⬜ |
-| `pages/admin/accounts.vue`, `stores/adminAccounts.ts` | Credit/Debt columns, list order | Replace with slots used/total and active deal count. 🔧 `GET /api/accounts` needs those fields (from `account_deal_summary`). ⬜ |
-| `components/admin/AccountEditDialog.vue` | Balance/credit/debt section, list info | Replace with a **Slots** section: the account's slots (`GET /slots/account/{id}`), editable cycle values (`PUT /slots/{id}`), and which slot is in which deal. ⬜ |
-| `pages/admin/transactions.vue`, `TransactionsFilter.vue`, `ManualTransactionDialog.vue`, `AidBasedTransactionDialog.vue`, `stores/adminTransactions.ts` | Ledger transactions + manual credit/debt adjustments | **Decision needed:** manual credit/debt adjustments make no sense anymore. Either retire the page, or turn it into a read-only **Aid Activity** search (deal_activity + aid) without "Credit Change" columns. ⬜ |
-| `pages/admin/index.vue` + `components/admin/dashboard/*` | Credit-based tiles | Remove `PendingCreditTile`, `UnusedCreditStatCard`, `FreeSlotsByList`. Repurpose `ProgramSlotUsageStatCard` (slots in deals / total slots), `SlotRatiosStatCard`, `GeneralProgramStatsCard` (accounts, active deals). Add active deals, queue length and open flags. 🔧 `AdminController` dashboard queries still read the old `balance` / list tables, so they need deal-based versions. ⬜ |
-| `pages/admin/settings.vue` | Admin access | No change expected. ✅ |
+| `pages/admin/deals.vue` (replaces `lists.vue`) | Aid lists 1–4 with credit/debt | Three tabs. **Active Deals**: paged and searchable, with both parties, what each sends, last aid, days idle and status; cancel with a reason; create a manual deal from two open slots (warns if the cycles aren't exact inverses). **Wait Queue**: priority order. **Flags**: resolve with notes. Same role access the Lists page had; read-only admins get no actions. |
+| `pages/admin/aid-activity.vue` (replaces `transactions.vue`) | Ledger transactions + manual credit/debt adjustments | Read-only search of all aid sent or received by VEP accounts. On Hold accounts are excluded by default, with a toggle to include them. A "Deal #n" or "No deal" badge on each row, plus an "only aid with no deal" toggle. The filter slideover covers name search (sent/received/either) and date range. |
+| `pages/admin/accounts.vue` | Credit/debt and list-activity columns | "Slots in Deals" (used / total) and "Open Flags" columns. |
+| `components/admin/AccountEditDialog.vue` | Balance/credit/debt section | **Slots** section (`AccountSlotsEditor.vue`): each slot's cycle values, editable and saved per slot, with an in-a-deal / open badge. |
+| `pages/admin/index.vue` + `components/admin/dashboard/*` | Credit-based tiles | Stat cards: accounts / active deals, slots in deals, deal health (accounts waiting + open flags), incoming/outgoing slot ratios. Tiles: accounts by role, slots by aid direction per alliance, deal aid per day, accounts by alliance, open slots by role. Removed: pending credit, unused credit, free slots by list. |
+| `pages/admin/settings.vue` | Admin access | No change. |
 
-## 4. Shared cleanup (after sections 2–3 land)
+Backend changes for this section:
+- `GET /api/deals/admin/active` (paged, searchable) and `GET /api/deals/admin/aid-activity` (filters: search, direction, sentSince/Until, includeOnHold, unmatchedOnly).
+- The flagged-deals query now maps `flag_type` to the enum in SQL. Before, `'1_day_inactive'` couldn't be parsed into `DealFlagType`, so the endpoint threw whenever a flag existed.
+- `AccountDetail` gained `SlotsUsed` / `SlotsTotal` / `OpenFlagCount`. The shared account query no longer joins `balance`, `aid_activity`, `account_list_performance` or the aid totals, and the alliance join is now a left join.
+- The dashboard queries were rewritten against `slot`, `deal`, `deal_activity`, `deal_flag`, `wait_queue` and `account_deal_summary`. The `unused-credit-summary`, `pending-credit-per-alliance`, `transactions-per-day` and `free-slots-per-list` endpoints were replaced by `deal-health-summary`, `deal-aid-per-day` and `open-slots-per-role`.
+- **Role-based authorization was removed from `DealsController` and `SlotsController` for now** (sign-in is still required). The UI's role gating is the only access control on admin actions until auth is revisited.
 
-- Delete now-unused: `components/account/{Balance,ActivityScore,AidList,CreditHistory,ListPerformance}.vue` (done in step 1), `stores/shared/{listPerformance,transaction,transactionsPage}.ts` if nothing references them, `infrastructure/constants.ts` → `ADJUSTMENT_TYPES` / `TRANSACTION_TYPES`.
-- Backend: retire `/api/accounts/{id}/aidList`, `/listPerformance`, `/transactions`, `ListsController`, and the credit-based admin dashboard endpoints once no UI uses them.
-- Update `REDESIGN_STATUS.md` / README screenshots.
+## 4. Shared cleanup
+
+- ✅ Deleted the legacy account components, the Lists/Transactions pages and their stores, the transaction dialogs and filter, `stores/shared/{listPerformance,transaction,transactionsPage}.ts`, `TRANSACTION_TYPES` / `ADJUSTMENT_TYPES`, and `transactionClassifications`.
+- ⬜ Backend: nothing in the UI calls `ListsController`, `TransactionsController`, `/api/accounts/{id}/aidList`, `/listPerformance` or `/transactions` anymore, so they can be retired. `/api/accounts/topScorers` is still used by the leaderboard (section 2).
+- ⬜ Update `REDESIGN_STATUS.md` / README screenshots.
 
 ## 5. Backend issues spotted along the way (not UI, but they affect what the UI shows)
 
 1. **`check_deal_inactivity` flags any deal with no activity in the last 1 day.** With a 10-day cycle, almost every healthy deal gets a `1_day_inactive` flag daily, and any deal with no aid in 5 days is cancelled. That doesn't fit the "per 10-day period" cycle model in V7. The thresholds in `DealsRepository.GetAccountDealsAsync` (`NeedsAction` at 5 days) have the same issue. The account page shows whatever the backend reports, so this should be settled before launch.
 2. `check_deal_inactivity` always records `account_1` as the "flagged" (offender) party, based on slot order rather than on who failed to send. The UI therefore avoids blaming either side in flag messages.
-3. **Admin deal/slot endpoints probably can't be reached.** `DealsController` admin actions and all of `SlotsController` use `[Authorize(Roles = "Admin")]`, but the roles the UI knows about are `Super Admin`, `Admin - Lists` and `Admin (Read-only)`. Unless a role literally named `Admin` exists in the DB, these return 403 for everyone. Fix this before section 3 starts. The new account-scoped checks use `Super Admin` / `Admin (Read-only)`.
-4. `AccountsController` endpoints (`GET /api/accounts/{id}` etc.) don't verify the caller owns the account. Only the UI checks this. The deal endpoints now do.
+3. **Authorization (to-do):** the `[Authorize(Roles = "Admin")]` checks referenced a role that no longer exists. They've been removed, along with the account-ownership check on the account-scoped deal endpoints. No endpoint verifies roles or account ownership right now; only the UI does. Revisit once it's confirmed whether role claims are registered correctly.
+4. `CreatedBy` / `CancelledBy` / `ResolvedBy` / slot `UpdatedBy` come from `User.Identity.Name`. The JWT has no name claim, so these will likely all record `"unknown"`. Same root cause as item 3.
+5. The aid-activity search left-joins `account` twice over the whole `aid` table, with an OR across both sides. Fine at current volumes, but worth an index check if it gets slow.

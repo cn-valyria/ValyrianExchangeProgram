@@ -19,7 +19,7 @@
           <AdminDashboardProgramSlotUsageStatCard :data="dashboard.slotUsageSummary" />
         </UCard>
         <UCard>
-          <AdminDashboardUnusedCreditStatCard :data="dashboard.unusedCreditSummary" />
+          <AdminDashboardDealHealthStatCard :data="dashboard.dealHealthSummary" />
         </UCard>
         <UCard>
           <AdminDashboardSlotRatiosStatCard :data="dashboard.aidRatioSummary" />
@@ -35,20 +35,17 @@
           <AdminDashboardTotalSlotsByAlliance :data="dashboard.totalSlotsPerAlliance" :alliances="alliances" />
         </UCard>
         <UCard>
-          <AdminDashboardTotalTransactionsTile :data="dashboard.transactionsPerDay" />
+          <AdminDashboardDealAidPerDayTile :data="dashboard.dealAidPerDay" />
         </UCard>
       </div>
 
       <!-- Dashboard Tiles - Row 2 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UCard>
           <AdminDashboardAccountsByAlliance :data="dashboard.accountsPerAlliance" />
         </UCard>
         <UCard>
-          <AdminDashboardFreeSlotsByList :data="dashboard.freeSlotsPerList" />
-        </UCard>
-        <UCard>
-          <AdminDashboardPendingCreditTile :data="dashboard.pendingCreditByAlliance" />
+          <AdminDashboardOpenSlotsByRole :data="dashboard.openSlotsPerRole" />
         </UCard>
       </div>
     </div>

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Total Slots By List</p>
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Slots By Aid Direction</p>
     <div class="h-64">
       <Bar :data="chartData" :options="chartOptions" />
     </div>

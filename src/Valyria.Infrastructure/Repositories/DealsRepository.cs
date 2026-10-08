@@ -388,6 +388,194 @@ public class DealsRepository : IDealsRepository
         return entries.ToList();
     }
 
+    public async Task<AdminDealPage> GetActiveDealsAsync(string? search, int limit, int offset)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        const string fromClause = @"
+            FROM deal d
+            JOIN slot s1 ON d.slot_1_id = s1.id
+            JOIN slot s2 ON d.slot_2_id = s2.id
+            JOIN account a1 ON s1.account_id = a1.id
+            JOIN account a2 ON s2.account_id = a2.id
+            LEFT JOIN cybernations_db.nation n1 ON a1.nation_id = n1.id
+            LEFT JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
+            LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
+            LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
+            WHERE d.status = 'active'
+                AND (
+                    @search IS NULL
+                    OR n1.nation_name LIKE CONCAT('%', @search, '%')
+                    OR n1.ruler_name LIKE CONCAT('%', @search, '%')
+                    OR al1.name LIKE CONCAT('%', @search, '%')
+                    OR n2.nation_name LIKE CONCAT('%', @search, '%')
+                    OR n2.ruler_name LIKE CONCAT('%', @search, '%')
+                    OR al2.name LIKE CONCAT('%', @search, '%')
+                )";
+
+        search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+
+        var totalCount = await connection.QuerySingleAsync<int>(
+            "SELECT COUNT(*) " + fromClause,
+            new { search });
+
+        var deals = await connection.QueryAsync<AdminDealItem, SlotDetail, AccountSimplified, SlotDetail, AccountSimplified, AdminDealItem>(@"
+            SELECT
+                d.id AS Id,
+                d.created_on AS CreatedOn,
+                d.created_by AS CreatedBy,
+                (
+                    SELECT MAX(da.activity_date) FROM deal_activity da
+                    WHERE da.deal_id = d.id
+                ) AS LastActivityDate,
+                DATEDIFF(CURDATE(), COALESCE(
+                    (SELECT MAX(da.activity_date) FROM deal_activity da WHERE da.deal_id = d.id),
+                    DATE(d.created_on)
+                )) AS DaysSinceActivity,
+                EXISTS (
+                    SELECT 1 FROM deal_flag df
+                    WHERE df.deal_id = d.id AND df.resolved_on IS NULL
+                ) AS HasOpenFlag,
+                -- Slot 1
+                s1.id AS Id,
+                s1.slot_number AS SlotNumber,
+                s1.tech_sent_cycles AS TechSentCycles,
+                s1.tech_received_cycles AS TechReceivedCycles,
+                s1.cash_sent_cycles AS CashSentCycles,
+                s1.cash_received_cycles AS CashReceivedCycles,
+                TRUE AS HasActiveDeal,
+                -- Slot 1 account
+                a1.id AS AccountId,
+                n1.id AS NationId,
+                n1.nation_name AS NationName,
+                n1.ruler_name AS RulerName,
+                al1.name AS AllianceName,
+                -- Slot 2
+                s2.id AS Id,
+                s2.slot_number AS SlotNumber,
+                s2.tech_sent_cycles AS TechSentCycles,
+                s2.tech_received_cycles AS TechReceivedCycles,
+                s2.cash_sent_cycles AS CashSentCycles,
+                s2.cash_received_cycles AS CashReceivedCycles,
+                TRUE AS HasActiveDeal,
+                -- Slot 2 account
+                a2.id AS AccountId,
+                n2.id AS NationId,
+                n2.nation_name AS NationName,
+                n2.ruler_name AS RulerName,
+                al2.name AS AllianceName
+            " + fromClause + @"
+            ORDER BY DaysSinceActivity DESC, d.id
+            LIMIT @limit OFFSET @offset",
+            (deal, slot1, account1, slot2, account2) =>
+            {
+                slot1.Account = account1;
+                slot2.Account = account2;
+                deal.Slot1 = slot1;
+                deal.Slot2 = slot2;
+                return deal;
+            },
+            new { search, limit, offset },
+            splitOn: "Id,AccountId,Id,AccountId");
+
+        return new AdminDealPage
+        {
+            TotalCount = totalCount,
+            Results = deals.ToList()
+        };
+    }
+
+    public async Task<AidActivityPage> SearchAidActivityAsync(AidActivityFilters filters, int limit, int offset)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        // Any aid with a VEP account on at least one side
+        const string fromClause = @"
+            FROM cybernations_db.aid aid
+            LEFT JOIN account sa ON aid.sending_nation_id = sa.nation_id
+            LEFT JOIN account ra ON aid.receiving_nation_id = ra.nation_id
+            LEFT JOIN cybernations_db.nation sn ON aid.sending_nation_id = sn.id
+            LEFT JOIN cybernations_db.nation rn ON aid.receiving_nation_id = rn.id
+            LEFT JOIN cybernations_db.alliance sal ON sn.alliance_id = sal.id
+            LEFT JOIN cybernations_db.alliance ral ON rn.alliance_id = ral.id
+            WHERE (sa.id IS NOT NULL OR ra.id IS NOT NULL)
+                AND (@includeOnHold OR (COALESCE(sa.va, '') <> 'H' AND COALESCE(ra.va, '') <> 'H'))
+                AND (NOT @unmatchedOnly OR NOT EXISTS (SELECT 1 FROM deal_activity da WHERE da.aid_id = aid.id))
+                AND (@sentSince IS NULL OR aid.date >= @sentSince)
+                AND (@sentUntil IS NULL OR aid.date < DATE_ADD(@sentUntil, INTERVAL 1 DAY))
+                AND (
+                    @search IS NULL
+                    OR (@direction <> 'received' AND (
+                        sn.nation_name LIKE CONCAT('%', @search, '%')
+                        OR sn.ruler_name LIKE CONCAT('%', @search, '%')
+                        OR sal.name LIKE CONCAT('%', @search, '%')
+                    ))
+                    OR (@direction <> 'sent' AND (
+                        rn.nation_name LIKE CONCAT('%', @search, '%')
+                        OR rn.ruler_name LIKE CONCAT('%', @search, '%')
+                        OR ral.name LIKE CONCAT('%', @search, '%')
+                    ))
+                )";
+
+        var parameters = new
+        {
+            search = string.IsNullOrWhiteSpace(filters.Search) ? null : filters.Search.Trim(),
+            direction = filters.Direction?.ToLowerInvariant() ?? "",
+            sentSince = filters.SentSince?.Date,
+            sentUntil = filters.SentUntil?.Date,
+            includeOnHold = filters.IncludeOnHold,
+            unmatchedOnly = filters.UnmatchedOnly,
+            limit,
+            offset
+        };
+
+        var totalCount = await connection.QuerySingleAsync<int>(
+            "SELECT COUNT(*) " + fromClause,
+            parameters);
+
+        var results = await connection.QueryAsync<AidActivityItem, AidParty, AidParty, AidActivityItem>(@"
+            SELECT
+                aid.id AS AidId,
+                aid.date AS SentOn,
+                aid.status AS Status,
+                aid.money AS Money,
+                aid.technology AS Technology,
+                aid.soldiers AS Soldiers,
+                aid.reason AS Reason,
+                (SELECT MIN(da.deal_id) FROM deal_activity da WHERE da.aid_id = aid.id) AS DealId,
+                -- Sender
+                aid.sending_nation_id AS NationId,
+                sn.nation_name AS NationName,
+                sn.ruler_name AS RulerName,
+                sal.name AS AllianceName,
+                sa.id AS AccountId,
+                sa.va AS Role,
+                -- Receiver
+                aid.receiving_nation_id AS NationId,
+                rn.nation_name AS NationName,
+                rn.ruler_name AS RulerName,
+                ral.name AS AllianceName,
+                ra.id AS AccountId,
+                ra.va AS Role
+            " + fromClause + @"
+            ORDER BY aid.date DESC, aid.id DESC
+            LIMIT @limit OFFSET @offset",
+            (item, sender, receiver) =>
+            {
+                item.Sender = sender;
+                item.Receiver = receiver;
+                return item;
+            },
+            parameters,
+            splitOn: "NationId,NationId");
+
+        return new AidActivityPage
+        {
+            TotalCount = totalCount,
+            Results = results.ToList()
+        };
+    }
+
     public async Task<List<DealFlagDetail>> GetFlaggedDealsAsync()
     {
         using var connection = new MySqlConnection(_connectionString);
@@ -396,7 +584,11 @@ public class DealsRepository : IDealsRepository
             SELECT
                 df.id AS Id,
                 df.deal_id AS DealId,
-                df.flag_type AS FlagType,
+                -- The enum's DB values ('1_day_inactive') aren't valid C# enum names
+                CASE df.flag_type
+                    WHEN '1_day_inactive' THEN 0
+                    WHEN '5_day_replacement' THEN 1
+                END AS FlagType,
                 df.flagged_on AS FlaggedOn,
                 df.resolved_on AS ResolvedOn,
                 df.resolved_by AS ResolvedBy,

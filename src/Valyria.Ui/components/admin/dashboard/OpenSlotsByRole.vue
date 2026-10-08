@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Free Aid Slots</p>
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Open Slots By Role</p>
     <div class="h-64">
       <Bar :data="chartData" :options="chartOptions" />
     </div>
@@ -10,17 +10,14 @@
 <script setup lang="ts">
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from 'chart.js'
 import { Bar } from 'vue-chartjs'
+import { accountRoles } from '~/infrastructure/dataLists'
+import type { OpenSlotCountByRole } from '~/stores/admin'
 
 // Register Chart.js components
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
-interface ListData {
-  listName: string
-  freeSlots: number
-}
-
 interface Props {
-  data: ListData[] | undefined
+  data: OpenSlotCountByRole[] | undefined
 }
 
 const props = defineProps<Props>()
@@ -36,11 +33,11 @@ const chartData = computed(() => {
   ]
 
   return {
-    labels: props.data?.map(x => x.listName) ?? [],
+    labels: props.data?.map(x => accountRoles.find(role => role.code === x.role)?.description ?? x.role) ?? [],
     datasets: [
       {
-        label: 'Free Aid Slots',
-        data: props.data?.map(x => x.freeSlots) ?? [],
+        label: 'Open Slots',
+        data: props.data?.map(x => x.openSlots) ?? [],
         backgroundColor: props.data?.map((_, index) => colors[index % colors.length]) ?? [],
         borderColor: props.data?.map((_, index) => colors[index % colors.length].replace('0.8', '1')) ?? [],
         borderWidth: 2,

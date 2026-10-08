@@ -113,59 +113,25 @@ const columns: TableColumn<AdminAccount>[] = [
     }
   },
   {
-    accessorKey: 'credit',
-    header: 'Credit',
-    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.credit)
-  },
-  {
-    accessorKey: 'debt',
-    header: 'Debt',
-    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.debt)
-  },
-  {
-    accessorKey: 'avgDaysToClearDebt',
-    header: 'Debt Activity',
-    cell: ({ row }) => {
-      const account = row.original
-      if (account.totalTimesInDebt === 0) {
-        return h('span', { class: 'text-gray-400 dark:text-gray-500 italic' }, 'N/A')
-      }
-      const avgDays = account.avgDaysToClearDebt.toFixed(2)
-      const times = account.totalTimesInDebt
-      return h('div', { class: 'text-gray-900 dark:text-white' }, [
-        h('span', { class: 'font-mono' }, avgDays),
-        h('span', { class: 'text-xs text-gray-500 dark:text-gray-400 ml-1' }, `(${times})`)
-      ])
-    }
-  },
-  {
-    accessorKey: 'avgDaysToFillCredit',
-    header: 'Credit Activity',
-    cell: ({ row }) => {
-      const account = row.original
-      if (account.totalTimesWithCredit === 0) {
-        return h('span', { class: 'text-gray-400 dark:text-gray-500 italic' }, 'N/A')
-      }
-      const avgDays = account.avgDaysToFillCredit.toFixed(2)
-      const times = account.totalTimesWithCredit
-      return h('div', { class: 'text-gray-900 dark:text-white' }, [
-        h('span', { class: 'font-mono' }, avgDays),
-        h('span', { class: 'text-xs text-gray-500 dark:text-gray-400 ml-1' }, `(${times})`)
-      ])
-    }
-  },
-  {
     accessorKey: 'slotsUsed',
-    header: 'Slots Free',
+    header: 'Slots in Deals',
     cell: ({ row }) => {
-      const slotsFree = row.original.slotsFull - row.original.slotsUsed
-      return h('span', { class: 'font-mono text-gray-900 dark:text-white' }, slotsFree)
+      const account = row.original
+      const isFull = account.slotsUsed >= account.slotsTotal
+      return h('span', {
+        class: `font-mono ${isFull ? 'text-gray-900 dark:text-white' : 'text-blue-600 dark:text-blue-400 font-semibold'}`
+      }, `${account.slotsUsed} / ${account.slotsTotal}`)
     }
   },
   {
-    accessorKey: 'slotsFull',
-    header: 'Slots Full',
-    cell: ({ row }) => h('span', { class: 'font-mono text-gray-900 dark:text-white' }, row.original.slotsFull)
+    accessorKey: 'openFlagCount',
+    header: 'Open Flags',
+    cell: ({ row }) => {
+      const count = row.original.openFlagCount
+      return count > 0
+        ? h(resolveComponent('UBadge'), { color: 'error', variant: 'subtle' }, () => count)
+        : h('span', { class: 'text-gray-400 dark:text-gray-500' }, '0')
+    }
   },
   {
     accessorKey: 'id',

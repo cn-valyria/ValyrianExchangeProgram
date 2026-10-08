@@ -56,8 +56,9 @@
 
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { ACCOUNT_ROLE_CODES, AID_PACKAGE } from '~/infrastructure/constants'
-import type { Account, DealDetail, DealNotification, SlotDetail } from '~/stores/account'
+import { ACCOUNT_ROLE_CODES } from '~/infrastructure/constants'
+import { describeAid, getDealStateColor, getDealStateFromActivity, getDealStateLabel, type DealState } from '~/infrastructure/deals'
+import type { Account, DealDetail, DealNotification } from '~/stores/account'
 import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
 interface Props {
@@ -65,8 +66,6 @@ interface Props {
   deals: DealDetail[]
   notifications: DealNotification[]
 }
-
-type DealState = 'flagged' | 'needsAction' | 'atRisk' | 'new' | 'active'
 
 interface ActiveDealRow {
   slotNumber: number
@@ -153,9 +152,9 @@ const columns: TableColumn<ActiveDealRow>[] = [
     header: 'Status',
     cell: ({ row }) => {
       const badge = h(resolveComponent('UBadge'), {
-        color: getStateColor(row.original.state),
+        color: getDealStateColor(row.original.state),
         variant: 'subtle'
-      }, () => getStateLabel(row.original.state))
+      }, () => getDealStateLabel(row.original.state))
 
       return row.original.stateDetail
         ? h(resolveComponent('UTooltip'), { text: row.original.stateDetail }, () => badge)
@@ -164,41 +163,8 @@ const columns: TableColumn<ActiveDealRow>[] = [
   }
 ]
 
-// Turns a slot's cycle counts into text like "100 tech + $9M"
-const describeAid = (techCycles: number, cashCycles: number): string => {
-  const parts: string[] = []
-  if (techCycles > 0) parts.push(`${techCycles * AID_PACKAGE.tech} tech`)
-  if (cashCycles > 0) parts.push(`$${cashCycles * AID_PACKAGE.cashMillions}M`)
-  return parts.length > 0 ? parts.join(' + ') : 'Nothing'
-}
-
-const getDealState = (deal: DealDetail): DealState => {
-  if (flaggedDealIds.value.has(deal.id)) return 'flagged'
-  if (deal.needsAction) return 'needsAction'
-  if (deal.actionNeeded) return 'atRisk'
-  if (deal.lastActivityDate === null) return 'new'
-  return 'active'
-}
-
-const getStateLabel = (state: DealState): string => {
-  switch (state) {
-    case 'flagged': return 'Flagged'
-    case 'needsAction': return 'Needs Action'
-    case 'atRisk': return 'At Risk'
-    case 'new': return 'New'
-    default: return 'Active'
-  }
-}
-
-const getStateColor = (state: DealState): 'error' | 'warning' | 'info' | 'success' => {
-  switch (state) {
-    case 'flagged':
-    case 'needsAction': return 'error'
-    case 'atRisk': return 'warning'
-    case 'new': return 'info'
-    default: return 'success'
-  }
-}
+const getDealState = (deal: DealDetail): DealState =>
+  getDealStateFromActivity(flaggedDealIds.value.has(deal.id), deal.daysSinceActivity, deal.lastActivityDate)
 
 const getAidFormLink = (nation: NationSimplified) => {
   return `https://www.cybernations.net/aid_form.asp?Nation_ID=${nation.nationId}&bynation=${props.account.nationId}`

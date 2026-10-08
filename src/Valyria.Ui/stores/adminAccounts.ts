@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { SlotDetail } from './account'
 import type { NationalWarStatus, RecentActivity } from './shared/enums'
 
 export interface AdminAccount {
@@ -20,26 +21,8 @@ export interface AdminAccount {
   hasFederalAidCommission: boolean
   hasDisasterReliefAgency: boolean
   slotsUsed: number
-  slotsFull: number
-  totalCashSent: number
-  totalCashReceived: number
-  totalTechSent: number
-  totalTechReceived: number
-  credit: number
-  debt: number
-  cashSentTechCredit: number
-  cashReceivedTechCredit: number
-  cashSentCashCredit: number
-  cashReceivedCashCredit: number
-  techSentCashCredit: number
-  techReceivedCashCredit: number
-  techSentTechCredit: number
-  techReceivedTechCredit: number
-  previousListOrder: number
-  totalTimesInDebt: number
-  avgDaysToClearDebt: number
-  totalTimesWithCredit: number
-  avgDaysToFillCredit: number
+  slotsTotal: number
+  openFlagCount: number
 }
 
 export const useAdminAccountsStore = defineStore('adminAccounts', {
@@ -107,6 +90,38 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
           hasDisasterReliefAgency: payload.hasDisasterReliefAgency,
         }
         this.accounts[index] = updatedAccount as AdminAccount
+      }
+    },
+
+    async loadAccountSlots(accountId: number): Promise<SlotDetail[]> {
+      const { apiFetch } = useApiClient()
+
+      const { data, error } = await apiFetch<{ slots: SlotDetail[] }>(`/api/slots/account/${accountId}`)
+
+      if (error.value) {
+        console.error('Failed to load account slots:', error.value)
+        throw error.value
+      }
+
+      return data.value?.slots ?? []
+    },
+
+    async updateSlot(slot: SlotDetail) {
+      const { apiFetch } = useApiClient()
+
+      const { error } = await apiFetch<void>(`/api/slots/${slot.id}`, {
+        method: 'PUT',
+        body: {
+          techSentCycles: slot.techSentCycles,
+          techReceivedCycles: slot.techReceivedCycles,
+          cashSentCycles: slot.cashSentCycles,
+          cashReceivedCycles: slot.cashReceivedCycles,
+        },
+      })
+
+      if (error.value) {
+        console.error('Failed to update slot:', error.value)
+        throw error.value
       }
     },
 

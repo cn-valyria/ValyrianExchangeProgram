@@ -10,7 +10,7 @@ namespace Valyria.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class SlotsController : ControllerBase
 {
     private readonly IDealsRepository _dealsRepository;

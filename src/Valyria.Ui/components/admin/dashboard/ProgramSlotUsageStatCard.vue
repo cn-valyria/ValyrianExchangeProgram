@@ -1,6 +1,6 @@
 <template>
   <div class="text-center space-y-2">
-    <p class="text-sm text-gray-500 dark:text-gray-400">Program Slot Usage</p>
+    <p class="text-sm text-gray-500 dark:text-gray-400">Slots in Deals</p>
     <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ usagePercentage }}%</p>
     <p class="text-xs text-gray-500 dark:text-gray-400">({{ data?.currentSlotsUsed ?? 0 }} / {{ data?.maxCapacity ?? 0 }})</p>
   </div>

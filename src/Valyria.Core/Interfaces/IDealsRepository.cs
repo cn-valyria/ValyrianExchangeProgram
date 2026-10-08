@@ -39,6 +39,16 @@ public interface IDealsRepository
     Task CancelDealAsync(int dealId, string reason, string cancelledBy);
 
     /// <summary>
+    /// Get a page of all active deals, optionally filtered by nation, ruler, or alliance name (admin view)
+    /// </summary>
+    Task<AdminDealPage> GetActiveDealsAsync(string? search, int limit, int offset);
+
+    /// <summary>
+    /// Search all aid sent or received by VEP accounts, with whether each aid matched a deal (admin view)
+    /// </summary>
+    Task<AidActivityPage> SearchAidActivityAsync(AidActivityFilters filters, int limit, int offset);
+
+    /// <summary>
     /// Get all accounts in the wait queue (admin view)
     /// </summary>
     Task<List<WaitQueueEntry>> GetWaitQueueAsync();
@@ -73,7 +83,8 @@ public class CreateDealRequest
 {
     public int Slot1Id { get; set; }
     public int Slot2Id { get; set; }
-    public string CreatedBy { get; set; }
+    // Set by the controller from the signed-in user, never by the client
+    public string? CreatedBy { get; set; }
 }
 
 public class DealFlagDetail

@@ -102,63 +102,13 @@
             </div>
           </div>
 
-          <!-- Transactional Data Section -->
+          <!-- Slots Section -->
           <div v-if="isInUpdateState" class="my-6">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transactional Data</h2>
-            <fieldset disabled class="space-y-4 px-2">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <UFormField label="Slots Free">
-                  <UInput :model-value="state.slotsFull - state.slotsUsed" class="w-full" />
-                </UFormField>
-                <UFormField label="Slots Full">
-                  <UInput :model-value="state.slotsFull" class="w-full" />
-                </UFormField>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <UFormField label="Credit">
-                  <UInput :model-value="state.credit" class="w-full" />
-                </UFormField>
-                <UFormField label="Debt">
-                  <UInput :model-value="state.debt" class="w-full" />
-                </UFormField>
-                <UFormField label="Balance">
-                  <UInput :model-value="null" class="w-full" />
-                </UFormField>
-              </div>
-
-              <h3 class="text-md text-gray-900 dark:text-white mb-4">Cash Credit Totals</h3>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormField label="Cash Sent">
-                  <UInput :model-value="state.cashSentCashCredit" class="w-full" />
-                </UFormField>
-                <UFormField label="Cash Rec'd">
-                  <UInput :model-value="state.cashReceivedCashCredit" class="w-full" />
-                </UFormField>
-                <UFormField label="Tech Sent">
-                  <UInput :model-value="state.techSentCashCredit" class="w-full" />
-                </UFormField>
-                <UFormField label="Tech Rec'd">
-                  <UInput :model-value="state.techReceivedCashCredit" class="w-full" />
-                </UFormField>
-              </div>
-
-              <h3 class="text-md text-gray-900 dark:text-white mb-4">Tech Credit Totals</h3>
-              <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <UFormField label="Cash Sent">
-                  <UInput :model-value="state.cashSentTechCredit" class="w-full" />
-                </UFormField>
-                <UFormField label="Cash Rec'd">
-                  <UInput :model-value="state.cashReceivedTechCredit" class="w-full" />
-                </UFormField>
-                <UFormField label="Tech Sent">
-                  <UInput :model-value="state.techSentTechCredit" class="w-full" />
-                </UFormField>
-                <UFormField label="Tech Rec'd">
-                  <UInput :model-value="state.techReceivedTechCredit" class="w-full" />
-                </UFormField>
-              </div>
-            </fieldset>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Slots
+              <span class="text-base font-normal text-gray-500 dark:text-gray-400">({{ state.slotsUsed }} / {{ state.slotsTotal }} in deals)</span>
+            </h2>
+            <AdminAccountSlotsEditor :accountId="state.id" />
           </div>
         </div>
       </UForm>
