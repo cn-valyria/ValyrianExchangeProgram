@@ -588,6 +588,7 @@ public class DealsRepository : IDealsRepository
                 CASE df.flag_type
                     WHEN '1_day_inactive' THEN 0
                     WHEN '5_day_replacement' THEN 1
+                    WHEN 'aid_failed' THEN 2
                 END AS FlagType,
                 df.flagged_on AS FlaggedOn,
                 df.resolved_on AS ResolvedOn,

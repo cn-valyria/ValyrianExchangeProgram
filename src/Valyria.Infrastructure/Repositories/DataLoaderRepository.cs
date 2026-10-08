@@ -180,15 +180,21 @@ public class DataLoaderRepository : IDataLoaderRepository
         using var sqlConnection = new MySqlConnection(_connectionString);
         await sqlConnection.OpenAsync();
 
-        // Track deal activity from newly imported aid
+        // Link newly imported aid to deals as legs, and record approved/failed offers
         var activityTracked = await sqlConnection.ExecuteAsync(
             "track_deal_activity",
             commandType: CommandType.StoredProcedure,
             commandTimeout: DealProcedureTimeoutSeconds);
 
-        // Check for inactive deals, flag them, and cancel any past the replacement threshold.
-        // The check measures against CURDATE(), so it must only run once today's aid is loaded,
-        // otherwise runs early in the day judge deals on yesterday's data
+        // Work out whose turn each deal is, and who (if anyone) is holding it up
+        await sqlConnection.ExecuteAsync(
+            "update_deal_state",
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: DealProcedureTimeoutSeconds);
+
+        // Flag accounts holding up deals, and cancel any past the replacement threshold or with a
+        // failed offer. The check counts days against today, so it must only run once today's aid
+        // is loaded, otherwise runs early in the day judge deals on yesterday's data
         if (checkInactivity)
             await sqlConnection.ExecuteAsync(
                 "check_deal_inactivity",
@@ -207,6 +213,12 @@ public class DataLoaderRepository : IDataLoaderRepository
         await sqlConnection.ExecuteAsync(
             "match_deals_run",
             parameters,
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: DealProcedureTimeoutSeconds);
+
+        // Drop cancelled deals from deal_state and add the newly matched ones
+        await sqlConnection.ExecuteAsync(
+            "update_deal_state",
             commandType: CommandType.StoredProcedure,
             commandTimeout: DealProcedureTimeoutSeconds);
 

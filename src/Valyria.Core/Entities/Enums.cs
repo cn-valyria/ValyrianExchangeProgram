@@ -48,5 +48,6 @@ public enum DealStatus
 public enum DealFlagType
 {
     OneDayInactive,
-    FiveDayReplacement
+    FiveDayReplacement,
+    AidFailed
 }

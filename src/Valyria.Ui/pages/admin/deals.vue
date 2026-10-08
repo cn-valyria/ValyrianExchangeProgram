@@ -253,11 +253,14 @@ const flagColumns: TableColumn<DealFlag>[] = [
     accessorKey: 'flagType',
     header: 'Type',
     cell: ({ row }) => {
-      const isReplacement = row.original.flagType === DealFlagType.FiveDayReplacement
+      const flagType = row.original.flagType
+      const label = flagType === DealFlagType.FiveDayReplacement
+        ? '5-Day Replacement'
+        : flagType === DealFlagType.AidFailed ? 'Aid Failed' : '1-Day Inactive'
       return h(resolveComponent('UBadge'), {
-        color: isReplacement ? 'error' : 'warning',
+        color: flagType === DealFlagType.OneDayInactive ? 'warning' : 'error',
         variant: 'subtle'
-      }, () => isReplacement ? '5-Day Replacement' : '1-Day Inactive')
+      }, () => label)
     }
   },
   {

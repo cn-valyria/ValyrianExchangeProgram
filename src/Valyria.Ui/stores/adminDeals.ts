@@ -30,6 +30,7 @@ export interface WaitQueueEntry {
 export enum DealFlagType {
   OneDayInactive = 0,
   FiveDayReplacement = 1,
+  AidFailed = 2,
 }
 
 export interface DealFlag {

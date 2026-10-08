@@ -102,6 +102,31 @@ This migration introduces the deal-based system to replace the balance-ledger ap
 - Historical balance/credit/debt data can be archived separately
 - Replaces `load_todays_lists()` with `match_deals_daily()`
 
+### [V9__deal_state.sql](migrations/V9__deal_state.sql)
+**VEP 3.0: Expected-activity tracking for deals**
+
+A deal is a repeating sequence of legs (one CN aid offer each). The cash sender goes first and sends all of its cycles, then the other side sends all of its cycles (Buyer/Seller 1:1 is B, S, B, S...; 1 cash : 2 tech is B, S, S...; Donor/Collector and Farm/Receiver always use the same sender). Aid counts as a leg only if it comes from the expected sender, to the expected receiver, dated on or after the deal was created. Amounts are ignored and out-of-sequence aid is never counted.
+
+Each daily run puts every active deal in one state (`deal_state`):
+- `pending_start` - the pair has never been able to exchange aid yet (slots full or old aid between them). Nobody is at fault
+- `in_flight` - a counted leg is active between the pair (10 days)
+- `awaiting_send` - both nations have a free slot and nothing is active between them. The expected sender is responsible
+- `blocked` - activated, but a nation used its slots for non-deal aid (`sender_slots_full`, `receiver_slots_full`), or the wrong side sent aid (`out_of_sequence_aid`). That nation is responsible
+
+**Tables/views:** `deal_state` (new), `deal_sequence` view (new), `deal_activity` rebuilt as one row per leg with outcome tracking (`approved_on`, `failed_on`)
+
+**Procedures:** `track_deal_activity()` (rewritten), `update_deal_state()` (new)
+
+### [V10__deal_state_flags.sql](migrations/V10__deal_state_flags.sql)
+**VEP 3.0: Deal flags based on expected activity**
+
+`check_deal_inactivity()` counts the days `deal_state.responsible_account_id` has been responsible:
+- 1+ days: `1_day_inactive` warning, auto-resolved once the account stops holding up the deal
+- 5+ days: `5_day_replacement`, deal cancelled, admin resolves
+- A leg whose offer is cancelled or expires unaccepted: deal cancelled, `aid_failed` flag on both accounts, admin resolves
+
+Any unresolved flag keeps the account out of matching.
+
 ## Database Architecture
 
 ### Two-Database Design
@@ -158,7 +183,11 @@ Aid created in Cybernations → aid table
                             ↓
               track_deal_activity()
                             ↓
-              deal_activity table (links aid to deals)
+              deal_activity table (links aid to deals as legs)
+                            ↓
+              update_deal_state()
+                            ↓
+              deal_state table (whose turn, who is responsible)
                             ↓
               check_deal_inactivity()
                             ↓
