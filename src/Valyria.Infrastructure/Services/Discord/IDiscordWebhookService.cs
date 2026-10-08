@@ -2,5 +2,5 @@ namespace Valyria.Infrastructure.Services.Discord;
 
 public interface IDiscordWebhookService
 {
-    Task SendListNotificationAsync(int listId, CancellationToken cancellationToken = default);
+    Task SendNewDealsNotificationAsync(IReadOnlyCollection<long> discordIds, CancellationToken cancellationToken = default);
 }

@@ -3,12 +3,16 @@ using MySql.Data.MySqlClient;
 using System.Data;
 using System.Text;
 using Valyria.Core.Interfaces;
+using Valyria.Core.DTOs;
 using Valyria.Core.DTOs.CN;
 
 namespace Valyria.Infrastructure.Repositories;
 
 public class DataLoaderRepository : IDataLoaderRepository
 {
+    // The deal procedures scan every slot pair, so they can run well past Dapper's 30 second default
+    private const int DealProcedureTimeoutSeconds = 600;
+
     private readonly string _connectionString;
 
     public DataLoaderRepository(string connectionString)
@@ -171,28 +175,28 @@ public class DataLoaderRepository : IDataLoaderRepository
         return rowsAffected;
     }
 
-    public async Task<int> LoadTodaysTransactionsAsync()
+    public async Task<DealProcessingResult> ProcessDealsAsync(bool checkInactivity)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
-        return await sqlConnection.ExecuteAsync("load_todays_transactions", commandType: CommandType.StoredProcedure);
-    }
-
-    public async Task LoadTodaysListsAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        await sqlConnection.ExecuteAsync("load_todays_lists", commandType: CommandType.StoredProcedure);
-        await sqlConnection.ExecuteAsync("update list set recipients_last_updated_on = now();");
-    }
-
-    public async Task ProcessDealsAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.OpenAsync();
 
         // Track deal activity from newly imported aid
-        await sqlConnection.ExecuteAsync("track_deal_activity", commandType: CommandType.StoredProcedure);
+        var activityTracked = await sqlConnection.ExecuteAsync(
+            "track_deal_activity",
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: DealProcedureTimeoutSeconds);
 
-        // Check for inactive deals and flag them
-        await sqlConnection.ExecuteAsync("check_deal_inactivity", commandType: CommandType.StoredProcedure);
+        // Check for inactive deals, flag them, and cancel any past the replacement threshold.
+        // The check measures against CURDATE(), so it must only run once today's aid is loaded,
+        // otherwise runs early in the day judge deals on yesterday's data
+        if (checkInactivity)
+            await sqlConnection.ExecuteAsync(
+                "check_deal_inactivity",
+                commandType: CommandType.StoredProcedure,
+                commandTimeout: DealProcedureTimeoutSeconds);
+
+        // Anything above this id was created by the match run below
+        var lastDealIdBeforeMatch = await sqlConnection.ExecuteScalarAsync<int>("select coalesce(max(id), 0) from deal");
 
         // Match new deals for accounts with available slots. match_deals_run builds
         // the wait queue and candidate pairs once, then loops internally until no
@@ -203,21 +207,25 @@ public class DataLoaderRepository : IDataLoaderRepository
         await sqlConnection.ExecuteAsync(
             "match_deals_run",
             parameters,
-            commandType: CommandType.StoredProcedure);
-    }
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: DealProcedureTimeoutSeconds);
 
-    public async Task RemoveAccountsWithFullSlotsFromListsAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string sql = @"
-delete from list_recipient where account_id in (
-	select account_id
-    from aid_activity
-	where slots_used = slots_full
-);";
+        // Discord IDs of everyone who picked up a new partner, for the notification
+        const string newDealDiscordIdsQuery = @"
+select distinct a.discord_id
+from deal d
+join slot s on s.id in (d.slot_1_id, d.slot_2_id)
+join account a on s.account_id = a.id
+where d.id > @lastDealIdBeforeMatch
+    and d.status = 'active'
+    and a.discord_id <> 0";
 
-        await sqlConnection.ExecuteAsync(sql);
-        await sqlConnection.ExecuteAsync("update list set recipients_last_updated_on = now();");
+        var discordIds = await sqlConnection.QueryAsync<long>(newDealDiscordIdsQuery, new { lastDealIdBeforeMatch });
+
+        return new DealProcessingResult(
+            activityTracked,
+            parameters.Get<int>("p_deals_created"),
+            [.. discordIds]);
     }
 
     private async Task<int> UpdateTempTable<T>(

@@ -164,7 +164,7 @@ Aid created in Cybernations → aid table
                             ↓
               deal_flag table (flags inactive deals)
                             ↓
-              match_deals_daily()
+              match_deals_run()
                             ↓
               deal table (active bilateral agreements)
                             ↓
@@ -290,16 +290,17 @@ When adding new migrations:
 **VEP 3.0 (Current):**
 1. Import daily files to `todays_file_*` tables
 2. Run update procedures: `CALL update_nation_data();` etc.
-3. Process transactions: `CALL load_todays_transactions();` (still needed for historical tracking)
-4. Track deal activity: `CALL track_deal_activity();`
-5. Check inactive deals: `CALL check_deal_inactivity();`
-6. Match new deals: `CALL match_deals_daily();`
+3. Track deal activity: `CALL track_deal_activity();`
+4. Check inactive deals: `CALL check_deal_inactivity();`
+5. Match new deals: `CALL match_deals_run(@deals_created);`
+
+The data loader runs steps 3-5 on every run (`DataLoaderRepository.ProcessDealsAsync`).
 
 **VEP 2.5 (Legacy - deprecated):**
 1. Import daily files to `todays_file_*` tables
 2. Run update procedures: `CALL update_nation_data();` etc.
 3. Process transactions: `CALL load_todays_transactions();`
-4. Update lists: `CALL load_todays_lists();` ⚠️ Replaced by `match_deals_daily()`
+4. Update lists: `CALL load_todays_lists();` ⚠️ Replaced by `match_deals_run()`
 
 ### Weekly/Monthly
 - Review audit table growth

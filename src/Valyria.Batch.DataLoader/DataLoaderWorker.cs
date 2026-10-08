@@ -26,9 +26,6 @@ public class DataLoaderWorker : BackgroundService
     private readonly IHostApplicationLifetime _applicationLifetime;
     private readonly IDiscordWebhookService _discordWebhookService;
 
-    // Should be roughly 12am - 12pm CST. I'm just lazy and don't feel like redoing the CnFileGrabber logic
-    private bool IsMorningRun => DateTime.UtcNow.Hour >= 6 && DateTime.UtcNow.Hour <= 18;
-
     public DataLoaderWorker(
         ILogger<DataLoaderWorker> logger,
         [FromKeyedServices("VepDb")] IDataLoaderRepository vepDataLoaderRepository,
@@ -66,15 +63,13 @@ public class DataLoaderWorker : BackgroundService
 
             await ImportNationsFileAsync();
             await ImportAlliancesFileAsync();
-            await ImportAidFileAsync();
+            var aidFileImported = await ImportAidFileAsync();
             await ImportWarFileAsync();
 
             _logger.LogInformation("All CN file imports completed");
 
-            // Then load VEP data
-            var transactionsLoaded = await LoadTodaysTransactionsAsync();
-            if (transactionsLoaded > 0)
-                await LoadTodaysListsAsync();
+            // Then process VEP deals against the freshly imported aid
+            await ProcessDealsAsync(aidFileImported);
 
             _logger.LogInformation("CN/VEP Data Loader completed at: {time}", DateTimeOffset.Now);
         }
@@ -127,14 +122,15 @@ public class DataLoaderWorker : BackgroundService
         await UploadToBlobContainerAsync(_allianceBlobClient, fileName, dataStream);
     }
 
-    private async Task ImportAidFileAsync()
+    // Returns true if a new aid file was imported on this run
+    private async Task<bool> ImportAidFileAsync()
     {
         // Pull today's file, and exit early if it's already been imported
         var (fileName, dataStream, fileAlreadyImported) = await GrabTodaysFile(CnFileType.Aid);
         if (fileAlreadyImported)
         {
             _logger.LogWarning("CN Nation file {fileName} already imported and cannot be imported again. Moving on...", fileName);
-            return;
+            return false;
         }
 
         // Upsert the data first. No point in uploading anything if this fails
@@ -144,6 +140,7 @@ public class DataLoaderWorker : BackgroundService
 
         // Now add the file to blob storage
         await UploadToBlobContainerAsync(_aidBlobClient, fileName, dataStream);
+        return true;
     }
 
     private async Task ImportWarFileAsync()
@@ -222,30 +219,20 @@ public class DataLoaderWorker : BackgroundService
         }
     }
 
-    private async Task<int> LoadTodaysTransactionsAsync()
+    private async Task ProcessDealsAsync(bool aidFileImported)
     {
-        var rowsAffected = await _vepDataLoaderRepository.LoadTodaysTransactionsAsync();
-        _logger.LogInformation("Successfully loaded {rowsAffected} transactions.", rowsAffected);
-
-        return rowsAffected;
-    }
-
-    private async Task LoadTodaysListsAsync()
-    {
-        if (IsMorningRun)
-        {
-            _logger.LogInformation("It's a new day, so loading new lists...");
-            await _vepDataLoaderRepository.LoadTodaysListsAsync();
-
-            // Send Discord notification for outgoing aid lists after successful refresh
-            await _discordWebhookService.SendListNotificationAsync(1);
-            await _discordWebhookService.SendListNotificationAsync(3);
-        }
+        // Inactivity is measured against today's date, so only check it once today's aid file is in.
+        // Activity tracking and matching are safe to rerun, and matching picks up any admin changes
+        if (aidFileImported)
+            _logger.LogInformation("Processing deals: tracking activity, checking inactivity and matching open slots...");
         else
-        {
-            _logger.LogInformation("It's later in the day when lists were generated, so just remove accounts with full slots.");
-            await _vepDataLoaderRepository.RemoveAccountsWithFullSlotsFromListsAsync();
-        }
-        _logger.LogInformation("Successfully refreshed today's lists.");
+            _logger.LogInformation("No new aid file this run, so skipping the inactivity check. Tracking activity and matching open slots...");
+
+        var result = await _vepDataLoaderRepository.ProcessDealsAsync(checkInactivity: aidFileImported);
+        _logger.LogInformation("Deals processed. {activityTracked} aid records linked to deals, {dealsCreated} new deals created.",
+            result.ActivityTracked, result.DealsCreated);
+
+        // Let anyone who picked up a new partner know about it
+        await _discordWebhookService.SendNewDealsNotificationAsync(result.NewPartnerDiscordIds);
     }
 }

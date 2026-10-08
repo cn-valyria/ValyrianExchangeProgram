@@ -1,3 +1,4 @@
+using Valyria.Core.DTOs;
 using Valyria.Core.DTOs.CN;
 
 namespace Valyria.Core.Interfaces;
@@ -12,8 +13,5 @@ public interface IDataLoaderRepository
     Task<int> ImportWarsAsync(IReadOnlyCollection<War> data, string fileName);
 
     // VEP data loader methods
-    Task<int> LoadTodaysTransactionsAsync();
-    Task LoadTodaysListsAsync();
-    Task ProcessDealsAsync();
-    Task RemoveAccountsWithFullSlotsFromListsAsync();
+    Task<DealProcessingResult> ProcessDealsAsync(bool checkInactivity);
 }
