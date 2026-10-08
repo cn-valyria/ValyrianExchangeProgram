@@ -3,11 +3,6 @@ export interface AccountRole {
   description: string
 }
 
-export interface RecentActivityValue {
-  id: number
-  description: string
-}
-
 export interface AllianceAcronym {
   code: string,
   name: string
@@ -26,14 +21,6 @@ export const accountRoles: AccountRole[] = [
   { code: 'Q', description: 'Temporary Farm' },
   { code: 'W', description: 'Temporary Receiver' },
   { code: 'H', description: 'On Hold' },
-]
-
-export const recentActivityValues: RecentActivityValue[] = [
-  { id: 1, description: 'Last 3 Days' },
-  { id: 2, description: 'This Week' },
-  { id: 3, description: 'Last Week' },
-  { id: 4, description: 'Three Weeks Ago' },
-  { id: 5, description: 'More Than 3 Weeks Ago' },
 ]
 
 export const allianceAcronyms: AllianceAcronym[] = [

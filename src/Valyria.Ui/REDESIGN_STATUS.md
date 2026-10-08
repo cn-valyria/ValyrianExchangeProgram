@@ -1,3 +1,5 @@
+> **Historical document.** This describes the Nuxt 2 → 3 and Nuxt UI migration. The VEP 3.0 UI redesign status lives in [VEP3_UI_PLAN.md](./VEP3_UI_PLAN.md); some pages and components listed below have since been removed.
+
 # UI Redesign Status - Nuxt UI Migration
 
 ## Overview

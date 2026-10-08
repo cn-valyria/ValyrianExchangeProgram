@@ -21,24 +21,15 @@ namespace Valyria.Api.Controllers;
 public class AccountsController : ControllerBase
 {
     private readonly IAccountsRepository _accountsRepository;
-    private readonly ITransactionsRepository _transactionsRepository;
-    private readonly IListsRepository _listsRepository;
-    private readonly IAccountListPerformanceRepository _accountListPerformanceRepository;
     private readonly ITokenProvider _tokenProvider;
     private readonly ILogger<AccountsController> _logger;
 
     public AccountsController(
         IAccountsRepository accountsRepository,
-        ITransactionsRepository transactionsRepository,
-        IListsRepository listsRepository,
-        IAccountListPerformanceRepository accountListPerformanceRepository,
         ITokenProvider tokenProvider,
         ILogger<AccountsController> logger)
     {
         _accountsRepository = accountsRepository;
-        _transactionsRepository = transactionsRepository;
-        _listsRepository = listsRepository;
-        _accountListPerformanceRepository = accountListPerformanceRepository;
         _tokenProvider = tokenProvider;
         _logger = logger;
     }
@@ -80,69 +71,6 @@ public class AccountsController : ControllerBase
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccount)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    [HttpGet("{id}/transactions")]
-    public async Task<IActionResult> GetAccountTransactions(int id, [FromQuery] int? limit, [FromQuery] int? offset)
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAccountTransactions)} method...");
-
-        try
-        {
-            var results = await _transactionsRepository.GetTransactionsByAccount(id, limit ?? 10, offset ?? 0);
-
-            _logger.LogInformation($"{nameof(GetAccountTransactions)} execution complete. Found {results.CurrentPage.TotalCount} total results.");
-
-            return Ok(results.Adapt<AccountTransactionSearchResults>());
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountTransactions)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    [HttpGet("{id}/aidList")]
-    public async Task<IActionResult> GetAccountAidList(int id)
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAccountAidList)} method...");
-
-        try
-        {
-            var results = await _listsRepository.GetListRecipientsForAccountAsync(id);
-
-            _logger.LogInformation($"{nameof(GetAccountAidList)} execution complete. Found {results.Count} results.");
-
-            return Ok(results.Select(x => x.Adapt<ListRecipient>()));
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountAidList)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    [HttpGet("{id}/listPerformance")]
-    public async Task<IActionResult> GetAccountListPerformance(int id, [FromQuery] bool? includeIncoming)
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAccountListPerformance)} method...");
-
-        try
-        {
-            var results = await _accountListPerformanceRepository.GetAccountListPerformanceAsync(id, includeIncoming ?? false);
-
-            _logger.LogInformation($"{nameof(GetAccountListPerformance)} execution complete. Found {results.Count} results.");
-
-            return Ok(results.Select(x => x.Adapt<ListPerformance>()));
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountListPerformance)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }

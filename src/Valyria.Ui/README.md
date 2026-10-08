@@ -67,7 +67,8 @@ The app will be available at `http://localhost:3000`
 
 ## Documentation
 
-- **Redesign Status**: [REDESIGN_STATUS.md](./REDESIGN_STATUS.md) - Current UI redesign progress
+- **VEP 3.0 UI Plan**: [VEP3_UI_PLAN.md](./VEP3_UI_PLAN.md) - Current UI redesign progress and open items
+- **Redesign History**: [REDESIGN_STATUS.md](./REDESIGN_STATUS.md) - Nuxt UI migration (historical)
 - **Migration Summary**: [MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md) - Nuxt 2→3 migration details
 - **Nuxt UI Docs**: https://ui.nuxt.com
 
@@ -76,16 +77,16 @@ The app will be available at `http://localhost:3000`
 - **Modern UI**: Beautiful, responsive design with Nuxt UI
 - **Dark Mode**: Full dark mode support throughout the app
 - **Authentication**: Custom JWT-based auth with token refresh
-- **Role-Based Access**: Admin and user roles with permissions
+- **Role-Based Access**: Admin and user roles with permissions (UI-enforced; see `VEP3_UI_PLAN.md` for the API auth to-do)
 - **Account Management**: CRUD operations for game accounts
-- **Transaction Management**: Aid-based and manual transactions
+- **Deal Management**: Active deals, the wait queue, flags, and a searchable aid activity log
 - **Dashboard**: Real-time statistics and data visualization
 
 ## Quick Start Guide
 
 1. **Login**: Use Nation ID or Ruler Name + Unique Code
-2. **View Account**: See your balance, aid list, and transaction history
-3. **Admin Access**: Admin users can manage accounts, transactions, and lists
+2. **View Account**: See your slots, active deals, and deal history
+3. **Admin Access**: Admin users can manage accounts, slots, deals, and aid activity
 
 ## Contributing
 

@@ -113,17 +113,26 @@ Valyria.Aspire/
 - `POST /api/accounts` - Create new account
 - `PUT /api/accounts` - Update account
 - `DELETE /api/accounts/{id}` - Delete account
-- `GET /api/accounts/{id}/transactions` - Get account transaction history
-- `GET /api/accounts/{id}/aidList` - Get aid list recipients
-- `GET /api/accounts/{id}/listPerformance` - Get performance statistics
 - `GET /api/accounts/prospect` - Find prospective accounts
 - `GET /api/accounts/topScorers` - Get top performing accounts
 
-### Transactions (`/api/transactions`)
-- Standard CRUD operations for aid transactions
+### Deals (`/api/deals`)
+- `GET /api/deals/{id}` - Get deal details
+- `POST /api/deals` - Create a deal between two slots (admin)
+- `PUT /api/deals/{id}/cancel` - Cancel a deal (admin)
+- `GET /api/deals/account/{accountId}` - Get an account's active deals and notifications
+- `GET /api/deals/account/{accountId}/history` - Get every deal an account has been part of
+- `GET /api/deals/{id}/activity?accountId=` - Get aid activity for a deal, from one participant's view
+- `GET /api/deals/admin/active` - Search all active deals (admin)
+- `GET /api/deals/admin/aid-activity` - Search all aid, with the deal each one matched (admin)
+- `GET /api/deals/admin/wait-queue` - List accounts waiting for slots (admin)
+- `GET /api/deals/admin/flagged` - List unresolved deal flags (admin)
+- `PUT /api/deals/admin/flags/{id}/resolve` - Resolve a deal flag (admin)
 
-### Aid Lists (`/api/lists`)
-- Standard CRUD operations for aid distribution lists
+### Slots (`/api/slots`)
+- `GET /api/slots/account/{accountId}` - Get an account's slots (admin)
+- `GET /api/slots/available/{accountId}` - Get an account's slots that aren't in a deal (admin)
+- `PUT /api/slots/{id}` - Update a slot's cycle values (admin)
 
 ### Admin (`/api/admin`)
 - Administrative operations and dashboard

@@ -62,8 +62,9 @@ Backend changes for this section:
 ## 4. Shared cleanup
 
 - ✅ Deleted the legacy account components, the Lists/Transactions pages and their stores, the transaction dialogs and filter, `stores/shared/{listPerformance,transaction,transactionsPage}.ts`, `TRANSACTION_TYPES` / `ADJUSTMENT_TYPES`, and `transactionClassifications`.
-- ⬜ Backend: nothing in the UI calls `ListsController`, `TransactionsController`, `/api/accounts/{id}/aidList`, `/listPerformance` or `/transactions` anymore, so they can be retired. `/api/accounts/topScorers` is still used by the leaderboard (section 2).
-- ⬜ Update `REDESIGN_STATUS.md` / README screenshots.
+- ✅ Backend: removed `ListsController`, `TransactionsController`, the `/api/accounts/{id}/aidList`, `/listPerformance` and `/transactions` endpoints, and the repositories, contracts, DTOs and entities only they used (`TransactionsRepository`, `AccountListPerformanceRepository`, the transaction/list-performance DTOs, `Transaction`, `TransactionCode`, `TransactionType`). Kept `ListsRepository` and the aid-list types because the data loader's Discord notifications still use them (see section 5, item 5). Kept `/api/accounts/topScorers` for the hidden leaderboard.
+- ✅ Removed the orphaned `infrastructure/validator.ts` and `recentActivityValues`.
+- ✅ Docs: the root README's endpoint list and the UI README's feature list match the current API and pages. `REDESIGN_STATUS.md` and `MIGRATION_SUMMARY.md` are marked historical and point here. Removed the unused `howitworks-account.png`. The three screenshots still need replacing (see section 2).
 
 ## 5. Backend issues spotted along the way (not UI, but they affect what the UI shows)
 
