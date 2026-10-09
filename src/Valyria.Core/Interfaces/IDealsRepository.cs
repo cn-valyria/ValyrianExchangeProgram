@@ -92,6 +92,10 @@ public class DealFlagDetail
     public int Id { get; set; }
     public int DealId { get; set; }
     public DealFlagType FlagType { get; set; }
+    /// <summary>
+    /// Null for flags raised before V10
+    /// </summary>
+    public DealFlagReason? FlagReason { get; set; }
     public AccountSimplified FlaggedAccount { get; set; }
     public AccountSimplified InnocentAccount { get; set; }
     public System.DateTime FlaggedOn { get; set; }

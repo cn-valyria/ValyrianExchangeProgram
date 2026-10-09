@@ -68,7 +68,7 @@
                 color="info"
                 icon="i-heroicons-information-circle"
                 title="About Flags"
-                description="Deals are flagged when no aid has been exchanged recently. 5-day flags also cancel the deal automatically. Resolve a flag once it's been looked into."
+                description="Accounts are flagged when they hold up a deal: not sending when it's their turn and both nations have a free slot, filling their aid slots with non-VEP aid, or sending aid out of turn. 1-day flags clear themselves once the account stops holding up the deal. 5-day flags cancel the deal. Aid Failed flags cancel the deal when an offer is cancelled or expires unaccepted, and flag both accounts because VEP can't tell who caused it. Flagged accounts aren't matched with new partners until their flags are resolved."
               />
               <UTable :data="flags" :columns="displayFlagColumns" :loading="flagsLoading" />
             </div>
@@ -83,10 +83,10 @@
 import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
 import { watchDebounced } from '@vueuse/core'
-import { describeAid, getDealStateColor, getDealStateFromActivity, getDealStateLabel } from '~/infrastructure/deals'
+import { describeAid, getAdminDealStatus } from '~/infrastructure/deals'
 import type { SlotDetail } from '~/stores/account'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
-import { DealFlagType, useAdminDealsStore, type AdminDeal, type DealFlag, type WaitQueueEntry } from '~/stores/adminDeals'
+import { DealFlagReason, DealFlagType, useAdminDealsStore, type AdminDeal, type DealFlag, type WaitQueueEntry } from '~/stores/adminDeals'
 import { useAuthStore } from '~/stores/auth'
 import CancelDealDialog from '~/components/admin/CancelDealDialog.vue'
 import CreateDealDialog from '~/components/admin/CreateDealDialog.vue'
@@ -127,6 +127,15 @@ const tabs = computed(() => [
 ])
 
 const formatDate = (date: string | null): string => date ? date.split('T')[0] : '—'
+
+const FLAG_REASON_LABELS: Record<DealFlagReason, string> = {
+  [DealFlagReason.AwaitingSend]: "Didn't send on their turn",
+  [DealFlagReason.SenderSlotsFull]: 'Slots full (sender)',
+  [DealFlagReason.ReceiverSlotsFull]: 'Slots full (receiver)',
+  [DealFlagReason.OutOfSequenceAid]: 'Sent aid out of turn',
+  [DealFlagReason.AidCancelled]: 'Aid offer cancelled',
+  [DealFlagReason.AidExpired]: 'Aid offer expired unaccepted'
+}
 
 const renderParty = (slot: SlotDetail) => h('div', { class: 'flex items-center gap-2' }, [
   h(resolveComponent('ChipAllianceAcronym'), { allianceName: slot.account.allianceName }),
@@ -174,19 +183,29 @@ const dealColumns: TableColumn<AdminDeal>[] = [
     cell: ({ row }) => formatDate(row.original.lastActivityDate)
   },
   {
-    accessorKey: 'daysSinceActivity',
-    header: 'Days Idle'
+    id: 'heldUpBy',
+    header: 'Held Up By',
+    cell: ({ row }) => {
+      const deal = row.original
+      const account = [deal.slot1.account, deal.slot2.account].find((a) => a.accountId === deal.responsibleAccountId)
+      if (!account) return '—'
+      return h('div', [
+        h('div', { class: 'font-medium text-gray-900 dark:text-white' }, account.rulerName),
+        h('div', { class: 'text-sm text-gray-500 dark:text-gray-400' },
+          `${deal.daysResponsible ?? 0}d · cancels ${formatDate(deal.cancelsOn)}`)
+      ])
+    }
   },
   {
     id: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const deal = row.original
-      const state = getDealStateFromActivity(deal.hasOpenFlag, deal.daysSinceActivity, deal.lastActivityDate)
-      return h(resolveComponent('UBadge'), {
-        color: getDealStateColor(state),
-        variant: 'subtle'
-      }, () => getDealStateLabel(state))
+      const status = getAdminDealStatus(row.original)
+      const badge = h(resolveComponent('UBadge'), { color: status.color, variant: 'subtle' }, () => status.label)
+      const flag = row.original.hasOpenFlag
+        ? h(resolveComponent('UBadge'), { color: 'error', variant: 'solid', icon: 'i-heroicons-flag' }, () => 'Flagged')
+        : null
+      return h(resolveComponent('UTooltip'), { text: status.detail }, () => h('div', { class: 'flex gap-1' }, [badge, flag]))
     }
   },
   {
@@ -262,6 +281,11 @@ const flagColumns: TableColumn<DealFlag>[] = [
         variant: 'subtle'
       }, () => label)
     }
+  },
+  {
+    accessorKey: 'flagReason',
+    header: 'Reason',
+    cell: ({ row }) => row.original.flagReason === null ? '—' : FLAG_REASON_LABELS[row.original.flagReason]
   },
   {
     id: 'flaggedAccount',

@@ -15,6 +15,26 @@ public class DealsRepository : IDealsRepository
 {
     private readonly string _connectionString;
 
+    // deal_state columns shared by the account and admin deal queries (alias ds). The DB enum
+    // values ('awaiting_send') aren't valid C# enum names, so they're mapped to the enums' numbers.
+    // CancelsOn mirrors the 5 day replacement threshold in check_deal_inactivity
+    private const string DealStateColumns = @"
+                CASE ds.state
+                    WHEN 'pending_start' THEN 0
+                    WHEN 'in_flight' THEN 1
+                    WHEN 'awaiting_send' THEN 2
+                    WHEN 'blocked' THEN 3
+                END AS State,
+                CASE ds.blocked_reason
+                    WHEN 'sender_slots_full' THEN 0
+                    WHEN 'receiver_slots_full' THEN 1
+                    WHEN 'out_of_sequence_aid' THEN 2
+                END AS BlockedReason,
+                ds.state_since AS StateSince,
+                ds.in_flight_until AS InFlightUntil,
+                DATEDIFF(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')), ds.responsible_since) AS DaysResponsible,
+                ds.responsible_since + INTERVAL 5 DAY AS CancelsOn,";
+
     public DealsRepository(string connectionString) => _connectionString = connectionString;
 
     public async Task<AccountDealsSummary> GetAccountDealsAsync(int accountId)
@@ -51,18 +71,14 @@ public class DealsRepository : IDealsRepository
                 d.id AS Id,
                 d.created_on AS CreatedOn,
                 pa.discord AS PartnerDiscord,
-                da.activity_date AS LastActivityDate,
-                -- New deals with no activity yet count from the day the deal was created
-                DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) AS DaysSinceActivity,
-                CASE
-                    WHEN DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) >= 5 THEN TRUE
-                    ELSE FALSE
-                END AS NeedsAction,
-                CASE
-                    WHEN DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) >= 5 THEN 'Send aid to maintain deal'
-                    WHEN DATEDIFF(CURDATE(), COALESCE(da.activity_date, DATE(d.created_on))) >= 1 THEN 'Deal may become inactive soon'
-                    ELSE NULL
-                END AS ActionNeeded,
+                da.activity_date AS LastActivityDate," + DealStateColumns + @"
+                COALESCE(ds.next_sender_account_id = ma.id, FALSE) AS IsMyTurnToSend,
+                COALESCE(ds.responsible_account_id = ma.id, FALSE) AS IAmResponsible,
+                COALESCE(ds.responsible_account_id = pa.id, FALSE) AS PartnerIsResponsible,
+                COALESCE(fl.expected_receiver_nation_id = ma.nation_id, FALSE) AS InFlightIsIncoming,
+                COALESCE(fl.approved_on IS NOT NULL OR fl.linked_late, FALSE) AS InFlightAccepted,
+                DATE(ba.date) + INTERVAL 10 DAY AS BlockedUntil,
+                f.flagged_on AS FlaggedOn,
                 -- My slot
                 ms.id AS Id,
                 ms.slot_number AS SlotNumber,
@@ -105,8 +121,21 @@ public class DealsRepository : IDealsRepository
                 FROM deal_activity
                 GROUP BY deal_id
             ) da ON d.id = da.deal_id
+            LEFT JOIN deal_state ds ON ds.deal_id = d.id
+            -- The leg currently active between the pair, and any out-of-sequence aid blocking it
+            LEFT JOIN deal_activity fl ON fl.aid_id = ds.in_flight_aid_id
+            LEFT JOIN cybernations_db.aid ba ON ba.id = ds.blocking_aid_id
+            -- Open warning against this account for holding up the deal
+            LEFT JOIN (
+                SELECT deal_id, MIN(flagged_on) AS flagged_on
+                FROM deal_flag
+                WHERE flag_type = '1_day_inactive'
+                    AND resolved_on IS NULL
+                    AND flagged_account_id = @accountId
+                GROUP BY deal_id
+            ) f ON f.deal_id = d.id
             WHERE d.status = 'active'
-            ORDER BY DaysSinceActivity DESC, ms.slot_number",
+            ORDER BY ms.slot_number",
             (deal, mySlot, myAccount, partnerSlot, partnerAccount) =>
             {
                 mySlot.Account = myAccount;
@@ -120,37 +149,86 @@ public class DealsRepository : IDealsRepository
 
         summary.ActiveDeals = deals.ToList();
 
-        // Get notifications for flagged deals
-        var notifications = await connection.QueryAsync<DealNotification>(@"
+        // Notifications for deals that were cancelled over a flag. Warnings on active deals show
+        // on the deals themselves. Flagged accounts hear about it until an admin resolves the flag;
+        // partners of a replaced deal hear about it for 10 days. aid_failed flags both accounts,
+        // so each only needs its own row
+        var cancelledDealFlags = await connection.QueryAsync<CancelledDealFlag>(@"
             SELECT
-                CASE
-                    WHEN df.flag_type = '5_day_replacement' THEN 'error'
-                    WHEN df.flag_type = '1_day_inactive' THEN 'warning'
-                    ELSE 'info'
-                END AS Type,
-                CASE
-                    WHEN df.flag_type = '5_day_replacement' THEN
-                        CONCAT('Your deal with ', n.nation_name, ' has had no aid for 5+ days and is being replaced.')
-                    ELSE
-                        CONCAT('Your deal with ', n.nation_name, ' has had no recent aid. Send or accept aid to keep it active.')
-                END AS Message,
-                df.deal_id AS DealId
+                df.deal_id AS DealId,
+                df.flag_type AS FlagType,
+                df.flag_reason AS FlagReason,
+                df.flagged_account_id = @accountId AS FlaggedMe,
+                n.nation_name AS PartnerNationName
             FROM deal_flag df
-            JOIN deal d ON df.deal_id = d.id
-            JOIN account partner_acct ON
-                CASE WHEN df.flagged_account_id = @accountId
-                    THEN df.innocent_account_id
-                    ELSE df.flagged_account_id
-                END = partner_acct.id
-            JOIN cybernations_db.nation n ON partner_acct.nation_id = n.id
-            WHERE (df.flagged_account_id = @accountId OR df.innocent_account_id = @accountId)
-                AND df.resolved_on IS NULL
-                AND d.status = 'active'",
+            JOIN account partner_acct ON partner_acct.id =
+                IF(df.flagged_account_id = @accountId, df.innocent_account_id, df.flagged_account_id)
+            LEFT JOIN cybernations_db.nation n ON partner_acct.nation_id = n.id
+            WHERE df.resolved_on IS NULL
+                AND df.flag_type IN ('5_day_replacement', 'aid_failed')
+                AND (
+                    df.flagged_account_id = @accountId
+                    OR (
+                        df.innocent_account_id = @accountId
+                        AND df.flag_type = '5_day_replacement'
+                        AND df.flagged_on >= CURRENT_TIMESTAMP - INTERVAL 10 DAY
+                    )
+                )
+            ORDER BY df.flagged_on DESC",
             new { accountId });
 
-        summary.Notifications = notifications.ToList();
+        summary.Notifications = cancelledDealFlags.Select(ToNotification).ToList();
 
         return summary;
+    }
+
+    private class CancelledDealFlag
+    {
+        public int DealId { get; set; }
+        public string FlagType { get; set; } = string.Empty;
+        public string? FlagReason { get; set; }
+        public bool FlaggedMe { get; set; }
+        public string? PartnerNationName { get; set; }
+    }
+
+    private static DealNotification ToNotification(CancelledDealFlag flag)
+    {
+        var partner = flag.PartnerNationName ?? "your partner";
+        const string matchingPaused = "You won't be matched with new partners until VEP management reviews it.";
+
+        string message;
+        if (flag.FlagType == "aid_failed")
+        {
+            var whatHappened = flag.FlagReason == "aid_expired" ? "expired without being accepted" : "was cancelled";
+            message = $"Your deal with {partner} was cancelled because an aid offer between you {whatHappened}. {matchingPaused}";
+        }
+        else if (flag.FlaggedMe)
+        {
+            var cause = flag.FlagReason switch
+            {
+                "sender_slots_full" or "receiver_slots_full" => "your aid slots were full of other aid",
+                "out_of_sequence_aid" => "aid you sent out of turn blocked it",
+                _ => "you didn't send the expected aid"
+            };
+            message = $"Your deal with {partner} was cancelled because {cause} for 5 days. {matchingPaused}";
+        }
+        else
+        {
+            var cause = flag.FlagReason switch
+            {
+                "sender_slots_full" or "receiver_slots_full" => "their aid slots were full of other aid",
+                "out_of_sequence_aid" => "aid they sent out of turn blocked it",
+                _ => "they didn't send the expected aid"
+            };
+            message = $"Your deal with {partner} was cancelled because {cause} for 5 days. Your slot will be matched with a new partner.";
+        }
+
+        return new DealNotification
+        {
+            Type = flag.FlaggedMe ? "error" : "info",
+            Message = message,
+            DealId = flag.DealId
+        };
     }
 
     public async Task<DealHistoryPage> GetAccountDealHistoryAsync(int accountId, int limit, int offset)
@@ -237,7 +315,14 @@ public class DealsRepository : IDealsRepository
                 da.activity_date AS ActivityDate,
                 da.expected_sender_nation_id = @myNationId AS IsOutgoing,
                 COALESCE(aid.money, 0) AS Money,
-                COALESCE(aid.technology, 0) AS Technology
+                COALESCE(aid.technology, 0) AS Technology,
+                -- Legs linked after their window closed count as accepted (see V9)
+                CASE
+                    WHEN da.failure_reason = 'cancelled' THEN 2
+                    WHEN da.failure_reason = 'expired' THEN 3
+                    WHEN da.approved_on IS NOT NULL OR da.linked_late THEN 1
+                    ELSE 0
+                END AS Outcome
             FROM deal_activity da
             LEFT JOIN cybernations_db.aid aid ON da.aid_id = aid.id
             WHERE da.deal_id = @dealId
@@ -402,6 +487,7 @@ public class DealsRepository : IDealsRepository
             LEFT JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
             LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
             LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
+            LEFT JOIN deal_state ds ON ds.deal_id = d.id
             WHERE d.status = 'active'
                 AND (
                     @search IS NULL
@@ -427,11 +513,9 @@ public class DealsRepository : IDealsRepository
                 (
                     SELECT MAX(da.activity_date) FROM deal_activity da
                     WHERE da.deal_id = d.id
-                ) AS LastActivityDate,
-                DATEDIFF(CURDATE(), COALESCE(
-                    (SELECT MAX(da.activity_date) FROM deal_activity da WHERE da.deal_id = d.id),
-                    DATE(d.created_on)
-                )) AS DaysSinceActivity,
+                ) AS LastActivityDate," + DealStateColumns + @"
+                ds.next_sender_account_id AS NextSenderAccountId,
+                ds.responsible_account_id AS ResponsibleAccountId,
                 EXISTS (
                     SELECT 1 FROM deal_flag df
                     WHERE df.deal_id = d.id AND df.resolved_on IS NULL
@@ -465,7 +549,8 @@ public class DealsRepository : IDealsRepository
                 n2.ruler_name AS RulerName,
                 al2.name AS AllianceName
             " + fromClause + @"
-            ORDER BY DaysSinceActivity DESC, d.id
+            -- Deals held up the longest first
+            ORDER BY ds.responsible_since IS NULL, ds.responsible_since, d.id
             LIMIT @limit OFFSET @offset",
             (deal, slot1, account1, slot2, account2) =>
             {
@@ -590,6 +675,14 @@ public class DealsRepository : IDealsRepository
                     WHEN '5_day_replacement' THEN 1
                     WHEN 'aid_failed' THEN 2
                 END AS FlagType,
+                CASE df.flag_reason
+                    WHEN 'awaiting_send' THEN 0
+                    WHEN 'sender_slots_full' THEN 1
+                    WHEN 'receiver_slots_full' THEN 2
+                    WHEN 'out_of_sequence_aid' THEN 3
+                    WHEN 'aid_cancelled' THEN 4
+                    WHEN 'aid_expired' THEN 5
+                END AS FlagReason,
                 df.flagged_on AS FlaggedOn,
                 df.resolved_on AS ResolvedOn,
                 df.resolved_by AS ResolvedBy,

@@ -4,7 +4,7 @@
     <div class="flex items-center gap-3">
       <div class="text-center">
         <div class="text-3xl font-bold" :class="statusClass">
-          {{ hasDeals ? attentionCount : '--' }}
+          {{ hasDeals ? actions.length : '--' }}
         </div>
         <div class="text-sm font-medium text-gray-600 dark:text-gray-400">
           Deals Needing Action
@@ -23,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import { getDealActions } from '~/infrastructure/deals'
 import type { DealDetail, DealNotification } from '~/stores/account'
 
 interface Props {
@@ -37,29 +38,24 @@ const props = withDefaults(defineProps<Props>(), {
 
 const hasDeals = computed(() => props.deals.length > 0)
 
-const flaggedDealIds = computed(() => new Set(props.notifications.map((n) => n.dealId)))
+const actions = computed(() => getDealActions(props.deals))
 
-// Deals that are flagged or past the inactivity threshold
-const attentionCount = computed(() =>
-  props.deals.filter((deal) => deal.needsAction || flaggedDealIds.value.has(deal.id)).length
-)
+const flaggedCount = computed(() => actions.value.filter((action) => action.flagged).length)
 
-// Deals that aren't urgent yet, but are heading that way
-const atRiskCount = computed(() =>
-  props.deals.filter((deal) => !deal.needsAction && !flaggedDealIds.value.has(deal.id) && deal.actionNeeded).length
-)
+// Deals cancelled over a flag against this account, which pause matching until reviewed
+const cancelledFlagCount = computed(() => props.notifications.filter((n) => n.type === 'error').length)
 
 const status = computed(() => {
+  if (flaggedCount.value > 0 || cancelledFlagCount.value > 0) return 'flagged'
   if (!hasDeals.value) return 'none'
-  if (attentionCount.value > 0) return 'attention'
-  if (atRiskCount.value > 0) return 'atRisk'
+  if (actions.value.length > 0) return 'action'
   return 'good'
 })
 
 const statusLabel = computed(() => {
   switch (status.value) {
-    case 'attention': return 'Attention'
-    case 'atRisk': return 'At Risk'
+    case 'flagged': return 'Flagged'
+    case 'action': return 'Action Today'
     case 'good': return 'All Good'
     default: return 'No Deals'
   }
@@ -67,8 +63,8 @@ const statusLabel = computed(() => {
 
 const statusClass = computed(() => {
   switch (status.value) {
-    case 'attention': return 'text-red-600 dark:text-red-400'
-    case 'atRisk': return 'text-orange-600 dark:text-orange-400'
+    case 'flagged': return 'text-red-600 dark:text-red-400'
+    case 'action': return 'text-orange-600 dark:text-orange-400'
     case 'good': return 'text-green-600 dark:text-green-400'
     default: return 'text-gray-400 dark:text-gray-500'
   }
@@ -76,8 +72,8 @@ const statusClass = computed(() => {
 
 const badgeColor = computed(() => {
   switch (status.value) {
-    case 'attention': return 'error'
-    case 'atRisk': return 'warning'
+    case 'flagged': return 'error'
+    case 'action': return 'warning'
     case 'good': return 'success'
     default: return 'neutral'
   }
@@ -85,12 +81,14 @@ const badgeColor = computed(() => {
 
 const description = computed(() => {
   switch (status.value) {
-    case 'attention':
-      return `${attentionCount.value} of your deals ${attentionCount.value === 1 ? 'has' : 'have'} gone too long without aid. Exchange aid with ${attentionCount.value === 1 ? 'that partner' : 'those partners'} soon, or the deal${attentionCount.value === 1 ? '' : 's'} may be cancelled.`
-    case 'atRisk':
-      return `${atRiskCount.value} of your deals ${atRiskCount.value === 1 ? 'has' : 'have'} had no recent aid. Check the deals below to see what's needed.`
+    case 'flagged':
+      return flaggedCount.value > 0
+        ? `${flaggedCount.value} of your deals ${flaggedCount.value === 1 ? 'is' : 'are'} flagged. Fix ${flaggedCount.value === 1 ? 'it' : 'them'} below to avoid cancellation. You won't be matched with new partners until then.`
+        : "A deal was cancelled over a flag on your account. You won't be matched with new partners until VEP management reviews it."
+    case 'action':
+      return `${actions.value.length} of your deals ${actions.value.length === 1 ? 'needs' : 'need'} something from you today. See the list below.`
     case 'good':
-      return 'All of your deals are active. Nice work!'
+      return 'Nothing to do today. Your deals are waiting on aid already in progress or on an aid slot opening up.'
     default:
       return "You don't have any active deals yet. Your deal health will show here once you're matched with a partner."
   }

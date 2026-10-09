@@ -1,12 +1,20 @@
 import { defineStore } from 'pinia'
-import type { AccountSimplified, SlotDetail } from './account'
+import type { AccountSimplified, DealActivityState, DealBlockedReason, SlotDetail } from './account'
 
 export interface AdminDeal {
   id: number
   createdOn: string
   createdBy: string | null
   lastActivityDate: string | null
-  daysSinceActivity: number
+  // Null until the data loader's next run picks up a newly created deal
+  state: DealActivityState | null
+  blockedReason: DealBlockedReason | null
+  stateSince: string | null
+  nextSenderAccountId: number | null
+  responsibleAccountId: number | null
+  daysResponsible: number | null
+  cancelsOn: string | null
+  inFlightUntil: string | null
   hasOpenFlag: boolean
   slot1: SlotDetail
   slot2: SlotDetail
@@ -33,10 +41,22 @@ export enum DealFlagType {
   AidFailed = 2,
 }
 
+// Mirrors Valyria.Core.Entities.DealFlagReason, which is serialized as a number
+export enum DealFlagReason {
+  AwaitingSend = 0,
+  SenderSlotsFull = 1,
+  ReceiverSlotsFull = 2,
+  OutOfSequenceAid = 3,
+  AidCancelled = 4,
+  AidExpired = 5,
+}
+
 export interface DealFlag {
   id: number
   dealId: number
   flagType: DealFlagType
+  // Null for flags raised before VEP 3.0's activity rules
+  flagReason: DealFlagReason | null
   flaggedAccount: AccountSimplified
   innocentAccount: AccountSimplified
   flaggedOn: string

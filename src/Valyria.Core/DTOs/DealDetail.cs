@@ -16,11 +16,51 @@ public class DealDetail
     /// </summary>
     public DateTime? LastActivityDate { get; set; }
     /// <summary>
-    /// Days since the last activity, or since the deal was created if there has been no activity
+    /// Null until the data loader's next run picks up a newly created deal
     /// </summary>
-    public int DaysSinceActivity { get; set; }
-    public bool NeedsAction { get; set; }
-    public string ActionNeeded { get; set; }
+    public DealActivityState? State { get; set; }
+    public DealBlockedReason? BlockedReason { get; set; }
+    public DateTime? StateSince { get; set; }
+    /// <summary>
+    /// True if the requesting account sends the next leg (after any in-flight leg expires)
+    /// </summary>
+    public bool IsMyTurnToSend { get; set; }
+    /// <summary>
+    /// True if the requesting account is holding up the deal
+    /// </summary>
+    public bool IAmResponsible { get; set; }
+    /// <summary>
+    /// True if the partner is holding up the deal
+    /// </summary>
+    public bool PartnerIsResponsible { get; set; }
+    /// <summary>
+    /// Days the responsible account has held up the deal
+    /// </summary>
+    public int? DaysResponsible { get; set; }
+    /// <summary>
+    /// CN date the deal is cancelled if the responsible account is still holding it up
+    /// </summary>
+    public DateTime? CancelsOn { get; set; }
+    /// <summary>
+    /// First CN date the in-flight leg no longer occupies a slot
+    /// </summary>
+    public DateTime? InFlightUntil { get; set; }
+    /// <summary>
+    /// True if the in-flight leg is coming to the requesting account
+    /// </summary>
+    public bool InFlightIsIncoming { get; set; }
+    /// <summary>
+    /// True once the in-flight leg's offer has been accepted
+    /// </summary>
+    public bool InFlightAccepted { get; set; }
+    /// <summary>
+    /// First CN date the out-of-sequence aid blocking the deal no longer occupies a slot
+    /// </summary>
+    public DateTime? BlockedUntil { get; set; }
+    /// <summary>
+    /// When the requesting account was warned for holding up this deal, if the warning is still open
+    /// </summary>
+    public DateTime? FlaggedOn { get; set; }
 }
 
 public class DealHistoryItem
@@ -54,4 +94,5 @@ public class DealActivityDetail
     public bool IsOutgoing { get; set; }
     public int Money { get; set; }
     public int Technology { get; set; }
+    public DealLegOutcome Outcome { get; set; }
 }

@@ -7,7 +7,7 @@
     <template #body>
       <div class="space-y-4">
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Resolving this flag clears it from both accounts' notifications. It doesn't change the deal itself.
+          Resolving this flag lets the flagged account be matched with new partners again (once it has no other open flags), and clears its notification. It doesn't change or restore the deal itself.
         </p>
 
         <UFormField label="Admin Notes">

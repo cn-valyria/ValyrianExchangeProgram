@@ -184,15 +184,16 @@
                 </h3>
               </div>
               <p class="text-gray-600 dark:text-gray-300">
-                Each deal on your account page lists what you send and what you receive. Send your partner what's listed
-                under <strong>You Send</strong>, and accept what they send you. If you're the one sending, click your
-                partner's name to go straight to the aid form.
+                You and your partner take turns. Whoever sends cash goes first and sends all of their cycles, then the
+                other side sends all of theirs. Each aid offer fills an aid slot on both nations for 10 days, so a deal
+                only needs you when it's your turn and you both have a free slot. The <strong>Action Needed Today</strong>
+                list at the top of your account page shows exactly what to send or accept each day.
               </p>
               <UAlert
                 color="warning"
                 variant="subtle"
                 title="Important"
-                description="Deals that go without aid are flagged, and a deal that stays inactive is cancelled so both slots can be matched with new partners. Keep your deals active by sending aid on time."
+                description="If you hold up a deal (by not sending on your turn, filling your aid slots with aid outside VEP, or sending aid out of turn) the deal is flagged after a day and cancelled after 5. If an aid offer is cancelled or expires without being accepted, the deal is cancelled and both nations are flagged for review. Flagged accounts aren't matched with new partners until the flag is resolved."
                 icon="i-heroicons-exclamation-triangle"
               />
             </div>

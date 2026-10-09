@@ -9,47 +9,50 @@
       </div>
     </template>
 
-    <!-- On Hold Message -->
-    <div v-if="isOnHold" class="text-center py-8 space-y-4">
-      <UIcon name="i-heroicons-pause-circle" class="w-16 h-16 text-gray-400 mx-auto" />
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-        Your account is on hold
-      </h3>
-      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        Accounts on hold are not matched into deals. If you feel this is an error, please contact VEP management for support.
-      </p>
-    </div>
-
-    <!-- No Deals Message -->
-    <div v-else-if="props.deals.length === 0" class="text-center py-8 space-y-4">
-      <UIcon name="i-heroicons-clock" class="w-16 h-16 text-blue-500 mx-auto" />
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-        Waiting to be matched
-      </h3>
-      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        You don't have any active deals yet. VEP matches open slots with new partners daily.
-        Please check again tomorrow for your updated deals.
-      </p>
-    </div>
-
-    <!-- Deals Content -->
-    <div v-else class="space-y-4">
+    <div class="space-y-4">
+      <!-- Deals cancelled over a flag. Shown even with no active deals, since they can pause matching -->
       <UAlert
         v-for="(notification, index) in props.notifications"
         :key="`notification-${index}`"
-        :color="notification.type === 'info' ? 'info' : notification.type"
-        icon="i-heroicons-exclamation-triangle"
+        :color="notification.type === 'error' ? 'error' : 'info'"
+        :icon="notification.type === 'error' ? 'i-heroicons-flag' : 'i-heroicons-information-circle'"
         :title="notification.message"
       />
 
-      <UAlert
-        color="info"
-        icon="i-heroicons-information-circle"
-        title="Keeping your deals active"
-        description="Each deal pairs one of your slots with a partner's slot. Send what's listed under 'You Send' to each partner, and accept what they send you, every 10 days. Deals that go too long without aid are cancelled and your slot is re-matched. Click a partner you send aid to and you'll go straight to the aid form."
-      />
+      <!-- On Hold Message -->
+      <div v-if="isOnHold" class="text-center py-8 space-y-4">
+        <UIcon name="i-heroicons-pause-circle" class="w-16 h-16 text-gray-400 mx-auto" />
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          Your account is on hold
+        </h3>
+        <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          Accounts on hold are not matched into deals. If you feel this is an error, please contact VEP management for support.
+        </p>
+      </div>
 
-      <UTable :data="data" :columns="columns" />
+      <!-- No Deals Message -->
+      <div v-else-if="props.deals.length === 0" class="text-center py-8 space-y-4">
+        <UIcon name="i-heroicons-clock" class="w-16 h-16 text-blue-500 mx-auto" />
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          Waiting to be matched
+        </h3>
+        <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          You don't have any active deals yet. VEP matches open slots with new partners daily.
+          Please check again tomorrow for your updated deals.
+        </p>
+      </div>
+
+      <!-- Deals Content -->
+      <template v-else>
+        <UAlert
+          color="info"
+          icon="i-heroicons-information-circle"
+          title="Keeping your deals active"
+          description="You and each partner take turns: whoever sends cash goes first, then the other side sends, and so on. Each aid offer fills an aid slot on both nations for 10 days, so a deal only needs you when it's your turn and you both have a free slot. Accept offers before they expire, and keep your slots free of aid outside VEP. Click a partner you send aid to and you'll go straight to the aid form."
+        />
+
+        <UTable :data="data" :columns="columns" />
+      </template>
     </div>
   </UCard>
 </template>
@@ -57,7 +60,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { ACCOUNT_ROLE_CODES } from '~/infrastructure/constants'
-import { describeAid, getDealStateColor, getDealStateFromActivity, getDealStateLabel, type DealState } from '~/infrastructure/deals'
+import { describeAid, describeNextAid, getAidFormLink, getDealStatus, getNationLink, type DealStatusInfo } from '~/infrastructure/deals'
 import type { Account, DealDetail, DealNotification } from '~/stores/account'
 import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
@@ -75,9 +78,10 @@ interface ActiveDealRow {
   youSend: string
   youReceive: string
   sendsAid: boolean
+  nextAid: string
+  isMyTurnToSend: boolean
   lastActivity: string
-  state: DealState
-  stateDetail: string | null
+  status: DealStatusInfo
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,8 +92,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const isOnHold = computed(() => props.account.role === ACCOUNT_ROLE_CODES.onHold)
 
-const flaggedDealIds = computed(() => new Set(props.notifications.map((n) => n.dealId)))
-
 const data = computed<ActiveDealRow[]>(() => props.deals
   .map((deal) => ({
     slotNumber: deal.mySlot.slotNumber,
@@ -99,9 +101,10 @@ const data = computed<ActiveDealRow[]>(() => props.deals
     youSend: describeAid(deal.mySlot.techSentCycles, deal.mySlot.cashSentCycles),
     youReceive: describeAid(deal.mySlot.techReceivedCycles, deal.mySlot.cashReceivedCycles),
     sendsAid: deal.mySlot.techSentCycles + deal.mySlot.cashSentCycles > 0,
+    nextAid: describeNextAid(deal),
+    isMyTurnToSend: deal.isMyTurnToSend,
     lastActivity: deal.lastActivityDate ? deal.lastActivityDate.split('T')[0] : 'None yet',
-    state: getDealState(deal),
-    stateDetail: deal.actionNeeded
+    status: getDealStatus(deal)
   }))
   .sort((a, b) => a.slotNumber - b.slotNumber))
 
@@ -117,7 +120,7 @@ const columns: TableColumn<ActiveDealRow>[] = [
     cell: ({ row }) => {
       const deal = row.original
       return h('a', {
-        href: deal.sendsAid ? getAidFormLink(deal.partner) : getNationLink(deal.partner),
+        href: deal.sendsAid ? getAidFormLink(deal.partner, props.account.nationId) : getNationLink(deal.partner),
         target: '_blank',
         class: 'font-medium text-fg-brand hover:underline'
       }, `${deal.partner.rulerName} of ${deal.partner.nationName}`)
@@ -144,33 +147,24 @@ const columns: TableColumn<ActiveDealRow>[] = [
     header: 'You Receive'
   },
   {
+    accessorKey: 'nextAid',
+    header: 'Next Aid',
+    cell: ({ row }) => h('span', { class: row.original.isMyTurnToSend ? 'font-semibold' : '' }, row.original.nextAid)
+  },
+  {
     accessorKey: 'lastActivity',
     header: 'Last Aid'
   },
   {
-    accessorKey: 'state',
+    accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const badge = h(resolveComponent('UBadge'), {
-        color: getDealStateColor(row.original.state),
+      const status = row.original.status
+      return h(resolveComponent('UTooltip'), { text: status.detail }, () => h(resolveComponent('UBadge'), {
+        color: status.color,
         variant: 'subtle'
-      }, () => getDealStateLabel(row.original.state))
-
-      return row.original.stateDetail
-        ? h(resolveComponent('UTooltip'), { text: row.original.stateDetail }, () => badge)
-        : badge
+      }, () => status.label))
     }
   }
 ]
-
-const getDealState = (deal: DealDetail): DealState =>
-  getDealStateFromActivity(flaggedDealIds.value.has(deal.id), deal.daysSinceActivity, deal.lastActivityDate)
-
-const getAidFormLink = (nation: NationSimplified) => {
-  return `https://www.cybernations.net/aid_form.asp?Nation_ID=${nation.nationId}&bynation=${props.account.nationId}`
-}
-
-const getNationLink = (nation: NationSimplified) => {
-  return `https://www.cybernations.net/nation_drill_display.asp?Nation_ID=${nation.nationId}`
-}
 </script>

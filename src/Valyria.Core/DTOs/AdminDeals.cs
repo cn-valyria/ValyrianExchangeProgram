@@ -11,9 +11,19 @@ public class AdminDealItem
     public string CreatedBy { get; set; }
     public DateTime? LastActivityDate { get; set; }
     /// <summary>
-    /// Days since the last activity, or since the deal was created if there has been no activity
+    /// Null until the data loader's next run picks up a newly created deal
     /// </summary>
-    public int DaysSinceActivity { get; set; }
+    public DealActivityState? State { get; set; }
+    public DealBlockedReason? BlockedReason { get; set; }
+    public DateTime? StateSince { get; set; }
+    public int? NextSenderAccountId { get; set; }
+    /// <summary>
+    /// Account holding up the deal, if any
+    /// </summary>
+    public int? ResponsibleAccountId { get; set; }
+    public int? DaysResponsible { get; set; }
+    public DateTime? CancelsOn { get; set; }
+    public DateTime? InFlightUntil { get; set; }
     public bool HasOpenFlag { get; set; }
     public SlotDetail Slot1 { get; set; }
     public SlotDetail Slot2 { get; set; }

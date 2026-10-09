@@ -37,6 +37,29 @@ export interface SlotDetail {
   hasActiveDeal: boolean
 }
 
+// Mirrors Valyria.Core.Entities.DealActivityState, which is serialized as a number
+export enum DealActivityState {
+  PendingStart = 0,
+  InFlight = 1,
+  AwaitingSend = 2,
+  Blocked = 3,
+}
+
+// Mirrors Valyria.Core.Entities.DealBlockedReason, which is serialized as a number
+export enum DealBlockedReason {
+  SenderSlotsFull = 0,
+  ReceiverSlotsFull = 1,
+  OutOfSequenceAid = 2,
+}
+
+// Mirrors Valyria.Core.Entities.DealLegOutcome, which is serialized as a number
+export enum DealLegOutcome {
+  Pending = 0,
+  Accepted = 1,
+  Cancelled = 2,
+  Expired = 3,
+}
+
 export interface DealDetail {
   id: number
   createdOn: string
@@ -44,9 +67,22 @@ export interface DealDetail {
   partnerSlot: SlotDetail
   partnerDiscord: string | null
   lastActivityDate: string | null
-  daysSinceActivity: number
-  needsAction: boolean
-  actionNeeded: string | null
+  // Null until the data loader's next run picks up a newly created deal
+  state: DealActivityState | null
+  blockedReason: DealBlockedReason | null
+  stateSince: string | null
+  // Whether this account sends the next aid (after any aid in flight expires)
+  isMyTurnToSend: boolean
+  iAmResponsible: boolean
+  partnerIsResponsible: boolean
+  daysResponsible: number | null
+  cancelsOn: string | null
+  inFlightUntil: string | null
+  inFlightIsIncoming: boolean
+  inFlightAccepted: boolean
+  blockedUntil: string | null
+  // Set while this account has an open warning for holding up the deal
+  flaggedOn: string | null
 }
 
 export interface DealNotification {
@@ -95,6 +131,7 @@ export interface DealActivity {
   isOutgoing: boolean
   money: number
   technology: number
+  outcome: DealLegOutcome
 }
 
 export const useAccountStore = defineStore('account', {

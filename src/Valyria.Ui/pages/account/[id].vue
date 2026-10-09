@@ -43,6 +43,8 @@
     <!-- Main Content -->
     <UContainer class="py-8">
       <div class="space-y-6">
+        <!-- Action Needed Card: only shows when a deal needs something from this account today -->
+        <AccountActionNeeded :deals="dealsSummary.activeDeals" :myNationId="account.nationId" />
 
         <!-- Active Deals Card -->
         <AccountActiveDeals

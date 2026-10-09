@@ -52,7 +52,8 @@
 
 <script setup lang="ts">
 import type { TableColumn, TableRow } from '@nuxt/ui'
-import { DealStatus, type DealActivity, type DealHistoryItem } from '~/stores/account'
+import type { BadgeColor } from '~/infrastructure/deals'
+import { DealLegOutcome, DealStatus, type DealActivity, type DealHistoryItem } from '~/stores/account'
 import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
 interface Props {
@@ -75,6 +76,13 @@ const expanded = ref<Record<string, boolean>>({})
 const activityLoading = ref<Record<number, boolean>>({})
 
 const formatDate = (date: string | null): string => date ? date.split('T')[0] : '—'
+
+const LEG_OUTCOMES: Record<DealLegOutcome, { label: string, color: BadgeColor }> = {
+  [DealLegOutcome.Pending]: { label: 'Pending', color: 'info' },
+  [DealLegOutcome.Accepted]: { label: 'Accepted', color: 'success' },
+  [DealLegOutcome.Cancelled]: { label: 'Cancelled', color: 'error' },
+  [DealLegOutcome.Expired]: { label: 'Expired', color: 'error' }
+}
 
 const columns: TableColumn<DealHistoryItem>[] = [
   {
@@ -175,6 +183,14 @@ const activityColumns: TableColumn<DealActivity>[] = [
   {
     accessorKey: 'technology',
     header: 'Tech'
+  },
+  {
+    accessorKey: 'outcome',
+    header: 'Outcome',
+    cell: ({ row }) => {
+      const outcome = LEG_OUTCOMES[row.original.outcome]
+      return h(resolveComponent('UBadge'), { color: outcome.color, variant: 'subtle' }, () => outcome.label)
+    }
   }
 ]
 
