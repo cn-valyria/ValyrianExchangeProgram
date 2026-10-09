@@ -91,6 +91,22 @@ public enum DealBlockedReason
 }
 
 /// <summary>
+/// Which accounts a daily mass message goes to (mass_message.code). Each account gets the
+/// most urgent message that applies to it
+/// </summary>
+public enum MassMessageCode
+{
+    /// <summary>Has aid to send or slots to free, and isn't flagged</summary>
+    SendAid,
+    /// <summary>Has an aid offer to accept, and isn't flagged</summary>
+    AcceptAid,
+    /// <summary>Flagged for holding up a deal</summary>
+    Overdue,
+    /// <summary>Flagged, and a deal is cancelled at the next daily check</summary>
+    FinalWarning
+}
+
+/// <summary>
 /// What happened to an aid offer counted as a deal leg
 /// </summary>
 public enum DealLegOutcome

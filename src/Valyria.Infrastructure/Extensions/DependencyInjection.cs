@@ -15,6 +15,7 @@ public static class DependencyInjection
             .AddTransient<IAuthorizationRepository>(sp => new AuthorizationRepository(vepDbConnectionString))
             .AddTransient<IAccountsRepository>(sp => new AccountsRepository(vepDbConnectionString))
             .AddTransient<IAdminRepository>(sp => new AdminRepository(vepDbConnectionString))
-            .AddTransient<IDealsRepository>(sp => new DealsRepository(vepDbConnectionString));
+            .AddTransient<IDealsRepository>(sp => new DealsRepository(vepDbConnectionString))
+            .AddTransient<IMassMessagesRepository>(sp => new MassMessagesRepository(vepDbConnectionString));
     }
 }

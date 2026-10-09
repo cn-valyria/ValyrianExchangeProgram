@@ -127,6 +127,14 @@ Each daily run puts every active deal in one state (`deal_state`):
 
 Any unresolved flag keeps the account out of matching.
 
+### [V11__mass_messages.sql](migrations/V11__mass_messages.sql)
+**VEP 3.0: Daily mass messages (replaces the VEP 2.5 lists)**
+
+- `mass_message` - one row per daily CN mass message (`send_aid`, `accept_aid`, `overdue`, `final_warning`) with its subject/message template
+- `mass_message_sent` - which messages an admin sent on each CN date (unique per message per day, so the admin page's "Messages Sent" toggle resets daily)
+
+Recipients aren't stored; the API works them out from `deal_state` and `deal_flag` each time the page loads. The old `list`, `list_recipient` and `account_list_performance` tables are left in place but unused.
+
 ## Database Architecture
 
 ### Two-Database Design

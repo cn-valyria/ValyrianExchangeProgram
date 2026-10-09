@@ -66,9 +66,12 @@
             <NuxtLink to="/admin/aid-activity" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
               Aid Activity
             </NuxtLink>
+            <NuxtLink to="/admin/deals" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+              Deals
+            </NuxtLink>
           </template>
-          <NuxtLink v-if="accountIsAdmin || accountCanSeeDeals || accountIsReadOnlyAdmin" to="/admin/deals" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
-            Deals
+          <NuxtLink v-if="accountIsAdmin || accountCanSendMessages || accountIsReadOnlyAdmin" to="/admin/messages" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            Messages
           </NuxtLink>
           <NuxtLink v-if="accountIsAdmin" to="/admin/settings" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             Settings
@@ -108,8 +111,8 @@ const accountIsAdmin = computed(() => {
   return loggedInUser.value?.roles?.some((role: any) => role.name === "Super Admin") ?? false
 })
 
-// The "Admin - Lists" role predates VEP 3.0; the Deals page replaced the Lists page it was made for
-const accountCanSeeDeals = computed(() => {
+// The "Admin - Lists" role is named for VEP 2.5's lists, which the Messages page replaced
+const accountCanSendMessages = computed(() => {
   return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin - Lists") ?? false
 })
 
@@ -128,7 +131,7 @@ const accountMenuItems = computed(() => {
     ]
   ]
 
-  if (accountIsAdmin.value || accountCanSeeDeals.value || accountIsReadOnlyAdmin.value) {
+  if (accountIsAdmin.value || accountCanSendMessages.value || accountIsReadOnlyAdmin.value) {
     const adminItems = []
 
     if (accountIsAdmin.value || accountIsReadOnlyAdmin.value) {
@@ -152,12 +155,17 @@ const accountMenuItems = computed(() => {
         icon: 'i-heroicons-arrows-right-left',
         to: '/admin/aid-activity'
       })
+      adminItems.push({
+        label: 'Deals',
+        icon: 'i-heroicons-link',
+        to: '/admin/deals'
+      })
     }
 
     adminItems.push({
-      label: 'Deals',
-      icon: 'i-heroicons-link',
-      to: '/admin/deals'
+      label: 'Messages',
+      icon: 'i-heroicons-envelope',
+      to: '/admin/messages'
     })
 
     if (accountIsAdmin.value) {

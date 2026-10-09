@@ -26,8 +26,8 @@ export default defineNuxtRouteMiddleware((to) => {
     if (to.path === '/admin/settings') {
       // Only Super Admin can access settings
       allowedRoles = ['Super Admin']
-    } else if (to.path === '/admin/deals') {
-      // Deals accessible by Super Admin, Admin - Lists, and Admin (Read-only)
+    } else if (to.path === '/admin/messages') {
+      // Mass messages accessible by Super Admin, Admin - Lists, and Admin (Read-only)
       allowedRoles = ['Super Admin', 'Admin - Lists', 'Admin (Read-only)']
     } else if (to.path.startsWith('/admin')) {
       // Other admin pages accessible by Super Admin and Admin (Read-only)
