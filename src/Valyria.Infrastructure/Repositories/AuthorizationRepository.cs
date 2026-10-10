@@ -13,7 +13,10 @@ public class AuthorizationRepository : IAuthorizationRepository
     private readonly string _connectionString;
 
     private const string BaseGetAuthorizedUserQuery = @"
-select account.id as AccountId
+select account.id as AccountId,
+    nation.id as NationId,
+    nation.ruler_name as RulerName,
+    account.va as Role
 from vep_db.account
 join cybernations_db.nation on account.nation_id = nation.id";
 
@@ -27,9 +30,7 @@ join cybernations_db.nation on account.nation_id = nation.id";
             BaseGetAuthorizedUserQuery + " where nation_id = @nationId and psw = @uniqueCode",
             new { nationId, uniqueCode });
 
-        account.Roles = await GetAccountRolesAsync(account.AccountId);
-
-        return account;
+        return await WithRolesAsync(account);
     }
 
     public async Task<AuthorizedAccount> Authorize(string rulerName, string uniqueCode)
@@ -40,8 +41,16 @@ join cybernations_db.nation on account.nation_id = nation.id";
             BaseGetAuthorizedUserQuery + " where ruler_name = @rulerName and psw = @uniqueCode",
             new { rulerName, uniqueCode });
 
-        account.Roles = await GetAccountRolesAsync(account.AccountId);
+        return await WithRolesAsync(account);
+    }
 
+    // A wrong unique code (or a deleted account) finds no row
+    private async Task<AuthorizedAccount> WithRolesAsync(AuthorizedAccount account)
+    {
+        if (account is null)
+            return null;
+
+        account.Roles = await GetAccountRolesAsync(account.AccountId);
         return account;
     }
 

@@ -70,7 +70,7 @@ left join (
     public async Task<AccountDetail> GetAccountByIdAsync(int accountId)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
-        return await sqlConnection.QueryFirstAsync<AccountDetail>(
+        return await sqlConnection.QueryFirstOrDefaultAsync<AccountDetail>(
             AccountDetailQuery + "\nwhere account.id = @account_id",
             new { account_id = accountId });
     }
@@ -209,11 +209,9 @@ where nation.id = @nation_id";
     private async Task<bool> AccountExists(int accountId)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
-        var accountExists = await sqlConnection.QueryFirstAsync<bool?>(
-            "select 1 from account where id = @id limit 1",
+        return await sqlConnection.ExecuteScalarAsync<bool>(
+            "select exists (select 1 from account where id = @id)",
             new { id = accountId });
-
-        return accountExists ?? false;
     }
 
     public async Task<IEnumerable<TopScorerAccount>> GetTopScorerAccountsAsync()

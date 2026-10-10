@@ -8,6 +8,9 @@ public interface IAccountsRepository
 {
     Task<IEnumerable<AccountDetail>> GetAccountDetailsAsync(bool includeOnHold = false);
 
+    /// <summary>
+    /// Returns null if the account does not exist
+    /// </summary>
     Task<AccountDetail> GetAccountByIdAsync(int accountId);
 
     Task<AccountDetail> CreateAccountAsync(AccountCreateRequest request);

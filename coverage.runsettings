@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Code coverage settings for the test projects. See tests/README.md for how to run and merge reports.
+  Covers the application assemblies; leaves out the Aspire AppHost and ServiceDefaults (template code)
+  and the data loader's composition root.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Include>[Valyria.Api]*,[Valyria.Core]*,[Valyria.Infrastructure]*,[Valyria.Batch.DataLoader]*</Include>
+          <ExcludeByFile>**/Valyria.Batch.DataLoader/Program.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

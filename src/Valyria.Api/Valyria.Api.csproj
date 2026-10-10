@@ -8,6 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Lets WebApplicationFactory<Program> boot the API in tests -->
+    <InternalsVisibleTo Include="Valyria.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../Valyria.Core/Valyria.Core.csproj" />
     <ProjectReference Include="../Valyria.Infrastructure/Valyria.Infrastructure.csproj" />
     <ProjectReference Include="../Valyria.ServiceDefaults/Valyria.ServiceDefaults.csproj" />
