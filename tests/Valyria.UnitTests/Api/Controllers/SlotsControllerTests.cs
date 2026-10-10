@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Valyria.Api.Auth;
 using Valyria.Api.Controllers;
 using Valyria.Core.DTOs;
 using Valyria.Core.Interfaces;
@@ -18,7 +19,7 @@ public class SlotsControllerTests
     public SlotsControllerTests()
     {
         _controller = new SlotsController(_repository, NullLogger<SlotsController>.Instance)
-            .WithUser(new Claim(ClaimTypes.Name, "admin"));
+            .WithUser(new Claim(TokenClaims.Name, "Bob"), new Claim(TokenClaims.AdminRole, AdminRoles.SuperAdmin));
     }
 
     [Fact]
@@ -47,14 +48,14 @@ public class SlotsControllerTests
     }
 
     [Fact]
-    public async Task UpdateSlot_UsesTheRouteSlotId_AndTheSignedInUser()
+    public async Task UpdateSlot_UsesTheRouteSlotId_AndTheSignedInRulerName()
     {
-        _repository.UpdateSlotAsync(Arg.Any<SlotUpdateRequest>(), "admin").Returns(true);
+        _repository.UpdateSlotAsync(Arg.Any<SlotUpdateRequest>(), "Bob").Returns(true);
         var request = new SlotUpdateRequest { SlotId = 999, TechSentCycles = 2 };
 
         Assert.IsType<NoContentResult>(await _controller.UpdateSlot(4, request));
 
-        await _repository.Received(1).UpdateSlotAsync(Arg.Is<SlotUpdateRequest>(r => r.SlotId == 4 && r.TechSentCycles == 2), "admin");
+        await _repository.Received(1).UpdateSlotAsync(Arg.Is<SlotUpdateRequest>(r => r.SlotId == 4 && r.TechSentCycles == 2), "Bob");
     }
 
     [Fact]

@@ -9,13 +9,13 @@ public class AuthorizationRepositoryTests(MySqlFixture fixture) : RepositoryTest
     [Fact]
     public async Task Authorize_ByNationId_ReturnsTheAccountAndItsRoles()
     {
-        var accountId = await Data.MemberAsync(100, "Bob", psw: "ABCDE");
+        var accountId = await Data.MemberAsync(100, "Bob", 'S', psw: "ABCDE");
         await Data.AccountRoleAsync(accountId, await Data.RoleAsync("Admin"));
         await Data.AccountRoleAsync(accountId, await Data.RoleAsync("Admin - Lists"));
 
         var account = await Repository.Authorize(100, "ABCDE");
 
-        Assert.Equal(accountId, account.AccountId);
+        Assert.Equal((accountId, 100, "Bob", 'S'), (account.AccountId, account.NationId, account.RulerName, account.Role));
         Assert.Equal(["Admin", "Admin - Lists"], account.Roles.Select(r => r.Name).Order());
     }
 
@@ -27,12 +27,11 @@ public class AuthorizationRepositoryTests(MySqlFixture fixture) : RepositoryTest
 
         var account = await Repository.Authorize("Bob", "ABCDE");
 
-        Assert.Equal(accountId, account.AccountId);
+        Assert.Equal((accountId, 100), (account.AccountId, account.NationId));
         Assert.Empty(account.Roles);
     }
 
-    [Fact(Skip = "Bug: Authorize dereferences the account before checking it was found (AuthorizationRepository.cs:30 and :43), " +
-                 "so a wrong unique code throws NullReferenceException and /api/user/token returns 500 instead of 401")]
+    [Fact]
     public async Task Authorize_ReturnsNull_ForAWrongUniqueCode()
     {
         await Data.MemberAsync(100, "Bob", psw: "ABCDE");

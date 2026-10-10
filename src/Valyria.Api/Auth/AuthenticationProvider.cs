@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Valyria.Core.Contracts;
 using Valyria.Core.Interfaces;
-using Valyria.Infrastructure.Repositories;
 using Valyria.Core.DTOs;
 
 namespace Valyria.Api.Auth;
@@ -13,15 +12,6 @@ public class AuthenticationProvider : IAuthenticationProvider
     public AuthenticationProvider(IAuthorizationRepository authorizationRepository)
     {
         _authorizationRepository = authorizationRepository;
-    }
-
-    public async Task<bool> IsAuthenticated(AuthorizeUserRequest request)
-    {
-        if (!RequestIsValid(request))
-            return false;
-
-        var authorizedUser = await GetAuthorizedAccount(request);
-        return authorizedUser != null;
     }
 
     public async Task<AuthorizedAccount> GetAuthorizedAccount(AuthorizeUserRequest request)
@@ -51,6 +41,5 @@ public class AuthenticationProvider : IAuthenticationProvider
 
 public interface IAuthenticationProvider
 {
-    Task<bool> IsAuthenticated(AuthorizeUserRequest account);
     Task<AuthorizedAccount> GetAuthorizedAccount(AuthorizeUserRequest request);
 }

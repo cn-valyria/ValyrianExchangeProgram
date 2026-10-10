@@ -25,7 +25,6 @@ public class AuthenticationProviderTests
     [MemberData(nameof(InvalidRequests))]
     public async Task InvalidRequests_AreRejected_WithoutHittingTheDatabase(AuthorizeUserRequest request)
     {
-        Assert.False(await _provider.IsAuthenticated(request));
         Assert.Null(await _provider.GetAuthorizedAccount(request));
 
         Assert.Empty(_repository.ReceivedCalls());
@@ -59,18 +58,10 @@ public class AuthenticationProviderTests
     }
 
     [Fact]
-    public async Task IsAuthenticated_IsTrue_WhenTheRepositoryFindsTheAccount()
+    public async Task ReturnsNull_WhenTheRepositoryFindsNothing()
     {
-        _repository.Authorize(123, "ABCDE").Returns(new AuthorizedAccount { AccountId = 7 });
+        _repository.Authorize(123, "WRONG").Returns((AuthorizedAccount)null!);
 
-        Assert.True(await _provider.IsAuthenticated(new AuthorizeUserRequest { NationId = "123", UniqueCode = "ABCDE" }));
-    }
-
-    [Fact]
-    public async Task IsAuthenticated_IsFalse_WhenTheRepositoryFindsNothing()
-    {
-        _repository.Authorize(123, "ABCDE").Returns((AuthorizedAccount)null!);
-
-        Assert.False(await _provider.IsAuthenticated(new AuthorizeUserRequest { NationId = "123", UniqueCode = "ABCDE" }));
+        Assert.Null(await _provider.GetAuthorizedAccount(new AuthorizeUserRequest { NationId = "123", UniqueCode = "WRONG" }));
     }
 }

@@ -28,7 +28,3 @@ Open `TestResults/CoverageReport/index.html`, or read `TestResults/CoverageRepor
 `coverage.runsettings` measures `Valyria.Api`, `Valyria.Core`, `Valyria.Infrastructure` and `Valyria.Batch.DataLoader`. It leaves out the AppHost, ServiceDefaults (Aspire template code) and the data loader's `Program.cs`.
 
 `CnFileGrabber` is untested: it downloads from cybernations.net with its own `HttpClient`, so testing it would mean injecting the client first.
-
-## Skipped tests
-
-Two integration tests are skipped because they describe bugs. Each skip reason names the line at fault. Remove the `Skip` once the bug is fixed.

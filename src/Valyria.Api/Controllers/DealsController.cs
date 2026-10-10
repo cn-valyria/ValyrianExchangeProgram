@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Valyria.Api.Auth;
 using Valyria.Core.Interfaces;
 using Valyria.Core.DTOs;
 
@@ -30,6 +31,9 @@ public class DealsController : ControllerBase
     [HttpGet("account/{accountId}")]
     public async Task<IActionResult> GetAccountDeals(int accountId)
     {
+        if (!User.CanAccessAccount(accountId))
+            return Forbid();
+
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountDeals), accountId);
 
         try
@@ -55,6 +59,9 @@ public class DealsController : ControllerBase
     [HttpGet("account/{accountId}/history")]
     public async Task<IActionResult> GetAccountDealHistory(int accountId, [FromQuery] int? limit, [FromQuery] int? offset)
     {
+        if (!User.CanAccessAccount(accountId))
+            return Forbid();
+
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountDealHistory), accountId);
 
         try
@@ -80,6 +87,9 @@ public class DealsController : ControllerBase
     [HttpGet("{id}/activity")]
     public async Task<IActionResult> GetDealActivity(int id, [FromQuery] int accountId)
     {
+        if (!User.CanAccessAccount(accountId))
+            return Forbid();
+
         _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}, accountId={AccountId}",
             nameof(GetDealActivity), id, accountId);
 
@@ -110,6 +120,7 @@ public class DealsController : ControllerBase
     /// Get details for a specific deal by ID
     /// </summary>
     [HttpGet("{id}")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetDeal(int id)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}", nameof(GetDeal), id);
@@ -140,14 +151,14 @@ public class DealsController : ControllerBase
     /// Create a new deal between two slots
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> CreateDeal([FromBody] CreateDealRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(CreateDeal));
 
         try
         {
-            var username = User.Identity?.Name ?? "unknown";
-            request.CreatedBy = username;
+            request.CreatedBy = User.GetAuditName();
 
             var dealId = await _dealsRepository.CreateDealAsync(request);
 
@@ -168,14 +179,14 @@ public class DealsController : ControllerBase
     /// Cancel an existing deal
     /// </summary>
     [HttpPut("{id}/cancel")]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> CancelDeal(int id, [FromBody] CancelDealRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}", nameof(CancelDeal), id);
 
         try
         {
-            var username = User.Identity?.Name ?? "unknown";
-            await _dealsRepository.CancelDealAsync(id, request.Reason, username);
+            await _dealsRepository.CancelDealAsync(id, request.Reason, User.GetAuditName());
 
             _logger.LogInformation("{MethodName} execution complete for dealId={DealId}", nameof(CancelDeal), id);
 
@@ -193,6 +204,7 @@ public class DealsController : ControllerBase
     /// Get a page of all active deals, optionally filtered by nation, ruler, or alliance name (admin only)
     /// </summary>
     [HttpGet("admin/active")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetActiveDeals([FromQuery] string? search, [FromQuery] int? limit, [FromQuery] int? offset)
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(GetActiveDeals));
@@ -218,6 +230,7 @@ public class DealsController : ControllerBase
     /// Search all aid sent or received by VEP accounts (admin only)
     /// </summary>
     [HttpGet("admin/aid-activity")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> SearchAidActivity([FromQuery] AidActivityFilters filters, [FromQuery] int? limit, [FromQuery] int? offset)
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(SearchAidActivity));
@@ -244,6 +257,7 @@ public class DealsController : ControllerBase
     /// Get all accounts in the wait queue (admin only)
     /// </summary>
     [HttpGet("admin/wait-queue")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetWaitQueue()
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(GetWaitQueue));
@@ -269,6 +283,7 @@ public class DealsController : ControllerBase
     /// Get all flagged deals (admin only)
     /// </summary>
     [HttpGet("admin/flagged")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetFlaggedDeals()
     {
         _logger.LogInformation("Beginning execution for {MethodName}", nameof(GetFlaggedDeals));
@@ -294,14 +309,14 @@ public class DealsController : ControllerBase
     /// Resolve a deal flag (admin only)
     /// </summary>
     [HttpPut("admin/flags/{flagId}/resolve")]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> ResolveDealFlag(int flagId, [FromBody] ResolveFlagRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with flagId={FlagId}", nameof(ResolveDealFlag), flagId);
 
         try
         {
-            var username = User.Identity?.Name ?? "unknown";
-            await _dealsRepository.ResolveDealFlagAsync(flagId, username, request.AdminNotes);
+            await _dealsRepository.ResolveDealFlagAsync(flagId, User.GetAuditName(), request.AdminNotes);
 
             _logger.LogInformation("{MethodName} execution complete for flagId={FlagId}", nameof(ResolveDealFlag), flagId);
 

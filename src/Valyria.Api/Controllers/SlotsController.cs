@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Valyria.Api.Auth;
 using Valyria.Core.DTOs;
 using Valyria.Core.Interfaces;
 
@@ -28,6 +29,7 @@ public class SlotsController : ControllerBase
     /// Get all slots for a specific account
     /// </summary>
     [HttpGet("account/{accountId}")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetAccountSlots(int accountId)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAccountSlots), accountId);
@@ -59,16 +61,16 @@ public class SlotsController : ControllerBase
     /// Update the cycle values of a slot
     /// </summary>
     [HttpPut("{slotId}")]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> UpdateSlot(int slotId, [FromBody] SlotUpdateRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with slotId={SlotId}", nameof(UpdateSlot), slotId);
 
         try
         {
-            var username = User.Identity?.Name ?? "unknown";
             request.SlotId = slotId;
 
-            var updated = await _dealsRepository.UpdateSlotAsync(request, username);
+            var updated = await _dealsRepository.UpdateSlotAsync(request, User.GetAuditName());
 
             if (!updated)
             {
@@ -92,6 +94,7 @@ public class SlotsController : ControllerBase
     /// Get all slots for a specific account that are not part of an active deal
     /// </summary>
     [HttpGet("available/{accountId}")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetAvailableSlots(int accountId)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with accountId={AccountId}", nameof(GetAvailableSlots), accountId);

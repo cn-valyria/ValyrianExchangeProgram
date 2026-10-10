@@ -33,13 +33,14 @@ public class CustomJwtBearerEventsTests
         };
     }
 
-    private static ClaimsPrincipal Principal(string? nationId, string? rulerName, string? uniqueCode)
+    private static ClaimsPrincipal Principal(string? nationId, string? rulerName, string? uniqueCode, params Claim[] accountClaims)
     {
-        var claims = new List<Claim>();
+        var claims = new List<Claim>(accountClaims);
         if (nationId != null) claims.Add(new Claim(TokenClaims.NationId, nationId));
         if (rulerName != null) claims.Add(new Claim(TokenClaims.RulerName, rulerName));
         if (uniqueCode != null) claims.Add(new Claim(TokenClaims.UniqueCode, uniqueCode));
-        return new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
+        // Same name and role claim types as the API's JWT configuration
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer", TokenClaims.Name, TokenClaims.AdminRole));
     }
 
     [Fact]
@@ -97,21 +98,50 @@ public class CustomJwtBearerEventsTests
     }
 
     [Fact]
-    public async Task AddsAccountIdAndRoleClaims_WhenAuthorizedByNationId()
+    public async Task AddsTheAccountsClaims_WhenAuthorizedByNationId()
     {
         _repository.Authorize(123, "ABCDE").Returns(new AuthorizedAccount
         {
             AccountId = 42,
-            Roles = [new AccountRole { Id = 1, Name = "Admin" }, new AccountRole { Id = 2, Name = "Admin - Lists" }]
+            RulerName = "Bob",
+            Role = 'S',
+            Roles = [new AccountRole { Id = 1, Name = AdminRoles.SuperAdmin }, new AccountRole { Id = 3, Name = AdminRoles.Lists }]
         });
         var context = CreateContext(Principal("123", "Bob", "ABCDE"));
 
         await new CustomJwtBearerEvents().TokenValidated(context);
 
         Assert.Null(context.Result);
-        Assert.Equal("42", context.Principal!.FindFirst("AccountId")?.Value);
-        Assert.True(context.Principal.IsInRole("Admin"));
-        Assert.True(context.Principal.IsInRole("Admin - Lists"));
+        Assert.Equal(42, context.Principal!.GetAccountId());
+        Assert.Equal("Bob", context.Principal.Identity!.Name);
+        Assert.Equal("S", context.Principal.FindFirst(TokenClaims.VepRole)?.Value);
+        Assert.True(context.Principal.IsInRole(AdminRoles.SuperAdmin));
+        Assert.True(context.Principal.IsInRole(AdminRoles.Lists));
+    }
+
+    [Fact]
+    public async Task ReplacesStaleAccountClaimsFromTheToken_WithTheDatabasesCurrentValues()
+    {
+        _repository.Authorize(123, "ABCDE").Returns(new AuthorizedAccount
+        {
+            AccountId = 42, RulerName = "Bob the Second", Role = 'H', Roles = [new AccountRole { Id = 2, Name = AdminRoles.ReadOnly }]
+        });
+        var context = CreateContext(Principal("123", "Bob", "ABCDE",
+            new Claim(TokenClaims.AccountId, "42"),
+            new Claim(TokenClaims.Name, "Bob"),
+            new Claim(TokenClaims.VepRole, "B"),
+            new Claim(TokenClaims.AdminRole, AdminRoles.SuperAdmin)));
+
+        await new CustomJwtBearerEvents().TokenValidated(context);
+
+        var principal = context.Principal!;
+        Assert.Equal(["42"], principal.FindAll(TokenClaims.AccountId).Select(c => c.Value));
+        Assert.Equal(["Bob the Second"], principal.FindAll(TokenClaims.Name).Select(c => c.Value));
+        Assert.Equal(["H"], principal.FindAll(TokenClaims.VepRole).Select(c => c.Value));
+        Assert.Equal([AdminRoles.ReadOnly], principal.FindAll(TokenClaims.AdminRole).Select(c => c.Value));
+        Assert.False(principal.IsInRole(AdminRoles.SuperAdmin));
+        // Credentials are left alone
+        Assert.Equal("ABCDE", principal.FindFirst(TokenClaims.UniqueCode)?.Value);
     }
 
     [Fact]
@@ -123,7 +153,7 @@ public class CustomJwtBearerEventsTests
         await new CustomJwtBearerEvents().TokenValidated(context);
 
         Assert.Null(context.Result);
-        Assert.Equal("42", context.Principal!.FindFirst("AccountId")?.Value);
-        Assert.Empty(context.Principal.FindAll(ClaimTypes.Role));
+        Assert.Equal(42, context.Principal!.GetAccountId());
+        Assert.Empty(context.Principal.FindAll(TokenClaims.AdminRole));
     }
 }

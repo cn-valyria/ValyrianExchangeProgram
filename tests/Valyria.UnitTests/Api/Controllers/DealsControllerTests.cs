@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Valyria.Api.Auth;
 using Valyria.Api.Controllers;
 using Valyria.Core.DTOs;
 using Valyria.Core.Entities;
@@ -15,10 +16,50 @@ public class DealsControllerTests
 {
     private readonly IDealsRepository _repository = Substitute.For<IDealsRepository>();
 
-    private DealsController CreateController(string? userName = "admin")
+    /// <summary>
+    /// Signed in as member account 7 (ruler Bob) unless told otherwise; a null ruler name means no claims at all
+    /// </summary>
+    private DealsController CreateController(string? rulerName = "Bob", int accountId = 7, params string[] adminRoles)
     {
         var controller = new DealsController(_repository, NullLogger<DealsController>.Instance);
-        return userName == null ? controller.WithUser() : controller.WithUser(new Claim(ClaimTypes.Name, userName));
+        if (rulerName == null)
+            return controller.WithUser();
+
+        var claims = new List<Claim> { new(TokenClaims.Name, rulerName), new(TokenClaims.AccountId, accountId.ToString()) };
+        claims.AddRange(adminRoles.Select(role => new Claim(TokenClaims.AdminRole, role)));
+        return controller.WithUser([.. claims]);
+    }
+
+    [Fact]
+    public async Task AccountEndpoints_ForbidOtherMembers()
+    {
+        var controller = CreateController(accountId: 8);
+
+        Assert.IsType<ForbidResult>(await controller.GetAccountDeals(7));
+        Assert.IsType<ForbidResult>(await controller.GetAccountDealHistory(7, null, null));
+        Assert.IsType<ForbidResult>(await controller.GetDealActivity(3, 7));
+        Assert.Empty(_repository.ReceivedCalls());
+    }
+
+    [Theory]
+    [InlineData(AdminRoles.SuperAdmin)]
+    [InlineData(AdminRoles.ReadOnly)]
+    public async Task AccountEndpoints_AllowAdminPortalViewers(string adminRole)
+    {
+        _repository.GetAccountDealsAsync(7).Returns(new AccountDealsSummary());
+        _repository.GetAccountDealHistoryAsync(7, 10, 0).Returns(new DealHistoryPage());
+        _repository.GetDealActivityAsync(3, 7).Returns([]);
+        var controller = CreateController("Admin", 1, adminRole);
+
+        Assert.IsType<OkObjectResult>(await controller.GetAccountDeals(7));
+        Assert.IsType<OkObjectResult>(await controller.GetAccountDealHistory(7, null, null));
+        Assert.IsType<OkObjectResult>(await controller.GetDealActivity(3, 7));
+    }
+
+    [Fact]
+    public async Task AccountEndpoints_ForbidListsAdmins_LikeTheUi()
+    {
+        Assert.IsType<ForbidResult>(await CreateController("Lister", 1, AdminRoles.Lists).GetAccountDeals(7));
     }
 
     [Fact]
@@ -115,25 +156,25 @@ public class DealsControllerTests
     }
 
     [Fact]
-    public async Task CreateDeal_StampsTheSignedInUser_AndReturnsCreatedAtGetDeal()
+    public async Task CreateDeal_StampsTheSignedInRulerName_AndReturnsCreatedAtGetDeal()
     {
         _repository.CreateDealAsync(Arg.Any<CreateDealRequest>()).Returns(55);
         var request = new CreateDealRequest { Slot1Id = 1, Slot2Id = 2, CreatedBy = "spoofed" };
 
-        var created = Assert.IsType<CreatedAtActionResult>(await CreateController("admin").CreateDeal(request));
+        var created = Assert.IsType<CreatedAtActionResult>(await CreateController("Bob").CreateDeal(request));
 
         Assert.Equal(nameof(DealsController.GetDeal), created.ActionName);
         Assert.Equal(55, created.RouteValues!["id"]);
         Assert.Equal(55, Prop(created.Value, "id"));
-        await _repository.Received(1).CreateDealAsync(Arg.Is<CreateDealRequest>(r => r.CreatedBy == "admin"));
+        await _repository.Received(1).CreateDealAsync(Arg.Is<CreateDealRequest>(r => r.CreatedBy == "Bob"));
     }
 
     [Fact]
-    public async Task CreateDeal_FallsBackToUnknown_WhenTheUserHasNoName()
+    public async Task CreateDeal_FallsBackToUnknown_WhenThereIsNoNameClaim()
     {
         _repository.CreateDealAsync(Arg.Any<CreateDealRequest>()).Returns(55);
 
-        await CreateController(userName: null).CreateDeal(new CreateDealRequest { Slot1Id = 1, Slot2Id = 2 });
+        await CreateController(rulerName: null).CreateDeal(new CreateDealRequest { Slot1Id = 1, Slot2Id = 2 });
 
         await _repository.Received(1).CreateDealAsync(Arg.Is<CreateDealRequest>(r => r.CreatedBy == "unknown"));
     }
@@ -147,11 +188,11 @@ public class DealsControllerTests
     }
 
     [Fact]
-    public async Task CancelDeal_CancelsAsTheSignedInUser()
+    public async Task CancelDeal_CancelsAsTheSignedInRulerName()
     {
-        Assert.IsType<NoContentResult>(await CreateController("admin").CancelDeal(3, new CancelDealRequest { Reason = "inactive" }));
+        Assert.IsType<NoContentResult>(await CreateController("Bob").CancelDeal(3, new CancelDealRequest { Reason = "inactive" }));
 
-        await _repository.Received(1).CancelDealAsync(3, "inactive", "admin");
+        await _repository.Received(1).CancelDealAsync(3, "inactive", "Bob");
     }
 
     [Fact]
@@ -241,11 +282,11 @@ public class DealsControllerTests
     }
 
     [Fact]
-    public async Task ResolveDealFlag_ResolvesAsTheSignedInUser()
+    public async Task ResolveDealFlag_ResolvesAsTheSignedInRulerName()
     {
-        Assert.IsType<NoContentResult>(await CreateController("admin").ResolveDealFlag(9, new ResolveFlagRequest { AdminNotes = "ok" }));
+        Assert.IsType<NoContentResult>(await CreateController("Bob").ResolveDealFlag(9, new ResolveFlagRequest { AdminNotes = "ok" }));
 
-        await _repository.Received(1).ResolveDealFlagAsync(9, "admin", "ok");
+        await _repository.Received(1).ResolveDealFlagAsync(9, "Bob", "ok");
     }
 
     [Fact]

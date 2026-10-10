@@ -1,17 +1,21 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Valyria.Api.Auth;
 
 namespace Valyria.UnitTests;
 
 internal static class TestHelpers
 {
     /// <summary>
-    /// Gives a controller an HttpContext, signed in with the given claims (anonymous if none)
+    /// Gives a controller an HttpContext, signed in with the given claims (anonymous if none). Name and
+    /// role claim types match the API's JWT configuration
     /// </summary>
     public static T WithUser<T>(this T controller, params Claim[] claims) where T : ControllerBase
     {
-        var identity = claims.Length == 0 ? new ClaimsIdentity() : new ClaimsIdentity(claims, "Test");
+        var identity = claims.Length == 0
+            ? new ClaimsIdentity()
+            : new ClaimsIdentity(claims, "Test", TokenClaims.Name, TokenClaims.AdminRole);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }

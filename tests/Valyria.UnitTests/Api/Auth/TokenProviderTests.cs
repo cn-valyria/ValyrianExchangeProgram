@@ -1,10 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Valyria.Api.Auth;
 using Valyria.Core.Contracts;
+using Valyria.Core.DTOs;
 
 namespace Valyria.UnitTests.Api.Auth;
 
@@ -12,54 +13,98 @@ public class TokenProviderTests
 {
     internal const string Secret = "unit-test-secret-that-is-long-enough-for-hmac-sha256-signing!!";
 
-    private static TokenProvider CreateProvider(string secret = Secret) =>
-        new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["JwtSecret"] = secret }).Build(),
-            NullLogger<TokenProvider>.Instance);
+    /// <summary>
+    /// Keeps every formatted log message, so tests can check nothing sensitive is written
+    /// </summary>
+    private sealed class RecordingLogger : ILogger<TokenProvider>
+    {
+        public List<string> Messages { get; } = [];
 
-    private static readonly AuthorizeUserRequest Account = new() { NationId = "123", RulerName = "Bob", UniqueCode = "ABCDE" };
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception) + exception);
+    }
+
+    private readonly RecordingLogger _logger = new();
+
+    private TokenProvider CreateProvider(string secret = Secret) =>
+        new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["JwtSecret"] = secret }).Build(), _logger);
+
+    internal static readonly AuthorizeUserRequest Credentials = new() { NationId = "123", UniqueCode = "ABCDE" };
+
+    internal static readonly AuthorizedAccount Account = new()
+    {
+        AccountId = 42,
+        NationId = 123,
+        RulerName = "Bob",
+        Role = 'B',
+        Roles = [new AccountRole { Id = 1, Name = AdminRoles.SuperAdmin }, new AccountRole { Id = 3, Name = AdminRoles.Lists }]
+    };
+
+    private static JwtSecurityToken Read(string token) => new JwtSecurityTokenHandler().ReadJwtToken(token);
+
+    private static string Claim(JwtSecurityToken token, string type) => token.Claims.Single(c => c.Type == type).Value;
 
     [Fact]
-    public void GenerateAccessToken_ExpiresInOneDay_AndCarriesTheAccountClaims()
+    public void GenerateAccessToken_ExpiresInOneDay()
     {
-        var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateProvider().GenerateAccessToken(Account));
+        var token = Read(CreateProvider().GenerateAccessToken(Credentials, Account));
 
         Assert.InRange(token.ValidTo, DateTime.UtcNow.AddDays(1).AddMinutes(-1), DateTime.UtcNow.AddDays(1).AddMinutes(1));
-        Assert.Equal("123", token.Claims.Single(c => c.Type == TokenClaims.NationId).Value);
-        Assert.Equal("Bob", token.Claims.Single(c => c.Type == TokenClaims.RulerName).Value);
-        Assert.Equal("ABCDE", token.Claims.Single(c => c.Type == TokenClaims.UniqueCode).Value);
     }
 
     [Fact]
     public void GenerateRefreshToken_ExpiresInThirtyDays()
     {
-        var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateProvider().GenerateRefreshToken(Account));
+        var token = Read(CreateProvider().GenerateRefreshToken(Credentials, Account));
 
         Assert.InRange(token.ValidTo, DateTime.UtcNow.AddDays(30).AddMinutes(-1), DateTime.UtcNow.AddDays(30).AddMinutes(1));
     }
 
     [Fact]
-    public void GenerateAccessToken_UsesEmptyClaimsForMissingNationIdAndRulerName()
+    public void GeneratedTokens_CarryTheAccountsNameRoleAndAdminRoles()
     {
-        var provider = CreateProvider();
-        var token = provider.GenerateAccessToken(new AuthorizeUserRequest { UniqueCode = "ABCDE" });
+        var token = Read(CreateProvider().GenerateAccessToken(Credentials, Account));
 
-        var read = provider.ReadToken(token);
-
-        Assert.Equal(string.Empty, read.NationId);
-        Assert.Equal(string.Empty, read.RulerName);
-        Assert.Equal("ABCDE", read.UniqueCode);
+        Assert.Equal("42", Claim(token, TokenClaims.AccountId));
+        Assert.Equal("Bob", Claim(token, TokenClaims.Name));
+        Assert.Equal("B", Claim(token, TokenClaims.VepRole));
+        Assert.Equal([AdminRoles.SuperAdmin, AdminRoles.Lists], token.Claims.Where(c => c.Type == TokenClaims.AdminRole).Select(c => c.Value));
     }
 
     [Fact]
-    public void ReadToken_RoundTripsAValidToken()
+    public void GeneratedTokens_FillInNationIdAndRulerName_FromTheAccount()
+    {
+        // Logging in by ruler name alone still gets both credentials in the token
+        var token = Read(CreateProvider().GenerateAccessToken(new AuthorizeUserRequest { RulerName = "Bob", UniqueCode = "ABCDE" }, Account));
+
+        Assert.Equal("123", Claim(token, TokenClaims.NationId));
+        Assert.Equal("Bob", Claim(token, TokenClaims.RulerName));
+        Assert.Equal("ABCDE", Claim(token, TokenClaims.UniqueCode));
+    }
+
+    [Fact]
+    public void GeneratedTokens_LeaveOutAdminRoles_ForMembers()
+    {
+        var token = Read(CreateProvider().GenerateAccessToken(Credentials, new AuthorizedAccount { AccountId = 7, NationId = 1, RulerName = "Sue", Role = 'S', Roles = [] }));
+
+        Assert.DoesNotContain(token.Claims, c => c.Type == TokenClaims.AdminRole);
+        Assert.Equal("Sue", Claim(token, TokenClaims.Name));
+    }
+
+    [Fact]
+    public void ReadToken_RoundTripsTheCredentials()
     {
         var provider = CreateProvider();
 
-        var read = provider.ReadToken(provider.GenerateAccessToken(Account));
+        var read = provider.ReadToken(provider.GenerateAccessToken(Credentials, Account));
 
-        Assert.Equal(Account.NationId, read.NationId);
-        Assert.Equal(Account.RulerName, read.RulerName);
-        Assert.Equal(Account.UniqueCode, read.UniqueCode);
+        Assert.Equal("123", read.NationId);
+        Assert.Equal("Bob", read.RulerName);
+        Assert.Equal("ABCDE", read.UniqueCode);
     }
 
     [Fact]
@@ -71,7 +116,7 @@ public class TokenProviderTests
     [Fact]
     public void ReadToken_ReturnsNull_ForTokenSignedWithAnotherSecret()
     {
-        var otherToken = CreateProvider("a-completely-different-secret-that-is-also-long-enough-for-hmac").GenerateAccessToken(Account);
+        var otherToken = CreateProvider("a-completely-different-secret-that-is-also-long-enough-for-hmac").GenerateAccessToken(Credentials, Account);
 
         Assert.Null(CreateProvider().ReadToken(otherToken));
     }
@@ -81,7 +126,7 @@ public class TokenProviderTests
     {
         var provider = CreateProvider();
 
-        Assert.True(provider.ValidateToken(provider.GenerateAccessToken(Account)));
+        Assert.True(provider.ValidateToken(provider.GenerateAccessToken(Credentials, Account)));
     }
 
     [Fact]
@@ -109,5 +154,26 @@ public class TokenProviderTests
         }));
 
         Assert.False(CreateProvider().ValidateToken(expired));
+    }
+
+    [Fact]
+    public void NeverLogsTheSigningSecretOrTheToken()
+    {
+        var provider = CreateProvider();
+        var token = provider.GenerateAccessToken(Credentials, Account);
+        var tampered = token[..^4] + "AAAA";
+
+        provider.ValidateToken(token);
+        provider.ReadToken(token);
+        provider.ValidateToken(tampered);
+        provider.ValidateToken("not-a-jwt");
+
+        Assert.NotEmpty(_logger.Messages);
+        Assert.All(_logger.Messages, message =>
+        {
+            Assert.DoesNotContain(Secret, message);
+            Assert.DoesNotContain(token, message);
+            Assert.DoesNotContain(tampered, message);
+        });
     }
 }

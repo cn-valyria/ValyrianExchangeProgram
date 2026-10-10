@@ -3,8 +3,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using Valyria.Core.Contracts;
+using Valyria.Core.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -22,22 +22,28 @@ public class TokenProvider : ITokenProvider
         _logger = logger;
     }
 
-    public string GenerateAccessToken(AuthorizeUserRequest account) => GenerateToken(account, 1);
+    public string GenerateAccessToken(AuthorizeUserRequest credentials, AuthorizedAccount account) =>
+        GenerateToken(credentials, account, 1);
 
-    public string GenerateRefreshToken(AuthorizeUserRequest account) => GenerateToken(account, 30);
+    public string GenerateRefreshToken(AuthorizeUserRequest credentials, AuthorizedAccount account) =>
+        GenerateToken(credentials, account, 30);
 
-    private string GenerateToken(AuthorizeUserRequest account, int daysExpiresIn)
+    private string GenerateToken(AuthorizeUserRequest credentials, AuthorizedAccount account, int daysExpiresIn)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_jwtSecret);
+        var claims = new List<Claim>
+        {
+            // Taken from the account rather than the login request, which only has one of the two
+            new(TokenClaims.NationId, account.NationId.ToString()),
+            new(TokenClaims.RulerName, account.RulerName ?? string.Empty),
+            new(TokenClaims.UniqueCode, credentials.UniqueCode ?? string.Empty)
+        };
+        claims.AddRange(TokenClaims.ForAccount(account));
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(TokenClaims.NationId, account.NationId ?? string.Empty),
-                new Claim(TokenClaims.RulerName, account.RulerName ?? string.Empty),
-                new Claim(TokenClaims.UniqueCode, account.UniqueCode)
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddDays(daysExpiresIn),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
@@ -66,8 +72,6 @@ public class TokenProvider : ITokenProvider
 
     public bool ValidateToken(string token)
     {
-        _logger.LogDebug($"Validate token: {token}, against secret: {_jwtSecret}");
-
         if (token is null)
             return false;
         
@@ -85,15 +89,14 @@ public class TokenProvider : ITokenProvider
                 ClockSkew = TimeSpan.Zero
             }, out var validatedToken);
 
-            _logger.LogDebug($"Validated token: {JsonSerializer.Serialize(validatedToken)}");
-
             // This technically should only make it this far if ValidateToken worked, but it's a nice 
             // way to sanity check the boolean result
             return validatedToken.ValidTo > DateTime.UtcNow;
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error occurred while executing tokenHandler.ValidateToken");
+            // The token itself is never logged: it carries the account's unique code
+            _logger.LogWarning("Token validation failed: {Reason}", e.Message);
             return false;
         }
     }
@@ -101,15 +104,8 @@ public class TokenProvider : ITokenProvider
 
 public interface ITokenProvider
 {
-    string GenerateAccessToken(AuthorizeUserRequest account);
-    string GenerateRefreshToken(AuthorizeUserRequest account);
+    string GenerateAccessToken(AuthorizeUserRequest credentials, AuthorizedAccount account);
+    string GenerateRefreshToken(AuthorizeUserRequest credentials, AuthorizedAccount account);
     AuthorizeUserRequest ReadToken(string token);
     bool ValidateToken(string token);
-}
-
-public static class TokenClaims
-{
-    public const string NationId = "nid";
-    public const string RulerName = "rul";
-    public const string UniqueCode = "uqc";
 }

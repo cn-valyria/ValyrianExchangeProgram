@@ -90,6 +90,8 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = false; // Set to true in production with HTTPS
     options.SaveToken = true;
+    // Keep the claim types exactly as TokenProvider writes them (see TokenClaims)
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -97,12 +99,14 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.Zero,
+        NameClaimType = TokenClaims.Name,
+        RoleClaimType = TokenClaims.AdminRole
     };
     options.Events = new CustomJwtBearerEvents();
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options => options.AddValyriaPolicies());
 
 // Add Authentication services
 builder.Services.AddAuthenticationServices();

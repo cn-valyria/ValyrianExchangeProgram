@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Valyria.Api.Auth;
 using Valyria.Api.Controllers;
 using Valyria.Core.DTOs;
 using Valyria.Core.Interfaces;
@@ -41,7 +42,7 @@ public class MassMessagesControllerTests
     {
         _repository.SetMessageSentAsync(2, sent, 42).Returns(true);
 
-        var result = await CreateController(new Claim("AccountId", "42")).SetMessageSent(2, new MassMessageSentRequest { Sent = sent });
+        var result = await CreateController(new Claim(TokenClaims.AccountId, "42")).SetMessageSent(2, new MassMessageSentRequest { Sent = sent });
 
         Assert.IsType<NoContentResult>(result);
         await _repository.Received(1).SetMessageSentAsync(2, sent, 42);
@@ -52,7 +53,7 @@ public class MassMessagesControllerTests
     [InlineData("not-a-number")]
     public async Task SetMessageSent_Returns401_WithoutAnAccountIdClaim(string? accountId)
     {
-        var claims = accountId == null ? [] : new[] { new Claim("AccountId", accountId) };
+        var claims = accountId == null ? [] : new[] { new Claim(TokenClaims.AccountId, accountId) };
 
         Assert.IsType<UnauthorizedResult>(await CreateController(claims).SetMessageSent(2, new MassMessageSentRequest { Sent = true }));
         Assert.Empty(_repository.ReceivedCalls());
@@ -63,7 +64,7 @@ public class MassMessagesControllerTests
     {
         _repository.SetMessageSentAsync(2, true, 42).Returns(false);
 
-        Assert.IsType<NotFoundObjectResult>(await CreateController(new Claim("AccountId", "42")).SetMessageSent(2, new MassMessageSentRequest { Sent = true }));
+        Assert.IsType<NotFoundObjectResult>(await CreateController(new Claim(TokenClaims.AccountId, "42")).SetMessageSent(2, new MassMessageSentRequest { Sent = true }));
     }
 
     [Fact]
@@ -71,6 +72,6 @@ public class MassMessagesControllerTests
     {
         _repository.SetMessageSentAsync(2, true, 42).ThrowsAsync(new Exception("boom"));
 
-        AssertServerError(await CreateController(new Claim("AccountId", "42")).SetMessageSent(2, new MassMessageSentRequest { Sent = true }), "boom");
+        AssertServerError(await CreateController(new Claim(TokenClaims.AccountId, "42")).SetMessageSent(2, new MassMessageSentRequest { Sent = true }), "boom");
     }
 }

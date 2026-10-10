@@ -56,16 +56,11 @@ public class CustomJwtBearerEvents : JwtBearerEvents
                 return;
             }
 
-            // Add the AccountId and Roles to the claims for easy access in controllers
-            claimsIdentity.AddClaim(new Claim("AccountId", authorizedAccount.AccountId.ToString()));
-
-            if (authorizedAccount.Roles != null)
-            {
-                foreach (var role in authorizedAccount.Roles)
-                {
-                    claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role.Name));
-                }
-            }
+            // The token's account claims may be stale (e.g. an admin role was revoked since it was issued),
+            // so replace them with what's in the database now
+            foreach (var claim in claimsIdentity.Claims.Where(c => TokenClaims.AccountClaimTypes.Contains(c.Type)).ToList())
+                claimsIdentity.RemoveClaim(claim);
+            claimsIdentity.AddClaims(TokenClaims.ForAccount(authorizedAccount));
 
             logger.LogDebug("TokenValidated: User authenticated successfully. AccountId: {AccountId}",
                 authorizedAccount.AccountId);

@@ -4,13 +4,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Valyria.Core.Interfaces;
-using Valyria.Infrastructure.Repositories;
+using Valyria.Api.Auth;
 
 namespace Valyria.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = Policies.ViewAdminPortal)]
 public class AdminController : ControllerBase
 {
     private readonly IAdminRepository _adminRepository;
@@ -211,7 +211,9 @@ public class AdminController : ControllerBase
         }
     }
 
+    // Stacked policies must all pass, so these are Super Admin only
     [HttpGet("settings/access")]
+    [Authorize(Policy = Policies.ManageAdminAccess)]
     public async Task<IActionResult> GetAdminAccessSettings()
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAdminAccessSettings)} method...");
@@ -233,6 +235,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("settings/access")]
+    [Authorize(Policy = Policies.ManageAdminAccess)]
     public async Task<IActionResult> CreateAdminAccess([FromBody] Valyria.Core.DTOs.AdminAccessCreateRequest request)
     {
         _logger.LogInformation($"Beginning execution for {nameof(CreateAdminAccess)} method...");
@@ -259,6 +262,7 @@ public class AdminController : ControllerBase
     }
 
     [HttpDelete("settings/access")]
+    [Authorize(Policy = Policies.ManageAdminAccess)]
     public async Task<IActionResult> DeleteAdminAccess([FromBody] Valyria.Core.DTOs.AdminAccessDeleteRequest request)
     {
         _logger.LogInformation($"Beginning execution for {nameof(DeleteAdminAccess)} method...");

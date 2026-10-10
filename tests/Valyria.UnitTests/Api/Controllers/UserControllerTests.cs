@@ -15,11 +15,12 @@ public class UserControllerTests
 {
     private readonly ITokenProvider _tokenProvider = Substitute.For<ITokenProvider>();
     private readonly IAuthenticationProvider _authenticationProvider = Substitute.For<IAuthenticationProvider>();
+    private readonly AuthorizedAccount _account = new() { AccountId = 42, NationId = 1, RulerName = "Bob", Role = 'B', Roles = [] };
 
     public UserControllerTests()
     {
-        _tokenProvider.GenerateAccessToken(Arg.Any<AuthorizeUserRequest>()).Returns("access");
-        _tokenProvider.GenerateRefreshToken(Arg.Any<AuthorizeUserRequest>()).Returns("refresh");
+        _tokenProvider.GenerateAccessToken(Arg.Any<AuthorizeUserRequest>(), Arg.Any<AuthorizedAccount>()).Returns("access");
+        _tokenProvider.GenerateRefreshToken(Arg.Any<AuthorizeUserRequest>(), Arg.Any<AuthorizedAccount>()).Returns("refresh");
     }
 
     private UserController CreateController(params Claim[] claims) =>
@@ -73,7 +74,7 @@ public class UserControllerTests
     [Fact]
     public async Task PasswordGrant_Returns401_ForBadCredentials()
     {
-        _authenticationProvider.IsAuthenticated(Arg.Any<AuthorizeUserRequest>()).Returns(false);
+        _authenticationProvider.GetAuthorizedAccount(Arg.Any<AuthorizeUserRequest>()).Returns((AuthorizedAccount)null!);
 
         var result = await CreateController().Token(new TokenRequest { GrantType = "password", NationId = "1", Password = "nope" });
 
@@ -81,20 +82,21 @@ public class UserControllerTests
     }
 
     [Fact]
-    public async Task PasswordGrant_IssuesTokens_AndIsCaseInsensitive()
+    public async Task PasswordGrant_IssuesTokensForTheAuthorizedAccount_AndIsCaseInsensitive()
     {
-        _authenticationProvider.IsAuthenticated(Arg.Any<AuthorizeUserRequest>()).Returns(true);
+        _authenticationProvider.GetAuthorizedAccount(Arg.Is<AuthorizeUserRequest>(r => r.RulerName == "Bob" && r.UniqueCode == "ABCDE")).Returns(_account);
 
         var result = await CreateController().Token(new TokenRequest { GrantType = "PASSWORD", RulerName = "Bob", Password = "ABCDE" });
 
         AssertTokens(result);
-        await _authenticationProvider.Received(1).IsAuthenticated(Arg.Is<AuthorizeUserRequest>(r => r.RulerName == "Bob" && r.UniqueCode == "ABCDE"));
+        _tokenProvider.Received(1).GenerateAccessToken(Arg.Is<AuthorizeUserRequest>(r => r.UniqueCode == "ABCDE"), _account);
+        _tokenProvider.Received(1).GenerateRefreshToken(Arg.Is<AuthorizeUserRequest>(r => r.UniqueCode == "ABCDE"), _account);
     }
 
     [Fact]
     public async Task Token_Returns500_WhenAuthenticationThrows()
     {
-        _authenticationProvider.IsAuthenticated(Arg.Any<AuthorizeUserRequest>()).ThrowsAsync(new Exception("db down"));
+        _authenticationProvider.GetAuthorizedAccount(Arg.Any<AuthorizeUserRequest>()).ThrowsAsync(new Exception("db down"));
 
         var result = await CreateController().Token(new TokenRequest { GrantType = "password", NationId = "1", Password = "ABCDE" });
 
@@ -124,7 +126,7 @@ public class UserControllerTests
     {
         var account = new AuthorizeUserRequest { NationId = "1", UniqueCode = "ABCDE" };
         _tokenProvider.ReadToken("refresh-in").Returns(account);
-        _authenticationProvider.IsAuthenticated(account).Returns(false);
+        _authenticationProvider.GetAuthorizedAccount(account).Returns((AuthorizedAccount)null!);
 
         var result = await CreateController().Token(new TokenRequest { GrantType = "refresh_token", RefreshToken = "refresh-in" });
 
@@ -132,24 +134,24 @@ public class UserControllerTests
     }
 
     [Fact]
-    public async Task RefreshGrant_IssuesNewTokens()
+    public async Task RefreshGrant_IssuesNewTokens_WithTheAccountsCurrentDetails()
     {
-        var account = new AuthorizeUserRequest { NationId = "1", UniqueCode = "ABCDE" };
-        _tokenProvider.ReadToken("refresh-in").Returns(account);
-        _authenticationProvider.IsAuthenticated(account).Returns(true);
+        var credentials = new AuthorizeUserRequest { NationId = "1", UniqueCode = "ABCDE" };
+        _tokenProvider.ReadToken("refresh-in").Returns(credentials);
+        _authenticationProvider.GetAuthorizedAccount(credentials).Returns(_account);
 
         AssertTokens(await CreateController().Token(new TokenRequest { GrantType = "refresh_token", RefreshToken = "refresh-in" }));
+        _tokenProvider.Received(1).GenerateAccessToken(credentials, _account);
     }
 
     [Fact]
     public async Task Authenticate_IsALegacyAliasForThePasswordGrant()
     {
-        _authenticationProvider.IsAuthenticated(Arg.Any<AuthorizeUserRequest>()).Returns(true);
+        _authenticationProvider.GetAuthorizedAccount(Arg.Is<AuthorizeUserRequest>(r => r.NationId == "1" && r.UniqueCode == "ABCDE")).Returns(_account);
 
         var result = await CreateController().Authenticate(new AuthorizeUserRequest { NationId = "1", RulerName = "Bob", UniqueCode = "ABCDE" });
 
         AssertTokens(result);
-        await _authenticationProvider.Received(1).IsAuthenticated(Arg.Is<AuthorizeUserRequest>(r => r.NationId == "1" && r.UniqueCode == "ABCDE"));
     }
 
     [Fact]
@@ -157,7 +159,7 @@ public class UserControllerTests
     {
         var account = new AuthorizeUserRequest { NationId = "1", UniqueCode = "ABCDE" };
         _tokenProvider.ReadToken("refresh-in").Returns(account);
-        _authenticationProvider.IsAuthenticated(account).Returns(true);
+        _authenticationProvider.GetAuthorizedAccount(account).Returns(_account);
 
         AssertTokens(await CreateController().RefreshToken(new Dictionary<string, string> { ["refresh_token"] = "refresh-in" }));
     }
@@ -176,7 +178,7 @@ public class UserControllerTests
             r.NationId == "1" && r.RulerName == "Bob" && r.UniqueCode == "ABCDE")).Returns(account);
 
         var result = await CreateController(
-            new Claim("AccountId", "42"),
+            new Claim(TokenClaims.AccountId, "42"),
             new Claim(TokenClaims.NationId, "1"),
             new Claim(TokenClaims.RulerName, "Bob"),
             new Claim(TokenClaims.UniqueCode, "ABCDE")).GetAuthorizedAccount();
@@ -187,7 +189,7 @@ public class UserControllerTests
     [Fact]
     public async Task GetAuthorizedAccount_Returns401_WhenTheUniqueCodeClaimIsMissing()
     {
-        var result = await CreateController(new Claim("AccountId", "42"), new Claim(TokenClaims.NationId, "1")).GetAuthorizedAccount();
+        var result = await CreateController(new Claim(TokenClaims.AccountId, "42"), new Claim(TokenClaims.NationId, "1")).GetAuthorizedAccount();
 
         AssertError<UnauthorizedObjectResult>(result, "invalid_token");
     }
@@ -197,7 +199,7 @@ public class UserControllerTests
     {
         _authenticationProvider.GetAuthorizedAccount(Arg.Any<AuthorizeUserRequest>()).Returns((AuthorizedAccount)null!);
 
-        var result = await CreateController(new Claim("AccountId", "42"), new Claim(TokenClaims.UniqueCode, "ABCDE")).GetAuthorizedAccount();
+        var result = await CreateController(new Claim(TokenClaims.AccountId, "42"), new Claim(TokenClaims.UniqueCode, "ABCDE")).GetAuthorizedAccount();
 
         AssertError<UnauthorizedObjectResult>(result, "invalid_token");
     }
@@ -228,7 +230,7 @@ public class UserControllerTests
     [Fact]
     public async Task GetAuthorizedAccount_Fallback_Returns401_WhenTheAccountIsGone()
     {
-        var controller = CreateController(new Claim("AccountId", "not-a-number"));
+        var controller = CreateController(new Claim(TokenClaims.AccountId, "not-a-number"));
         controller.Request.Headers.Authorization = "Bearer the-token";
         _tokenProvider.ReadToken("the-token").Returns(new AuthorizeUserRequest());
         _authenticationProvider.GetAuthorizedAccount(Arg.Any<AuthorizeUserRequest>()).Returns((AuthorizedAccount)null!);
@@ -241,7 +243,7 @@ public class UserControllerTests
     {
         _authenticationProvider.GetAuthorizedAccount(Arg.Any<AuthorizeUserRequest>()).ThrowsAsync(new Exception("db down"));
 
-        var result = await CreateController(new Claim("AccountId", "42"), new Claim(TokenClaims.UniqueCode, "ABCDE")).GetAuthorizedAccount();
+        var result = await CreateController(new Claim(TokenClaims.AccountId, "42"), new Claim(TokenClaims.UniqueCode, "ABCDE")).GetAuthorizedAccount();
 
         var error = Assert.IsType<ObjectResult>(result);
         Assert.Equal(500, error.StatusCode);

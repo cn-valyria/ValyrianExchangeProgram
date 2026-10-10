@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -18,8 +19,12 @@ public class AccountsControllerTests
 
     public AccountsControllerTests()
     {
-        _controller = new AccountsController(_repository, Substitute.For<ITokenProvider>(), NullLogger<AccountsController>.Instance).WithUser();
+        _controller = CreateController(accountId: 5);
     }
+
+    private AccountsController CreateController(int accountId, params string[] adminRoles) =>
+        new AccountsController(_repository, Substitute.For<ITokenProvider>(), NullLogger<AccountsController>.Instance)
+            .WithUser([new Claim(TokenClaims.AccountId, accountId.ToString()), .. adminRoles.Select(role => new Claim(TokenClaims.AdminRole, role))]);
 
     [Theory]
     [InlineData(false)]
@@ -49,6 +54,29 @@ public class AccountsControllerTests
         _repository.GetAccountByIdAsync(5).Returns(account);
 
         Assert.Same(account, AssertOk<AccountDetail>(await _controller.GetAccount(5)));
+    }
+
+    [Fact]
+    public async Task GetAccount_Returns404_WhenMissing()
+    {
+        _repository.GetAccountByIdAsync(5).Returns((AccountDetail)null!);
+
+        Assert.IsType<NotFoundObjectResult>(await _controller.GetAccount(5));
+    }
+
+    [Fact]
+    public async Task GetAccount_ForbidsOtherMembers()
+    {
+        Assert.IsType<ForbidResult>(await CreateController(accountId: 6).GetAccount(5));
+        Assert.Empty(_repository.ReceivedCalls());
+    }
+
+    [Fact]
+    public async Task GetAccount_AllowsAdminPortalViewers()
+    {
+        _repository.GetAccountByIdAsync(5).Returns(new AccountDetail { Id = 5 });
+
+        Assert.IsType<OkObjectResult>(await CreateController(1, AdminRoles.ReadOnly).GetAccount(5));
     }
 
     [Fact]

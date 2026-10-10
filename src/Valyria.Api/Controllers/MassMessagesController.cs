@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Valyria.Api.Auth;
 using Valyria.Core.DTOs;
 using Valyria.Core.Interfaces;
 
@@ -14,7 +15,7 @@ namespace Valyria.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/mass-messages")]
-[Authorize]
+[Authorize(Policy = Policies.ViewMassMessages)]
 public class MassMessagesController : ControllerBase
 {
     private readonly IMassMessagesRepository _massMessagesRepository;
@@ -55,6 +56,7 @@ public class MassMessagesController : ControllerBase
     /// Mark a message as sent (or not sent) for today, so other admins know whether to send it
     /// </summary>
     [HttpPut("{id}/sent")]
+    [Authorize(Policy = Policies.SendMassMessages)]
     public async Task<IActionResult> SetMessageSent(int id, [FromBody] MassMessageSentRequest request)
     {
         _logger.LogInformation("Beginning execution for {MethodName} with messageId={MessageId}, sent={Sent}",
@@ -62,7 +64,7 @@ public class MassMessagesController : ControllerBase
 
         try
         {
-            if (!int.TryParse(User.FindFirst("AccountId")?.Value, out var accountId))
+            if (User.GetAccountId() is not { } accountId)
                 return Unauthorized();
 
             if (!await _massMessagesRepository.SetMessageSentAsync(id, request.Sent, accountId))

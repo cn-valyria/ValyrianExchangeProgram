@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Valyria.Api.Auth;
 using Valyria.Core.Contracts;
+using Valyria.Core.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -106,7 +107,8 @@ public class UserController : ControllerBase
             UniqueCode = request.Password
         };
 
-        if (!await _authenticationProvider.IsAuthenticated(authRequest))
+        var account = await _authenticationProvider.GetAuthorizedAccount(authRequest);
+        if (account is null)
         {
             _logger.LogWarning("Authentication failed for NationId: {NationId}, RulerName: {RulerName}",
                 request.NationId, request.RulerName);
@@ -116,7 +118,7 @@ public class UserController : ControllerBase
         _logger.LogInformation("User authenticated successfully. NationId: {NationId}, RulerName: {RulerName}",
             request.NationId, request.RulerName);
 
-        return Ok(GenerateTokenResponse(authRequest));
+        return Ok(GenerateTokenResponse(authRequest, account));
     }
 
     private async Task<IActionResult> HandleRefreshTokenGrant(TokenRequest request)
@@ -124,25 +126,26 @@ public class UserController : ControllerBase
         if (string.IsNullOrEmpty(request.RefreshToken))
             return BadRequest(new { error = "invalid_request", error_description = "refresh_token is required" });
 
-        var account = _tokenProvider.ReadToken(request.RefreshToken);
-        if (account is null)
+        var credentials = _tokenProvider.ReadToken(request.RefreshToken);
+        if (credentials is null)
         {
             _logger.LogWarning("Invalid or expired refresh token");
             return Unauthorized(new { error = "invalid_grant", error_description = "Invalid or expired refresh token" });
         }
 
-        // Validate that the user still exists in the database
-        if (!await _authenticationProvider.IsAuthenticated(account))
+        // Validate that the user still exists, and pick up any changes to their roles
+        var account = await _authenticationProvider.GetAuthorizedAccount(credentials);
+        if (account is null)
         {
             _logger.LogWarning("User no longer exists. NationId: {NationId}, RulerName: {RulerName}",
-                account.NationId, account.RulerName);
+                credentials.NationId, credentials.RulerName);
             return Unauthorized(new { error = "invalid_grant", error_description = "User account no longer valid" });
         }
 
         _logger.LogInformation("Refresh token validated. NationId: {NationId}, RulerName: {RulerName}",
-            account.NationId, account.RulerName);
+            credentials.NationId, credentials.RulerName);
 
-        return Ok(GenerateTokenResponse(account));
+        return Ok(GenerateTokenResponse(credentials, account));
     }
 
     /// <summary>
@@ -156,10 +159,8 @@ public class UserController : ControllerBase
 
         try
         {
-            // Get the AccountId from claims (added by CustomJwtBearerEvents)
-            var accountIdClaim = User.FindFirst("AccountId")?.Value;
-
-            if (string.IsNullOrEmpty(accountIdClaim) || !int.TryParse(accountIdClaim, out var accountId))
+            // Get the AccountId from claims (refreshed by CustomJwtBearerEvents)
+            if (User.GetAccountId() is null)
             {
                 _logger.LogWarning("AccountId claim not found or invalid in authenticated user");
 
@@ -208,10 +209,10 @@ public class UserController : ControllerBase
         }
     }
 
-    private TokenResponse GenerateTokenResponse(AuthorizeUserRequest account)
+    private TokenResponse GenerateTokenResponse(AuthorizeUserRequest credentials, AuthorizedAccount account)
     {
-        var accessToken = _tokenProvider.GenerateAccessToken(account);
-        var refreshToken = _tokenProvider.GenerateRefreshToken(account);
+        var accessToken = _tokenProvider.GenerateAccessToken(credentials, account);
+        var refreshToken = _tokenProvider.GenerateRefreshToken(credentials, account);
 
         return new TokenResponse
         {

@@ -35,6 +35,7 @@ public class AccountsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
     public async Task<IActionResult> GetAllAccounts([FromQuery] bool includeOnHold = false)
     {
         _logger.LogInformation($"Beginning execution for {nameof(GetAllAccounts)} method...");
@@ -58,11 +59,16 @@ public class AccountsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetAccount(int id)
     {
+        if (!User.CanAccessAccount(id))
+            return Forbid();
+
         _logger.LogInformation($"Beginning execution for {nameof(GetAccount)} method...");
 
         try
         {
             var result = await _accountsRepository.GetAccountByIdAsync(id);
+            if (result is null)
+                return NotFound($"No account found with ID {id}.");
 
             _logger.LogInformation("{methodName} execution complete. Returned {@result}.", nameof(GetAccount), result);
 
@@ -77,6 +83,7 @@ public class AccountsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> CreateAccount([FromBody] AccountCreateRequest newAccountRequest)
     {
         _logger.LogInformation($"Beginning execution for {nameof(CreateAccount)} method...");
@@ -105,6 +112,7 @@ public class AccountsController : ControllerBase
     }
 
     [HttpPut]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> UpdateAccount([FromBody] AccountUpdateRequest accountToUpdate)
     {
         _logger.LogInformation($"Beginning execution for {nameof(UpdateAccount)} method...");
@@ -129,6 +137,7 @@ public class AccountsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> RemoveAccount(int id)
     {
         _logger.LogInformation($"Beginning execution for {nameof(RemoveAccount)} method...");
@@ -152,6 +161,7 @@ public class AccountsController : ControllerBase
     }
 
     [HttpGet("prospect")]
+    [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> FindProspectAccount([FromQuery] int nationId)
     {
         _logger.LogInformation($"Beginning execution for {nameof(FindProspectAccount)} method...");

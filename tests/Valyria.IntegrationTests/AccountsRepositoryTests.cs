@@ -68,6 +68,12 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
     }
 
     [Fact]
+    public async Task GetAccountById_ReturnsNull_ForAMissingAccount()
+    {
+        Assert.Null(await Repository.GetAccountByIdAsync(12345));
+    }
+
+    [Fact]
     public async Task CreateAccount_InsertsTheAccount_AndGeneratesItsSlots()
     {
         await Data.NationAsync(100, "Bobland", "Bob");
@@ -128,8 +134,7 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
         Assert.Equal("ABCDE", await Data.ScalarAsync<string>("select psw from account_removed where nation_id = 100"));
     }
 
-    [Fact(Skip = "Bug: AccountExists uses QueryFirstAsync (AccountsRepository.cs:213), which throws InvalidOperationException " +
-                 "when no row matches, so updating or removing a missing account returns 500 instead of 404")]
+    [Fact]
     public async Task UpdateAndRemove_ThrowNotFound_ForAMissingAccount()
     {
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.UpdateAccountAsync(new AccountUpdateRequest { Id = 12345 }));
