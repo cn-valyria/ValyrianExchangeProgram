@@ -333,9 +333,7 @@ describe('AccountEditDialog', () => {
       expect(onClose).not.toHaveBeenCalled()
     })
 
-    // The FM/FAC/DRA radios show "No" for a new account, but the value behind them stays undefined, which
-    // the schema rejects. Unless the admin clicks each one, Create fails with a "Validation Error" toast
-    it.skip('BUG: creates an account with the improvements left at their default of No', async () => {
+    it('creates an account with the improvements left at their default of No', async () => {
       apiFetch.mockResolvedValue(apiOk(prospect))
       const createAccount = vi.spyOn(useAdminAccountsStore(), 'createAccount').mockResolvedValue()
       const { wrapper } = await openDialog(AccountEditDialog, { account: {} })
@@ -351,18 +349,21 @@ describe('AccountEditDialog', () => {
       }))
     })
 
-    // findProspectAccount shows the error toast but then reads data.value.nationName from a null response,
-    // throwing a TypeError: the dialog stays on "Search" with the button spinning forever. Searching for a
-    // nation that isn't in CN (404) or already has an account (409) both hit this
-    it.skip('BUG: recovers when the nation search fails', async () => {
-      apiFetch.mockResolvedValue(apiError({ statusCode: 409, message: 'Conflict' }))
+    it.each([
+      [404, 'No nation was found with that nation ID.'],
+      [409, 'That nation already has a VEP account.'],
+      [500, 'VEP encountered an error while searching for the above nation ID.'],
+    ])('explains a failed nation search (%i) and lets the admin try again', async (statusCode, message) => {
+      apiFetch.mockResolvedValue(apiError({ statusCode, message: 'Failed' }))
       await openDialog(AccountEditDialog, { account: {} })
       await type(inputByPlaceholder("The account's NationID"), '123')
 
       await click(button('Search'))
 
       expect(toasts()[0]).toMatchObject({ color: 'error' })
+      expect(toasts()[0].description).toContain(message)
       expect(button('Search').disabled).toBe(false)
+      expect(bodyText()).not.toContain('Secret Code')
     })
   })
 
@@ -424,9 +425,7 @@ describe('AccountEditDialog', () => {
       expect(updateAccount).not.toHaveBeenCalled()
     })
 
-    // The dialog edits the account object it's given (reactive(props.account)), which is the row in the
-    // accounts list, so changes show in the list even when the admin cancels
-    it.skip("BUG: cancelling doesn't change the account in the list", async () => {
+    it("leaves the account in the list alone when the admin cancels", async () => {
       const store = useAdminAccountsStore()
       store.accounts = [adminAccount(1, { discord: 'old' })]
       await openDialog(AccountEditDialog, { account: store.accounts[0] })
@@ -488,9 +487,7 @@ describe('AdminAccessSettingsDialog', () => {
     expect(onClose).toHaveBeenCalledWith(false)
   })
 
-  // createAdminAccess reports failure by returning false rather than throwing, but the dialog only checks
-  // for a throw, so a failed grant still says "Access added successfully!" and closes
-  it.skip('BUG: reports a failed grant', async () => {
+  it('stays open with an error when the grant fails', async () => {
     useAdminAccountsStore().accounts = [adminAccount(1)]
     vi.spyOn(useAdminAccessStore(), 'createAdminAccess').mockResolvedValue(false)
     const { onClose } = await openDialog(AdminAccessSettingsDialog, { editingAdmin: { accountId: 1, adminRoleId: 1 } })

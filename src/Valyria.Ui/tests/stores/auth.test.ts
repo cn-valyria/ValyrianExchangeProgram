@@ -138,10 +138,8 @@ describe('auth store', () => {
       expect(localStorage.getItem('vep_auth')).toBeNull()
     })
 
-    // Relative to the current page: from /account/5 this goes to /account/login, and from /admin/settings to
-    // /admin/login. The auth middleware then sends the signed-out user to /login?auth=failed, so they see
-    // "Authentication Required" instead of "Logout Successful"
-    it.skip('BUG: goes to the login page from any page (navigateTo path is missing its leading slash)', () => {
+    // An absolute path, so it works from any page (a relative one went to /account/login from an account page)
+    it('goes to the login page to confirm the logout', () => {
       useAuthStore().logout()
 
       expect(routerPush).toHaveBeenCalledWith('/login?auth=logout')

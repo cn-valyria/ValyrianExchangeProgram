@@ -87,16 +87,17 @@ const submitForm = () => {
 const onSubmit = async () => {
   console.log(state)
   buttonIsLoading.value = true
-  try {
-    await adminAccessStore.createAdminAccess(state)
-    toast.add({ color: 'success', title: 'Success', description: 'Access added successfully!', duration: 3000 })
-    handleClose()
-  } catch (e) {
-    console.error(e)
+  // The store reports failure by returning false rather than throwing
+  const created = await adminAccessStore.createAdminAccess(state)
+  buttonIsLoading.value = false
+
+  if (!created) {
     toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
+    return
   }
 
-  buttonIsLoading.value = false
+  toast.add({ color: 'success', title: 'Success', description: 'Access added successfully!', duration: 3000 })
+  handleClose()
 }
 
 onMounted(async () => {

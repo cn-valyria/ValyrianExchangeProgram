@@ -155,7 +155,7 @@ export const useAuthStore = defineStore('auth', {
       this.refreshToken = null
       this.isAuthenticated = false
       this.clearStorage()
-      navigateTo('login?auth=logout')
+      navigateTo('/login?auth=logout')
     },
 
     // Initialize auth state from storage

@@ -173,8 +173,14 @@ const radioGroupYesNo: Array<{ value: string, label: string }> = [
   { value: 'N', label: 'No' }
 ]
 
-// Define the form state
-const state = reactive<AdminAccount>(props.account)
+// Edit a copy, so cancelling leaves the account in the accounts list untouched. New accounts start
+// with the improvements set to No, matching what the radio buttons show
+const state = reactive<AdminAccount>({
+  ...props.account,
+  hasForeignMinistry: props.account.hasForeignMinistry ?? false,
+  hasFederalAidCommission: props.account.hasFederalAidCommission ?? false,
+  hasDisasterReliefAgency: props.account.hasDisasterReliefAgency ?? false
+})
 
 // Define the Zod schema - only validates when creating
 const schema = z.object({
@@ -300,28 +306,33 @@ const handleClose = () => {
   emit("close", false);
 }
 
+const prospectSearchErrors: Record<number, string> = {
+  404: "No nation was found with that nation ID.",
+  409: "That nation already has a VEP account."
+}
+
 const findProspectAccount = async () => {
   buttonIsLoading.value = true
   const { data, error } = await apiFetch<any>(`/api/accounts/prospect?nationId=${state.nationId}`)
+  buttonIsLoading.value = false
 
-  if (error.value) {
-    console.error(error)
+  if (error.value || !data.value) {
+    console.error(error.value)
     toast.add({
       color: 'error',
       title: 'Error',
-      description: "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.",
+      description: prospectSearchErrors[error.value?.statusCode]
+        ?? "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.",
       duration: 3000
     })
+    return
   }
 
   Object.assign(state, {
-    ...state,
     nationName: data.value.nationName,
     rulerName: data.value.rulerName,
     allianceName: data.value.allianceName
   })
-
-  buttonIsLoading.value = false
 }
 
 const onSubmit = async (event: FormSubmitEvent<any>) => {
