@@ -54,7 +54,7 @@ export const useAdminAccessStore = defineStore('adminAccess', {
       this.error = null
 
       try {
-        const { data, error } = await apiFetch('/api/admin/settings/access', {
+        const { error } = await apiFetch('/api/admin/settings/access', {
           method: 'POST',
           body: request,
         })
@@ -78,7 +78,7 @@ export const useAdminAccessStore = defineStore('adminAccess', {
       this.error = null
 
       try {
-        const { data, error } = await apiFetch('/api/admin/settings/access', {
+        const { error } = await apiFetch('/api/admin/settings/access', {
           method: 'DELETE',
           body: request,
         })

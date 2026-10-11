@@ -80,21 +80,18 @@
 
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { useAuthStore } from '~/stores/auth'
 import { useAdminAccessStore, type AdminAccessSetting } from '~/stores/adminAccess'
 import AdminAccessSettingsDialog from '~/components/admin/AdminAccessSettingsDialog.vue'
 import AdminTeamEventDialog from '~/components/admin/AdminTeamEventDialog.vue'
+import type { TeamEvent } from '~/stores/shared/teamEvent'
 
-const router = useRouter()
 const toast = useToast()
 const overlay = useOverlay()
 
 const adminAccessModal = overlay.create(AdminAccessSettingsDialog)
 const teamEventModal = overlay.create(AdminTeamEventDialog)
 
-const authStore = useAuthStore()
 const adminAccessStore = useAdminAccessStore()
-const loggedInUser = computed(() => authStore.loggedInUser)
 
 // Admin Access state
 const adminSearchQuery = ref<string>('')
@@ -104,7 +101,7 @@ const adminAccessList = computed(() => adminAccessStore.adminAccessSettings)
 // Team Events state
 const teamEventLoading = ref<boolean>(false)
 const teamEventSearchQuery = ref<string>('')
-const teamEventsList = ref<any[]>([
+const teamEventsList = ref<TeamEvent[]>([
   { id: 1, team: 'Aqua', eventType: '+1 Aid Slot', eventName: 'Tournament bonus' },
   { id: 2, team: 'Red', eventType: '-1 Aid Slot', eventName: 'Penalty for violation' },
   { id: 3, team: 'Green', eventType: '+1 Aid Slot', eventName: 'Event reward' }
@@ -148,7 +145,7 @@ const adminColumns: TableColumn<AdminAccessSetting>[] = [
 ]
 
 // Team Events columns
-const teamEventColumns: TableColumn<any>[] = [
+const teamEventColumns: TableColumn<TeamEvent>[] = [
   {
     accessorKey: 'team',
     header: 'Team',
@@ -240,7 +237,7 @@ const filteredTeamEvents = computed(() => {
   }
 
   const query = teamEventSearchQuery.value.toLowerCase()
-  return teamEventsList.value.filter((event: any) => {
+  return teamEventsList.value.filter((event) => {
     return event.team?.toLowerCase().includes(query)
   })
 })
@@ -248,7 +245,7 @@ const filteredTeamEvents = computed(() => {
 // Admin Access functions
 const addAdminAccess = (): void => {
   adminAccessModal.open({
-    editingAdmin: {} as any
+    editingAdmin: {} as AdminAccessSetting
   })
 }
 
@@ -280,7 +277,7 @@ const addTeamEvent = (): void => {
   })
 }
 
-const editTeamEvent = (event: any): void => {
+const editTeamEvent = (event: TeamEvent): void => {
   teamEventModal.open({
     editingTeamEvent: { ...event }
   })

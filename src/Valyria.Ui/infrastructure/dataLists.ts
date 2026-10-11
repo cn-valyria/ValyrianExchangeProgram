@@ -23,6 +23,30 @@ export const accountRoles: AccountRole[] = [
   { code: 'H', description: 'On Hold' },
 ]
 
+export type AccountRoleColor = 'warning' | 'error' | 'info' | 'neutral'
+
+// Badge color for a role, shared by the role chip and the admin accounts table
+export function getAccountRoleColor(code: string | undefined): AccountRoleColor {
+  switch (code) {
+    case 'B': // Buyer
+    case 'D': // Cash Donor
+    case 'W': // Temporary Receiver
+      return 'warning'
+    case 'S': // Seller
+    case 'F': // Tech Farm
+    case 'N': // Probationary Seller
+    case 'Q': // Temporary Farm
+      return 'error'
+    case 'C': // Cash Collector
+    case 'R': // Tech Receiver
+    case 'P': // Temporary Donor
+    case 'V': // Temporary Collector
+      return 'info'
+    default: // On Hold or unknown
+      return 'neutral'
+  }
+}
+
 export const allianceAcronyms: AllianceAcronym[] = [
   { code: 'CCC', name: 'Christian Coalition Of Countries' },
   { code: 'FAN', name: 'Federation of Armed Nations' },

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { UPagination, USwitch, UTabs } from '#components'
 import AccountsPage from '~/pages/admin/accounts.vue'
@@ -94,6 +94,11 @@ describe('admin accounts page', () => {
     expect(rows[0]).toContain('4 / 4')
     expect(rows[1]).toContain('Seller')
     expect(rows[1]).toContain('2')
+    // Role badges use the same colors as the role chip
+    const roleBadge = (row: number, text: string) => Array.from(document.querySelectorAll('tbody tr')[row].querySelectorAll('span'))
+      .find((span) => span.textContent?.trim() === text)!
+    expect(roleBadge(0, 'Buyer').className).toContain('text-warning')
+    expect(roleBadge(1, 'Seller').className).toContain('text-error')
   })
 
   it('filters by nation, ruler, alliance or role', async () => {

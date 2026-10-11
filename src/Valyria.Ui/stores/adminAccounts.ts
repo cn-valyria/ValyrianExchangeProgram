@@ -67,7 +67,7 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     async updateAccount(payload: Partial<AdminAccount> & { id: number }) {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<void>('/api/accounts', {
+      const { error } = await apiFetch<null>('/api/accounts', {
         method: 'PUT',
         body: payload,
       })
@@ -109,7 +109,7 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     async updateSlot(slot: SlotDetail) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<void>(`/api/slots/${slot.id}`, {
+      const { error } = await apiFetch<null>(`/api/slots/${slot.id}`, {
         method: 'PUT',
         body: {
           techSentCycles: slot.techSentCycles,
@@ -128,7 +128,7 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     async deleteAccount(id: number) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<void>(`/api/accounts/${id}`, {
+      const { error } = await apiFetch<null>(`/api/accounts/${id}`, {
         method: 'DELETE',
       })
 

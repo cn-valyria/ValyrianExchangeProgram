@@ -127,7 +127,7 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     async cancelDeal(dealId: number, reason: string) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<void>(`/api/deals/${dealId}/cancel`, {
+      const { error } = await apiFetch<null>(`/api/deals/${dealId}/cancel`, {
         method: 'PUT',
         body: { reason },
       })
@@ -155,7 +155,7 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     async resolveFlag(flagId: number, adminNotes: string) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<void>(`/api/deals/admin/flags/${flagId}/resolve`, {
+      const { error } = await apiFetch<null>(`/api/deals/admin/flags/${flagId}/resolve`, {
         method: 'PUT',
         body: { adminNotes },
       })

@@ -73,7 +73,7 @@ export const useAdminMassMessagesStore = defineStore('adminMassMessages', {
     async setMessageSent(messageId: number, sent: boolean) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<void>(`/api/mass-messages/${messageId}/sent`, {
+      const { error } = await apiFetch<null>(`/api/mass-messages/${messageId}/sent`, {
         method: 'PUT',
         body: { sent },
       })

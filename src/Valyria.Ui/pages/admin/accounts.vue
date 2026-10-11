@@ -56,10 +56,9 @@ import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
-import { accountRoles } from '~/infrastructure/dataLists'
+import { accountRoles, getAccountRoleColor } from '~/infrastructure/dataLists'
 import AccountEditDialog from '~/components/admin/AccountEditDialog.vue'
 
-const router = useRouter()
 const toast = useToast()
 const overlay = useOverlay()
 
@@ -71,7 +70,6 @@ const authStore = useAuthStore()
 const { accounts } = storeToRefs(adminAccountsStore)
 const { loggedInUser } = storeToRefs(authStore)
 
-const editDialogIsVisible = ref<boolean>(false)
 const accountIdBeingDeleted = ref<number>(0)
 const loading = ref<boolean>(false)
 const searchQuery = ref<string>('')
@@ -80,7 +78,7 @@ const roles = accountRoles
 
 // Check if user has read-only access
 const isReadOnly = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+  return loggedInUser.value?.roles?.some((role) => role.name === "Admin (Read-only)") ?? false
 })
 
 // Table columns definition
@@ -107,7 +105,7 @@ const columns: TableColumn<AdminAccount>[] = [
     cell: ({ row }) => {
       const roleCode = row.original.role
       return h(resolveComponent('UBadge'), {
-        color: getRoleBadgeColor(roleCode),
+        color: getAccountRoleColor(roleCode),
         variant: 'subtle'
       }, () => getRoleDescription(roleCode))
     }
@@ -163,20 +161,6 @@ const columns: TableColumn<AdminAccount>[] = [
 const getRoleDescription = (roleCode: string): string => {
   const role = roles.find(r => r.code === roleCode)
   return role ? role.description : roleCode
-}
-
-// Helper function to get role badge color
-const getRoleBadgeColor = (roleCode: string): 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral' => {
-  switch (roleCode) {
-    case 'BUYER':
-      return 'primary'
-    case 'SELLER':
-      return 'success'
-    case 'BOTH':
-      return 'info'
-    default:
-      return 'neutral'
-  }
 }
 
 // Filtered accounts based on search query

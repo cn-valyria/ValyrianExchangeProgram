@@ -6,11 +6,11 @@
     </template>
 
     <template #body>
-      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="Team">
           <USelect
             v-model="state.team"
-            :options="teamOptions"
+            :items="teamOptions"
             placeholder="Select team"
           />
         </UFormField>
@@ -18,7 +18,7 @@
         <UFormField label="Event Type">
           <USelect
             v-model="state.eventType"
-            :options="eventTypeOptions"
+            :items="eventTypeOptions"
             placeholder="Select event type"
           />
         </UFormField>
@@ -28,7 +28,7 @@
         </UFormField>
 
         <!-- Hidden submit button for form submission -->
-        <button type="submit" class="hidden" ref="submitButton"></button>
+        <button ref="submitButton" type="submit" class="hidden"></button>
       </UForm>
     </template>
 
@@ -45,11 +45,12 @@
 
 <script setup lang="ts">
 import z from 'zod';
+import type { TeamEvent } from '~/stores/shared/teamEvent'
 
 const toast = useToast()
 
 interface Props {
-  editingTeamEvent?: any
+  editingTeamEvent?: TeamEvent
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -60,7 +61,7 @@ const emit = defineEmits<{ close: [boolean] }>()
 const submitButton = ref<HTMLButtonElement>()
 
 // Define the form state
-const state = reactive<any>(props.editingTeamEvent)
+const state = reactive<TeamEvent>(props.editingTeamEvent)
 
 // Define the Zod schema
 const schema = z.object({

@@ -20,5 +20,5 @@ interface Props {
   data: GeneralProgramSummary | undefined
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 </script>

@@ -25,5 +25,5 @@ interface Props {
   data: DealHealthSummary | undefined
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 </script>

@@ -170,7 +170,7 @@ const currentBatchIndex = ref<number>(0)
 
 // Read-only admins can see the messages but not mark them sent
 const canMarkSent = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => ['Super Admin', 'Admin - Lists'].includes(role.name)) ?? false
+  return loggedInUser.value?.roles?.some((role) => ['Super Admin', 'Admin - Lists'].includes(role.name)) ?? false
 })
 
 const tabItems = computed(() => {

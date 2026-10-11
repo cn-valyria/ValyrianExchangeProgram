@@ -117,7 +117,7 @@ const flagsLoading = ref<boolean>(false)
 
 // Check if user has read-only access
 const isReadOnly = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+  return loggedInUser.value?.roles?.some((role) => role.name === "Admin (Read-only)") ?? false
 })
 
 const tabs = computed(() => [

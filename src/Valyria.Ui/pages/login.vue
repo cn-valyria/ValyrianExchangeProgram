@@ -16,7 +16,7 @@
 
       <!-- Login Form -->
       <UCard class="mt-8">
-        <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
+        <UForm :schema="schema" :state="state" class="space-y-6" @submit="onSubmit">
           <!-- Username field (for password managers) -->
           <!-- This field will accept either Nation ID or Ruler Name -->
           <UFormField label="Nation ID or Ruler Name" name="username" required>

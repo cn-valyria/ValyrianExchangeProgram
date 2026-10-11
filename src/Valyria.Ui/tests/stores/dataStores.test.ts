@@ -11,6 +11,10 @@ mockNuxtImport('useApiClient', () => () => ({ apiFetch }))
 
 const failure = { statusCode: 500, message: 'Server Error' }
 
+// Calls a store action by name, for the tests that run the same check against several actions
+const callAction = (store: object, action: string, args: unknown[]) =>
+  (store as Record<string, (...args: unknown[]) => Promise<unknown>>)[action](...args)
+
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -69,7 +73,7 @@ describe('account store', () => {
     const store = useAccountStore()
     const before = JSON.stringify(store.$state)
 
-    await expect((store as any)[action](...args)).rejects.toEqual(failure)
+    await expect(callAction(store, action, args)).rejects.toEqual(failure)
     expect(JSON.stringify(store.$state)).toBe(before)
   })
 
@@ -78,7 +82,7 @@ describe('account store', () => {
     const store = useAccountStore()
     const before = JSON.stringify(store.$state)
 
-    await (store as any)[action](1)
+    await callAction(store, action, [1])
 
     expect(JSON.stringify(store.$state)).toBe(before)
   })
@@ -221,7 +225,7 @@ describe('admin accounts store', () => {
     const store = useAdminAccountsStore()
     store.accounts = [adminAccount(1)]
 
-    await expect((store as any)[action](...args)).rejects.toEqual(failure)
+    await expect(callAction(store, action, args)).rejects.toEqual(failure)
     expect(store.accounts).toEqual([adminAccount(1)])
   })
 })
@@ -297,7 +301,7 @@ describe('admin deals store', () => {
     const store = useAdminDealsStore()
     store.flags = [dealFlag({ id: 5 })]
 
-    await expect((store as any)[action](...args)).rejects.toEqual(failure)
+    await expect(callAction(store, action, args)).rejects.toEqual(failure)
     expect(store.flags).toHaveLength(1)
   })
 })
@@ -346,7 +350,7 @@ describe('admin access store', () => {
     apiFetch.mockResolvedValue(apiError(failure))
     const store = useAdminAccessStore()
 
-    expect(await (store as any)[action]({ accountId: 1, adminRoleId: 1 })).toBe(false)
+    expect(await callAction(store, action, [{ accountId: 1, adminRoleId: 1 }])).toBe(false)
     expect(store.error).toBe(message)
   })
 })

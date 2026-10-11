@@ -6,7 +6,7 @@
     </template>
 
     <template #body>
-      <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-4">
+      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="Account ID">
           <UInputMenu v-model="state.accountId" :items="accounts" value-key="id" label-key="rulerName" placeholder="Account ID" />
         </UFormField>
@@ -21,7 +21,7 @@
         </UFormField>
 
         <!-- Hidden submit button for form submission -->
-        <button type="submit" class="hidden" ref="submitButton"></button>
+        <button ref="submitButton" type="submit" class="hidden"></button>
       </UForm>
     </template>
 

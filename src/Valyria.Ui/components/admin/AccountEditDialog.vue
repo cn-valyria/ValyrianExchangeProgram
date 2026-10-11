@@ -11,7 +11,7 @@
     </template>
 
     <template #body>
-      <UForm ref="form" :schema="schema" :state="state" @submit="onSubmit" @error="onError" class="space-y-4">
+      <UForm ref="form" :schema="schema" :state="state" class="space-y-4" @submit="onSubmit" @error="onError">
         <!-- Account Data Section -->
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
@@ -54,7 +54,7 @@
             <UFormField label="Secret Code" name="uniqueCode">
               <div class="flex gap-2">
                 <UInput v-model="state.uniqueCode" class="flex-1" />
-                <UButton label="Generate" @click="generateSecretCode()" color="neutral" />
+                <UButton label="Generate" color="neutral" @click="generateSecretCode()" />
               </div>
             </UFormField>
 
@@ -108,7 +108,7 @@
               Slots
               <span class="text-base font-normal text-gray-500 dark:text-gray-400">({{ state.slotsUsed }} / {{ state.slotsTotal }} in deals)</span>
             </h2>
-            <AdminAccountSlotsEditor :accountId="state.id" />
+            <AdminAccountSlotsEditor :account-id="state.id" />
           </div>
         </div>
       </UForm>
@@ -145,10 +145,10 @@
 
 <script setup lang="ts">
 import { z } from 'zod'
-import type { FormErrorEvent, FormSubmitEvent } from '#ui/types'
+import type { FormErrorEvent } from '#ui/types'
 import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
-import { accountRoles, type AccountRole } from '~/infrastructure/dataLists'
+import { accountRoles } from '~/infrastructure/dataLists'
 
 interface Props {
   account?: AdminAccount
@@ -160,7 +160,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ close: [boolean] }>()
 
-const config = useRuntimeConfig()
 const toast = useToast()
 const adminAccountsStore = useAdminAccountsStore()
 const { apiFetch } = useApiClient()
@@ -306,6 +305,13 @@ const handleClose = () => {
   emit("close", false);
 }
 
+interface ProspectAccount {
+  nationId: number
+  nationName: string
+  rulerName: string
+  allianceName: string
+}
+
 const prospectSearchErrors: Record<number, string> = {
   404: "No nation was found with that nation ID.",
   409: "That nation already has a VEP account."
@@ -313,7 +319,7 @@ const prospectSearchErrors: Record<number, string> = {
 
 const findProspectAccount = async () => {
   buttonIsLoading.value = true
-  const { data, error } = await apiFetch<any>(`/api/accounts/prospect?nationId=${state.nationId}`)
+  const { data, error } = await apiFetch<ProspectAccount>(`/api/accounts/prospect?nationId=${state.nationId}`)
   buttonIsLoading.value = false
 
   if (error.value || !data.value) {
@@ -335,7 +341,7 @@ const findProspectAccount = async () => {
   })
 }
 
-const onSubmit = async (event: FormSubmitEvent<any>) => {
+const onSubmit = async () => {
   if (isInUpdateState.value) {
     await update()
   } else {
@@ -348,7 +354,7 @@ const onError = async (event: FormErrorEvent) => {
     toast.add({
       description: `Form validation failed: ${event.errors.map(error => error.message).join(', ')}`,
       title: 'Validation Error',
-      color: 'success',
+      color: 'error',
       duration: 3000
     })
   }

@@ -34,10 +34,10 @@
         <!-- Mobile Menu Button -->
         <div class="md:hidden">
           <UButton
-            @click="mobileMenuOpen = !mobileMenuOpen"
             color="neutral"
             variant="solid"
             :icon="mobileMenuOpen ? 'i-heroicons-x-mark-20-solid' : 'i-heroicons-bars-3-20-solid'"
+            @click="mobileMenuOpen = !mobileMenuOpen"
           />
         </div>
       </div>
@@ -76,7 +76,7 @@
           <NuxtLink v-if="accountIsAdmin" to="/admin/settings" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
             Settings
           </NuxtLink>
-          <a @click="handleLogout()" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium cursor-pointer">
+          <a class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium cursor-pointer" @click="handleLogout()">
             Log Out
           </a>
         </template>
@@ -108,16 +108,16 @@ const accountUrl = computed(() => {
 })
 
 const accountIsAdmin = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => role.name === "Super Admin") ?? false
+  return loggedInUser.value?.roles?.some((role) => role.name === "Super Admin") ?? false
 })
 
 // The "Admin - Lists" role is named for VEP 2.5's lists, which the Messages page replaced
 const accountCanSendMessages = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin - Lists") ?? false
+  return loggedInUser.value?.roles?.some((role) => role.name === "Admin - Lists") ?? false
 })
 
 const accountIsReadOnlyAdmin = computed(() => {
-  return loggedInUser.value?.roles?.some((role: any) => role.name === "Admin (Read-only)") ?? false
+  return loggedInUser.value?.roles?.some((role) => role.name === "Admin (Read-only)") ?? false
 })
 
 const accountMenuItems = computed(() => {

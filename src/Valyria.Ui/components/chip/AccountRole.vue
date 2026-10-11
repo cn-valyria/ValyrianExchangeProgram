@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { accountRoles } from '~/infrastructure/dataLists'
+import { accountRoles, getAccountRoleColor } from '~/infrastructure/dataLists'
 
 const props = defineProps<{
   code: string | undefined
@@ -17,24 +17,5 @@ const roleDescription = computed(() => {
   return role ? role.description : ''
 })
 
-const codeColor = computed(() => {
-  switch (props.code) {
-    case 'B': // Buyer
-    case 'D': // Donor
-    case 'W': // Temp Receiver
-      return 'warning'
-    case 'S': // Seller
-    case 'F': // Farm
-    case 'N': // Probationary Seller
-    case 'Q': // Temp Collector
-      return 'error'
-    case 'C': // Collector
-    case 'R': // Receiver
-    case 'P': // Temp Donor
-    case 'V': // Temp Farm
-      return 'info'
-    default: // Unknown
-      return 'neutral'
-  }
-})
+const codeColor = computed(() => getAccountRoleColor(props.code))
 </script>

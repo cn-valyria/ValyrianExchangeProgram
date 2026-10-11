@@ -47,7 +47,7 @@
                   class="text-fg-brand hover:underline"
                 >{{ action.deal.partnerSlot.account.rulerName }} of {{ action.deal.partnerSlot.account.nationName }}</a>
               </span>
-              <ChipAllianceAcronym :allianceName="action.deal.partnerSlot.account.allianceName" />
+              <ChipAllianceAcronym :alliance-name="action.deal.partnerSlot.account.allianceName" />
               <UBadge v-if="action.flagged" color="error" variant="solid" size="sm" icon="i-heroicons-flag">
                 Flagged
               </UBadge>

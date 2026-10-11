@@ -5,7 +5,7 @@
       <div v-for="(row, index) in allianceData" :key="row.allianceName">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3 flex-1">
-            <chip-alliance-acronym :allianceName="row.allianceName" />
+            <chip-alliance-acronym :alliance-name="row.allianceName" />
             <span class="text-gray-700 dark:text-gray-300">{{ row.allianceName }}</span>
           </div>
           <UBadge :label="row.totalAccounts.toString()" color="primary" variant="subtle" size="lg" />

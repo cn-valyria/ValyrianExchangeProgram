@@ -411,7 +411,7 @@ describe('AccountEditDialog', () => {
       await saveAccount()
 
       expect(updateAccount).not.toHaveBeenCalled()
-      expect(toasts()[0]).toMatchObject({ title: 'Validation Error' })
+      expect(toasts()[0]).toMatchObject({ title: 'Validation Error', color: 'error' })
       expect(toasts()[0].description).toContain('Every account must have a unique code provided')
     })
 
@@ -504,6 +504,9 @@ describe('AdminTeamEventDialog', () => {
     const { wrapper, onClose } = await openDialog(AdminTeamEventDialog, { editingTeamEvent: {} })
 
     expect(bodyText()).toContain('Add Team Event')
+    const [team, eventType] = wrapper.findAllComponents(USelect)
+    expect((team.props('items') as { value: string }[]).map((item) => item.value)).toContain('Aqua')
+    expect((eventType.props('items') as { value: string }[]).map((item) => item.value)).toEqual(['+1 Aid Slot', '-1 Aid Slot'])
     wrapper.findAllComponents(USelect)[0].vm.$emit('update:modelValue', 'Aqua')
     wrapper.findAllComponents(USelect)[1].vm.$emit('update:modelValue', '+1 Aid Slot')
     await flushPromises()

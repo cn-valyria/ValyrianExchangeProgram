@@ -16,7 +16,7 @@
             </h1>
             <div class="flex flex-wrap gap-2 justify-center">
               <ChipAccountRole :code="account.role" />
-              <ChipAllianceAcronym :allianceName="account.allianceName" />
+              <ChipAllianceAcronym :alliance-name="account.allianceName" />
             </div>
           </div>
 
@@ -25,8 +25,8 @@
             <!-- Left: Slot Usage -->
             <div class="flex justify-center lg:justify-end lg:pr-4">
               <AccountSlotUsage
-                :slotsUsed="dealsSummary.slotsUsed"
-                :slotsTotal="dealsSummary.slotsTotal"
+                :slots-used="dealsSummary.slotsUsed"
+                :slots-total="dealsSummary.slotsTotal"
                 :role="account.role"
               />
             </div>
@@ -44,7 +44,7 @@
     <UContainer class="py-8">
       <div class="space-y-6">
         <!-- Action Needed Card: only shows when a deal needs something from this account today -->
-        <AccountActionNeeded :deals="dealsSummary.activeDeals" :myNationId="account.nationId" />
+        <AccountActionNeeded :deals="dealsSummary.activeDeals" :my-nation-id="account.nationId" />
 
         <!-- Active Deals Card -->
         <AccountActiveDeals
@@ -54,7 +54,7 @@
         />
 
         <!-- Deal History Card -->
-        <AccountDealHistory :accountId="accountId" />
+        <AccountDealHistory :account-id="accountId" />
       </div>
     </UContainer>
   </div>
