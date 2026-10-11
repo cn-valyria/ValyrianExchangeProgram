@@ -1,0 +1,6 @@
+# Commits that only reformat code, skipped by `git blame` so it shows the commit that last
+# changed each line's meaning. GitHub reads this file automatically; locally, run once:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Format the UI with Prettier
+e36e1ce97f7b699af0025e830243fe558ce85318

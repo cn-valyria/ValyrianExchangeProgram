@@ -51,7 +51,8 @@ The app will be available at `http://localhost:3000`
 - `npm run build` - Build for production
 - `npm run generate` - Generate static site
 - `npm run preview` - Preview production build
-- `npm run lint` - Run linting
+- `npm run lint` - Check code with ESLint and formatting with Prettier
+- `npm run lintfix` - Fix formatting and auto-fixable lint problems
 - `npm run test` - Run tests in watch mode
 - `npm run test:coverage` - Run tests once with a coverage report (open `coverage/index.html`)
 
