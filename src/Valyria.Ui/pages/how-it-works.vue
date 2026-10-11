@@ -1,15 +1,22 @@
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-900">
     <!-- Hero Section -->
-    <section class="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-purple-700">
+    <section
+      class="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-purple-700"
+    >
       <div class="absolute inset-0 bg-grid-white/10"></div>
-      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24">
+      <div
+        class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24"
+      >
         <div class="text-center space-y-6">
-          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight">
+          <h1
+            class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight"
+          >
             How VEP Works
           </h1>
           <p class="text-lg sm:text-xl text-primary-100 max-w-3xl mx-auto">
-            Sending and receiving aid, made simple, efficient, and dare we say—a little bit fun
+            Sending and receiving aid, made simple, efficient, and dare we say—a
+            little bit fun
           </p>
         </div>
       </div>
@@ -17,15 +24,17 @@
 
     <!-- Main Content -->
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
-
       <!-- Getting Started Section -->
       <section class="space-y-8">
         <div class="text-center space-y-4">
-          <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+          <h2
+            class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white"
+          >
             Getting Started
           </h2>
           <p class="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Follow these simple steps to join the Valyrian Exchange Program and start managing your aid efficiently
+            Follow these simple steps to join the Valyrian Exchange Program and
+            start managing your aid efficiently
           </p>
         </div>
 
@@ -34,8 +43,13 @@
           <div class="space-y-6">
             <div class="flex items-start gap-4">
               <div class="flex-shrink-0">
-                <div class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <span class="text-xl font-bold text-primary-600 dark:text-primary-400">1</span>
+                <div
+                  class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
+                  <span
+                    class="text-xl font-bold text-primary-600 dark:text-primary-400"
+                    >1</span
+                  >
                 </div>
               </div>
               <div class="flex-1 space-y-3">
@@ -43,22 +57,50 @@
                   Log In to VEP
                 </h3>
                 <p class="text-gray-600 dark:text-gray-300">
-                  Click the <strong>Login</strong> button in the top right corner of the page. You'll need your Cybernations
-                  Ruler Name or Nation ID to authenticate.
+                  Click the <strong>Login</strong> button in the top right
+                  corner of the page. You'll need your Cybernations Ruler Name
+                  or Nation ID to authenticate.
                 </p>
-                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
-                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">How to find your Nation ID:</p>
-                  <ol class="text-sm text-gray-600 dark:text-gray-400 list-decimal list-inside space-y-1 ml-2">
-                    <li>Click the "View My Nation" link in the Cybernations navigation menu</li>
-                    <li>Copy the Nation ID from the end of the URL in your browser</li>
-                    <li>Example: <code class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">https://www.cybernations.net/nation_drill_display.asp?Nation_ID=299962</code></li>
+                <div
+                  class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2"
+                >
+                  <p
+                    class="text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  >
+                    How to find your Nation ID:
+                  </p>
+                  <ol
+                    class="text-sm text-gray-600 dark:text-gray-400 list-decimal list-inside space-y-1 ml-2"
+                  >
+                    <li>
+                      Click the "View My Nation" link in the Cybernations
+                      navigation menu
+                    </li>
+                    <li>
+                      Copy the Nation ID from the end of the URL in your browser
+                    </li>
+                    <li>
+                      Example:
+                      <code
+                        class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded"
+                        >https://www.cybernations.net/nation_drill_display.asp?Nation_ID=299962</code
+                      >
+                    </li>
                   </ol>
                 </div>
 
                 <div class="lg:col-span-3">
                   <UCard class="overflow-hidden">
-                    <img src="~/assets/img/howitworks-login1.png" alt="Account Example" class="w-full rounded-lg" />
-                    <img src="~/assets/img/howitworks-login2.png" alt="Account Example" class="w-full rounded-lg" />
+                    <img
+                      src="~/assets/img/howitworks-login1.png"
+                      alt="Account Example"
+                      class="w-full rounded-lg"
+                    />
+                    <img
+                      src="~/assets/img/howitworks-login2.png"
+                      alt="Account Example"
+                      class="w-full rounded-lg"
+                    />
                   </UCard>
                 </div>
               </div>
@@ -71,8 +113,13 @@
           <div class="space-y-6">
             <div class="flex items-start gap-4">
               <div class="flex-shrink-0">
-                <div class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <span class="text-xl font-bold text-primary-600 dark:text-primary-400">2</span>
+                <div
+                  class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
+                  <span
+                    class="text-xl font-bold text-primary-600 dark:text-primary-400"
+                    >2</span
+                  >
                 </div>
               </div>
               <div class="flex-1 space-y-3">
@@ -80,8 +127,9 @@
                   Save Your Authentication Code
                 </h3>
                 <p class="text-gray-600 dark:text-gray-300">
-                  You will receive a unique authentication code via in-game message. Save this information in a secure location,
-                  as the system will occasionally require re-authentication.
+                  You will receive a unique authentication code via in-game
+                  message. Save this information in a secure location, as the
+                  system will occasionally require re-authentication.
                 </p>
                 <UAlert
                   color="primary"
@@ -93,7 +141,11 @@
 
                 <div class="lg:col-span-3">
                   <UCard class="overflow-hidden">
-                    <img src="~/assets/img/howitworks-notepad.png" alt="Account Example" class="w-full rounded-lg" />
+                    <img
+                      src="~/assets/img/howitworks-notepad.png"
+                      alt="Account Example"
+                      class="w-full rounded-lg"
+                    />
                   </UCard>
                 </div>
               </div>
@@ -106,8 +158,13 @@
           <div class="space-y-6">
             <div class="flex items-start gap-4">
               <div class="flex-shrink-0">
-                <div class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <span class="text-xl font-bold text-primary-600 dark:text-primary-400">3</span>
+                <div
+                  class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
+                  <span
+                    class="text-xl font-bold text-primary-600 dark:text-primary-400"
+                    >3</span
+                  >
                 </div>
               </div>
               <div class="flex-1 space-y-3">
@@ -115,21 +172,40 @@
                   Access Your Account Dashboard
                 </h3>
                 <p class="text-gray-600 dark:text-gray-300">
-                  Once authenticated, you'll have access to your personal account page, where you can see all of your deals at a glance.
+                  Once authenticated, you'll have access to your personal
+                  account page, where you can see all of your deals at a glance.
                 </p>
-                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
-                  <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Your account page shows:</p>
-                  <ul class="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1 ml-2">
+                <div
+                  class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2"
+                >
+                  <p
+                    class="text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  >
+                    Your account page shows:
+                  </p>
+                  <ul
+                    class="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside space-y-1 ml-2"
+                  >
                     <li>How many of your aid slots are in deals</li>
-                    <li>Each active deal: your partner, what you send them, and what they send you</li>
+                    <li>
+                      Each active deal: your partner, what you send them, and
+                      what they send you
+                    </li>
                     <li>Any deals that need your attention</li>
-                    <li>Your full deal history, including every aid package exchanged</li>
+                    <li>
+                      Your full deal history, including every aid package
+                      exchanged
+                    </li>
                   </ul>
                 </div>
 
                 <div class="lg:col-span-3">
                   <UCard class="overflow-hidden">
-                    <img src="~/assets/img/howitworks-accessaccount.png" alt="Account Example" class="w-full rounded-lg" />
+                    <img
+                      src="~/assets/img/howitworks-accessaccount.png"
+                      alt="Account Example"
+                      class="w-full rounded-lg"
+                    />
                   </UCard>
                 </div>
               </div>
@@ -143,11 +219,14 @@
       <!-- Deals Section -->
       <section class="space-y-8">
         <div class="text-center space-y-4">
-          <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+          <h2
+            class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white"
+          >
             How Deals Work
           </h2>
           <p class="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            VEP pairs you with partners and tells you exactly what to send, so all you have to do is send aid
+            VEP pairs you with partners and tells you exactly what to send, so
+            all you have to do is send aid
           </p>
         </div>
 
@@ -156,18 +235,25 @@
           <UCard>
             <div class="space-y-4">
               <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <Icon name="heroicons:link" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                <div
+                  class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
+                  <Icon
+                    name="heroicons:link"
+                    class="h-5 w-5 text-primary-600 dark:text-primary-400"
+                  />
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                   Slots and Matching
                 </h3>
               </div>
               <p class="text-gray-600 dark:text-gray-300">
-                Every nation in VEP has 4 aid slots, plus one more with a Foreign Ministry and one more with a Disaster
-                Relief Agency. Each slot is set up to send and receive a certain amount of aid every 10 days, based on
-                your role. VEP matches each open slot with a partner's slot that needs the opposite, and checks for new
-                matches every day.
+                Every nation in VEP has 4 aid slots, plus one more with a
+                Foreign Ministry and one more with a Disaster Relief Agency.
+                Each slot is set up to send and receive a certain amount of aid
+                every 10 days, based on your role. VEP matches each open slot
+                with a partner's slot that needs the opposite, and checks for
+                new matches every day.
               </p>
             </div>
           </UCard>
@@ -176,18 +262,26 @@
           <UCard>
             <div class="space-y-4">
               <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <Icon name="heroicons:arrows-right-left" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                <div
+                  class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
+                  <Icon
+                    name="heroicons:arrows-right-left"
+                    class="h-5 w-5 text-primary-600 dark:text-primary-400"
+                  />
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                   Keeping Deals Active
                 </h3>
               </div>
               <p class="text-gray-600 dark:text-gray-300">
-                You and your partner take turns. Whoever sends cash goes first and sends all of their cycles, then the
-                other side sends all of theirs. Each aid offer fills an aid slot on both nations for 10 days, so a deal
-                only needs you when it's your turn and you both have a free slot. The <strong>Action Needed Today</strong>
-                list at the top of your account page shows exactly what to send or accept each day.
+                You and your partner take turns. Whoever sends cash goes first
+                and sends all of their cycles, then the other side sends all of
+                theirs. Each aid offer fills an aid slot on both nations for 10
+                days, so a deal only needs you when it's your turn and you both
+                have a free slot. The <strong>Action Needed Today</strong>
+                list at the top of your account page shows exactly what to send
+                or accept each day.
               </p>
               <UAlert
                 color="warning"
@@ -203,21 +297,31 @@
           <UCard class="md:col-span-2">
             <div class="space-y-4">
               <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <Icon name="heroicons:shield-exclamation" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                <div
+                  class="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+                >
+                  <Icon
+                    name="heroicons:shield-exclamation"
+                    class="h-5 w-5 text-primary-600 dark:text-primary-400"
+                  />
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
                   Wartime Protocol
                 </h3>
               </div>
               <p class="text-gray-600 dark:text-gray-300">
-                During times of war, your alliance leadership may restrict aid to certain alliances due to treaty obligations
-                or political considerations.
+                During times of war, your alliance leadership may restrict aid
+                to certain alliances due to treaty obligations or political
+                considerations.
               </p>
-              <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <div
+                class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3"
+              >
                 <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                  VEP does not currently consider wartime restrictions when matching deals. If you're matched with a partner
-                  you can't send aid to, contact VEP management so the deal can be replaced.
+                  VEP does not currently consider wartime restrictions when
+                  matching deals. If you're matched with a partner you can't
+                  send aid to, contact VEP management so the deal can be
+                  replaced.
                 </p>
               </div>
             </div>
@@ -226,7 +330,11 @@
 
         <div class="lg:col-span-3">
           <UCard class="overflow-hidden">
-            <img src="~/assets/img/howitworks-aidlist.png" alt="Active Deals Example" class="w-full rounded-lg" />
+            <img
+              src="~/assets/img/howitworks-aidlist.png"
+              alt="Active Deals Example"
+              class="w-full rounded-lg"
+            />
           </UCard>
         </div>
       </section>
@@ -236,7 +344,9 @@
       <!-- Notifications Section -->
       <section class="space-y-6">
         <div class="text-center space-y-4">
-          <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+          <h2
+            class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white"
+          >
             Stay Informed
           </h2>
           <p class="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
@@ -247,8 +357,13 @@
         <UCard>
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0">
-              <div class="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                <Icon name="heroicons:bell" class="h-6 w-6 text-primary-600 dark:text-primary-400" />
+              <div
+                class="h-12 w-12 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+              >
+                <Icon
+                  name="heroicons:bell"
+                  class="h-6 w-6 text-primary-600 dark:text-primary-400"
+                />
               </div>
             </div>
             <div class="flex-1 space-y-3">
@@ -256,8 +371,9 @@
                 Automated Reminders
               </h3>
               <p class="text-gray-600 dark:text-gray-300">
-                VEP may send reminders through Discord to help you stay on top of your deals. These reminders are provided
-                as a convenience only.
+                VEP may send reminders through Discord to help you stay on top
+                of your deals. These reminders are provided as a convenience
+                only.
               </p>
               <UAlert
                 color="info"
@@ -276,28 +392,40 @@
       <!-- Support Section -->
       <section class="space-y-6">
         <div class="text-center space-y-4">
-          <h2 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">
+          <h2
+            class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white"
+          >
             Need Help?
           </h2>
         </div>
 
-        <UCard class="bg-gradient-to-br from-primary-50 to-purple-50 dark:from-primary-950 dark:to-purple-950">
+        <UCard
+          class="bg-gradient-to-br from-primary-50 to-purple-50 dark:from-primary-950 dark:to-purple-950"
+        >
           <div class="text-center space-y-4">
-            <Icon name="heroicons:chat-bubble-left-right" class="h-16 w-16 text-primary-600 dark:text-primary-400 mx-auto" />
+            <Icon
+              name="heroicons:chat-bubble-left-right"
+              class="h-16 w-16 text-primary-600 dark:text-primary-400 mx-auto"
+            />
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
               Join Our Community
             </h3>
             <p class="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              If you need support or have questions, visit the 
-              <a href="https://discord.gg/kUdGRm3zXA" class="font-medium text-fg-brand hover:underline">VEP Discord Server</a>.
-              Our community is here to help you succeed!
+              If you need support or have questions, visit the
+              <a
+                href="https://discord.gg/kUdGRm3zXA"
+                class="font-medium text-fg-brand hover:underline"
+                >VEP Discord Server</a
+              >. Our community is here to help you succeed!
             </p>
           </div>
         </UCard>
       </section>
 
       <!-- Simple Summary -->
-      <section class="bg-gradient-to-r from-primary-600 to-purple-600 rounded-2xl p-8 sm:p-12 text-center">
+      <section
+        class="bg-gradient-to-r from-primary-600 to-purple-600 rounded-2xl p-8 sm:p-12 text-center"
+      >
         <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">
           Get Matched. Send Aid. Succeed.
         </h2>

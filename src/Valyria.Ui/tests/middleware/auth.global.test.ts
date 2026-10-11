@@ -5,7 +5,13 @@ import authPlugin from '~/plugins/auth.client'
 
 // Both load when the test Nuxt app boots, so they use the real router and toasts rather than mocks
 
-const route = (path: string) => ({ path, fullPath: path, query: {}, params: {} }) as unknown as RouteLocationNormalized
+const route = (path: string) =>
+  ({
+    path,
+    fullPath: path,
+    query: {},
+    params: {},
+  }) as unknown as RouteLocationNormalized
 
 let routerPush: ReturnType<typeof vi.spyOn>
 
@@ -21,7 +27,10 @@ afterEach(() => {
 const signIn = (...adminRoles: string[]) => {
   const authStore = useAuthStore()
   authStore.isAuthenticated = true
-  authStore.user = { accountId: 42, roles: adminRoles.map((name, id) => ({ id, name })) }
+  authStore.user = {
+    accountId: 42,
+    roles: adminRoles.map((name, id) => ({ id, name })),
+  }
 }
 
 const run = (path: string) => authMiddleware(route(path), route('/'))
@@ -29,11 +38,14 @@ const run = (path: string) => authMiddleware(route(path), route('/'))
 const redirectedTo = () => routerPush.mock.lastCall?.[0]
 
 describe('auth middleware', () => {
-  it.each(['/', '/login', '/how-it-works'])('lets anyone see %s', async (path) => {
-    await run(path)
+  it.each(['/', '/login', '/how-it-works'])(
+    'lets anyone see %s',
+    async (path) => {
+      await run(path)
 
-    expect(routerPush).not.toHaveBeenCalled()
-  })
+      expect(routerPush).not.toHaveBeenCalled()
+    },
+  )
 
   it('sends signed-out visitors to log in', async () => {
     await run('/account/42')
@@ -72,7 +84,10 @@ describe('auth middleware', () => {
     } else {
       vi.spyOn(console, 'warn').mockImplementation(() => {})
       expect(redirectedTo()).toBe('/')
-      expect(useToast().toasts.value[0]).toMatchObject({ title: 'Access Denied', color: 'error' })
+      expect(useToast().toasts.value[0]).toMatchObject({
+        title: 'Access Denied',
+        color: 'error',
+      })
     }
   })
 })
@@ -81,7 +96,9 @@ describe('auth plugin', () => {
   it('restores the session when the app starts', async () => {
     const init = vi.spyOn(useAuthStore(), 'init').mockResolvedValue()
 
-    await (authPlugin as unknown as (nuxtApp: unknown) => Promise<void>)(useNuxtApp())
+    await (authPlugin as unknown as (nuxtApp: unknown) => Promise<void>)(
+      useNuxtApp(),
+    )
 
     expect(init).toHaveBeenCalledOnce()
   })

@@ -6,10 +6,16 @@
       description="Values are aid packages per 10-day cycle. Slots are added or removed automatically when FM/DRA change, and reset to role defaults when the role changes. Editing a slot that's in a deal changes what this account is told to send right away, but not the partner's slot."
     />
 
-    <div v-if="isLoading" class="flex items-center gap-2 text-sm text-gray-500 px-2">
-      <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" /> Loading slots...
+    <div
+      v-if="isLoading"
+      class="flex items-center gap-2 text-sm text-gray-500 px-2"
+    >
+      <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" />
+      Loading slots...
     </div>
-    <p v-else-if="slots.length === 0" class="text-sm text-gray-500 px-2">This account has no slots.</p>
+    <p v-else-if="slots.length === 0" class="text-sm text-gray-500 px-2">
+      This account has no slots.
+    </p>
 
     <div
       v-for="slot in slots"
@@ -19,8 +25,14 @@
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="font-semibold text-gray-900 dark:text-white">Slot #{{ slot.slotNumber }}</span>
-          <UBadge :color="slot.hasActiveDeal ? 'success' : 'info'" variant="subtle" size="sm">
+          <span class="font-semibold text-gray-900 dark:text-white"
+            >Slot #{{ slot.slotNumber }}</span
+          >
+          <UBadge
+            :color="slot.hasActiveDeal ? 'success' : 'info'"
+            variant="subtle"
+            size="sm"
+          >
             {{ slot.hasActiveDeal ? 'In a deal' : 'Open' }}
           </UBadge>
         </div>
@@ -39,13 +51,21 @@
           <UInputNumber v-model="slot.techSentCycles" :min="0" class="w-full" />
         </UFormField>
         <UFormField label="Tech Rec'd">
-          <UInputNumber v-model="slot.techReceivedCycles" :min="0" class="w-full" />
+          <UInputNumber
+            v-model="slot.techReceivedCycles"
+            :min="0"
+            class="w-full"
+          />
         </UFormField>
         <UFormField label="Cash Sent">
           <UInputNumber v-model="slot.cashSentCycles" :min="0" class="w-full" />
         </UFormField>
         <UFormField label="Cash Rec'd">
-          <UInputNumber v-model="slot.cashReceivedCycles" :min="0" class="w-full" />
+          <UInputNumber
+            v-model="slot.cashReceivedCycles"
+            :min="0"
+            class="w-full"
+          />
         </UFormField>
       </div>
     </div>
@@ -71,11 +91,12 @@ const savingSlotId = ref<number | null>(null)
 
 const isDirty = (slot: SlotDetail): boolean => {
   const saved = savedSlots.value[slot.id]
-  return saved !== undefined && (
-    saved.techSentCycles !== slot.techSentCycles
-    || saved.techReceivedCycles !== slot.techReceivedCycles
-    || saved.cashSentCycles !== slot.cashSentCycles
-    || saved.cashReceivedCycles !== slot.cashReceivedCycles
+  return (
+    saved !== undefined &&
+    (saved.techSentCycles !== slot.techSentCycles ||
+      saved.techReceivedCycles !== slot.techReceivedCycles ||
+      saved.cashSentCycles !== slot.cashSentCycles ||
+      saved.cashReceivedCycles !== slot.cashReceivedCycles)
   )
 }
 
@@ -84,10 +105,20 @@ const saveSlot = async (slot: SlotDetail) => {
   try {
     await adminAccountsStore.updateSlot(slot)
     savedSlots.value[slot.id] = { ...slot }
-    toast.add({ color: 'success', title: 'Success', description: `Slot #${slot.slotNumber} updated.`, duration: 3000 })
+    toast.add({
+      color: 'success',
+      title: 'Success',
+      description: `Slot #${slot.slotNumber} updated.`,
+      duration: 3000,
+    })
   } catch (e) {
     console.error(e)
-    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 5000 })
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: ERROR_MESSAGES.default,
+      duration: 5000,
+    })
   } finally {
     savingSlotId.value = null
   }
@@ -97,10 +128,17 @@ onMounted(async () => {
   isLoading.value = true
   try {
     slots.value = await adminAccountsStore.loadAccountSlots(props.accountId)
-    savedSlots.value = Object.fromEntries(slots.value.map((slot) => [slot.id, { ...slot }]))
+    savedSlots.value = Object.fromEntries(
+      slots.value.map((slot) => [slot.id, { ...slot }]),
+    )
   } catch (e) {
     console.error(e)
-    toast.add({ color: 'error', title: 'Error', description: "Failed to load this account's slots.", duration: 5000 })
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: "Failed to load this account's slots.",
+      duration: 5000,
+    })
   } finally {
     isLoading.value = false
   }

@@ -57,7 +57,8 @@ export const useAdminMassMessagesStore = defineStore('adminMassMessages', {
     async loadMassMessages() {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<MassMessagesSummary>('/api/mass-messages')
+      const { data, error } =
+        await apiFetch<MassMessagesSummary>('/api/mass-messages')
 
       if (error.value) {
         console.error('Failed to load mass messages:', error.value)
@@ -73,10 +74,13 @@ export const useAdminMassMessagesStore = defineStore('adminMassMessages', {
     async setMessageSent(messageId: number, sent: boolean) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<null>(`/api/mass-messages/${messageId}/sent`, {
-        method: 'PUT',
-        body: { sent },
-      })
+      const { error } = await apiFetch<null>(
+        `/api/mass-messages/${messageId}/sent`,
+        {
+          method: 'PUT',
+          body: { sent },
+        },
+      )
 
       if (error.value) {
         console.error('Failed to update messages sent:', error.value)

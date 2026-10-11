@@ -34,7 +34,9 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     async loadAllAccounts(includeOnHold: boolean = false) {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<AdminAccount[]>(`/api/accounts?includeOnHold=${includeOnHold}`)
+      const { data, error } = await apiFetch<AdminAccount[]>(
+        `/api/accounts?includeOnHold=${includeOnHold}`,
+      )
 
       if (error.value) {
         console.error('Failed to load accounts:', error.value)
@@ -96,7 +98,9 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
     async loadAccountSlots(accountId: number): Promise<SlotDetail[]> {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<{ slots: SlotDetail[] }>(`/api/slots/account/${accountId}`)
+      const { data, error } = await apiFetch<{ slots: SlotDetail[] }>(
+        `/api/slots/account/${accountId}`,
+      )
 
       if (error.value) {
         console.error('Failed to load account slots:', error.value)

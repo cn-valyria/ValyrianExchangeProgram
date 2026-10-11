@@ -153,7 +153,9 @@ export const useAccountStore = defineStore('account', {
     async loadAccount(accountId: number) {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<Account>(`/api/accounts/${accountId}`)
+      const { data, error } = await apiFetch<Account>(
+        `/api/accounts/${accountId}`,
+      )
 
       if (error.value) {
         console.error('Failed to load account:', error.value)
@@ -168,7 +170,9 @@ export const useAccountStore = defineStore('account', {
     async loadDealsSummary(accountId: number) {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<AccountDealsSummary>(`/api/deals/account/${accountId}`)
+      const { data, error } = await apiFetch<AccountDealsSummary>(
+        `/api/deals/account/${accountId}`,
+      )
 
       if (error.value) {
         console.error('Failed to load deals:', error.value)
@@ -206,7 +210,9 @@ export const useAccountStore = defineStore('account', {
     async loadDealActivity(accountId: number, dealId: number) {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<DealActivity[]>(`/api/deals/${dealId}/activity?accountId=${accountId}`)
+      const { data, error } = await apiFetch<DealActivity[]>(
+        `/api/deals/${dealId}/activity?accountId=${accountId}`,
+      )
 
       if (error.value) {
         console.error('Failed to load deal activity:', error.value)

@@ -2,9 +2,17 @@
   <UCard>
     <template #header>
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Active Deals</h2>
-        <UBadge v-if="props.deals.length > 0" color="primary" size="lg" variant="subtle">
-          {{ props.deals.length }} {{ props.deals.length === 1 ? 'deal' : 'deals' }}
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+          Active Deals
+        </h2>
+        <UBadge
+          v-if="props.deals.length > 0"
+          color="primary"
+          size="lg"
+          variant="subtle"
+        >
+          {{ props.deals.length }}
+          {{ props.deals.length === 1 ? 'deal' : 'deals' }}
         </UBadge>
       </div>
     </template>
@@ -15,30 +23,44 @@
         v-for="(notification, index) in props.notifications"
         :key="`notification-${index}`"
         :color="notification.type === 'error' ? 'error' : 'info'"
-        :icon="notification.type === 'error' ? 'i-heroicons-flag' : 'i-heroicons-information-circle'"
+        :icon="
+          notification.type === 'error'
+            ? 'i-heroicons-flag'
+            : 'i-heroicons-information-circle'
+        "
         :title="notification.message"
       />
 
       <!-- On Hold Message -->
       <div v-if="isOnHold" class="text-center py-8 space-y-4">
-        <UIcon name="i-heroicons-pause-circle" class="w-16 h-16 text-gray-400 mx-auto" />
+        <UIcon
+          name="i-heroicons-pause-circle"
+          class="w-16 h-16 text-gray-400 mx-auto"
+        />
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           Your account is on hold
         </h3>
         <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Accounts on hold are not matched into deals. If you feel this is an error, please contact VEP management for support.
+          Accounts on hold are not matched into deals. If you feel this is an
+          error, please contact VEP management for support.
         </p>
       </div>
 
       <!-- No Deals Message -->
-      <div v-else-if="props.deals.length === 0" class="text-center py-8 space-y-4">
-        <UIcon name="i-heroicons-clock" class="w-16 h-16 text-blue-500 mx-auto" />
+      <div
+        v-else-if="props.deals.length === 0"
+        class="text-center py-8 space-y-4"
+      >
+        <UIcon
+          name="i-heroicons-clock"
+          class="w-16 h-16 text-blue-500 mx-auto"
+        />
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
           Waiting to be matched
         </h3>
         <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          You don't have any active deals yet. VEP matches open slots with new partners daily.
-          Please check again tomorrow for your updated deals.
+          You don't have any active deals yet. VEP matches open slots with new
+          partners daily. Please check again tomorrow for your updated deals.
         </p>
       </div>
 
@@ -60,7 +82,14 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { ACCOUNT_ROLE_CODES } from '~/infrastructure/constants'
-import { describeAid, describeNextAid, getAidFormLink, getDealStatus, getNationLink, type DealStatusInfo } from '~/infrastructure/deals'
+import {
+  describeAid,
+  describeNextAid,
+  getAidFormLink,
+  getDealStatus,
+  getNationLink,
+  type DealStatusInfo,
+} from '~/infrastructure/deals'
 import type { Account, DealDetail, DealNotification } from '~/stores/account'
 import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
@@ -85,86 +114,121 @@ interface ActiveDealRow {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  account: () => ({} as Account),
+  account: () => ({}) as Account,
   deals: () => [],
-  notifications: () => []
+  notifications: () => [],
 })
 
-const isOnHold = computed(() => props.account.role === ACCOUNT_ROLE_CODES.onHold)
+const isOnHold = computed(
+  () => props.account.role === ACCOUNT_ROLE_CODES.onHold,
+)
 
-const data = computed<ActiveDealRow[]>(() => props.deals
-  .map((deal) => ({
-    slotNumber: deal.mySlot.slotNumber,
-    partner: deal.partnerSlot.account,
-    alliance: deal.partnerSlot.account.allianceName,
-    discord: deal.partnerDiscord || '',
-    youSend: describeAid(deal.mySlot.techSentCycles, deal.mySlot.cashSentCycles),
-    youReceive: describeAid(deal.mySlot.techReceivedCycles, deal.mySlot.cashReceivedCycles),
-    sendsAid: deal.mySlot.techSentCycles + deal.mySlot.cashSentCycles > 0,
-    nextAid: describeNextAid(deal),
-    isMyTurnToSend: deal.isMyTurnToSend,
-    lastActivity: deal.lastActivityDate ? deal.lastActivityDate.split('T')[0] : 'None yet',
-    status: getDealStatus(deal)
-  }))
-  .sort((a, b) => a.slotNumber - b.slotNumber))
+const data = computed<ActiveDealRow[]>(() =>
+  props.deals
+    .map((deal) => ({
+      slotNumber: deal.mySlot.slotNumber,
+      partner: deal.partnerSlot.account,
+      alliance: deal.partnerSlot.account.allianceName,
+      discord: deal.partnerDiscord || '',
+      youSend: describeAid(
+        deal.mySlot.techSentCycles,
+        deal.mySlot.cashSentCycles,
+      ),
+      youReceive: describeAid(
+        deal.mySlot.techReceivedCycles,
+        deal.mySlot.cashReceivedCycles,
+      ),
+      sendsAid: deal.mySlot.techSentCycles + deal.mySlot.cashSentCycles > 0,
+      nextAid: describeNextAid(deal),
+      isMyTurnToSend: deal.isMyTurnToSend,
+      lastActivity: deal.lastActivityDate
+        ? deal.lastActivityDate.split('T')[0]
+        : 'None yet',
+      status: getDealStatus(deal),
+    }))
+    .sort((a, b) => a.slotNumber - b.slotNumber),
+)
 
 const columns: TableColumn<ActiveDealRow>[] = [
   {
     accessorKey: 'slotNumber',
     header: 'Slot',
-    cell: ({ row }) => `#${row.original.slotNumber}`
+    cell: ({ row }) => `#${row.original.slotNumber}`,
   },
   {
     accessorKey: 'partner',
     header: 'Partner',
     cell: ({ row }) => {
       const deal = row.original
-      return h('a', {
-        href: deal.sendsAid ? getAidFormLink(deal.partner, props.account.nationId) : getNationLink(deal.partner),
-        target: '_blank',
-        class: 'font-medium text-fg-brand hover:underline'
-      }, `${deal.partner.rulerName} of ${deal.partner.nationName}`)
-    }
+      return h(
+        'a',
+        {
+          href: deal.sendsAid
+            ? getAidFormLink(deal.partner, props.account.nationId)
+            : getNationLink(deal.partner),
+          target: '_blank',
+          class: 'font-medium text-fg-brand hover:underline',
+        },
+        `${deal.partner.rulerName} of ${deal.partner.nationName}`,
+      )
+    },
   },
   {
     accessorKey: 'alliance',
     header: 'Alliance',
-    cell: ({ row }) => h(resolveComponent('ChipAllianceAcronym'), {
-      allianceName: row.original.alliance
-    })
+    cell: ({ row }) =>
+      h(resolveComponent('ChipAllianceAcronym'), {
+        allianceName: row.original.alliance,
+      }),
   },
   {
     accessorKey: 'discord',
-    header: 'Discord Tag'
+    header: 'Discord Tag',
   },
   {
     accessorKey: 'youSend',
     header: 'You Send',
-    cell: ({ row }) => h('span', { class: row.original.sendsAid ? 'font-semibold' : 'text-gray-400' }, row.original.youSend)
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: row.original.sendsAid ? 'font-semibold' : 'text-gray-400' },
+        row.original.youSend,
+      ),
   },
   {
     accessorKey: 'youReceive',
-    header: 'You Receive'
+    header: 'You Receive',
   },
   {
     accessorKey: 'nextAid',
     header: 'Next Aid',
-    cell: ({ row }) => h('span', { class: row.original.isMyTurnToSend ? 'font-semibold' : '' }, row.original.nextAid)
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: row.original.isMyTurnToSend ? 'font-semibold' : '' },
+        row.original.nextAid,
+      ),
   },
   {
     accessorKey: 'lastActivity',
-    header: 'Last Aid'
+    header: 'Last Aid',
   },
   {
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
       const status = row.original.status
-      return h(resolveComponent('UTooltip'), { text: status.detail }, () => h(resolveComponent('UBadge'), {
-        color: status.color,
-        variant: 'subtle'
-      }, () => status.label))
-    }
-  }
+      return h(resolveComponent('UTooltip'), { text: status.detail }, () =>
+        h(
+          resolveComponent('UBadge'),
+          {
+            color: status.color,
+            variant: 'subtle',
+          },
+          () => status.label,
+        ),
+      )
+    },
+  },
 ]
 </script>

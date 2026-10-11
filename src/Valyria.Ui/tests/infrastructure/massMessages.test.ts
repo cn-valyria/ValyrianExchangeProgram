@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { describeRecipientActions, fillTemplate, formatCnDate, getBatches, getSendMessageLink } from '~/infrastructure/massMessages'
+import {
+  describeRecipientActions,
+  fillTemplate,
+  formatCnDate,
+  getBatches,
+  getSendMessageLink,
+} from '~/infrastructure/massMessages'
 import type { MassMessageRecipient } from '~/stores/adminMassMessages'
 
-const recipient = (id: number, overrides: Partial<MassMessageRecipient> = {}): MassMessageRecipient => ({
+const recipient = (
+  id: number,
+  overrides: Partial<MassMessageRecipient> = {},
+): MassMessageRecipient => ({
   accountId: id,
   nationId: 100 + id,
   rulerName: `Ruler${id}`,
@@ -15,7 +24,7 @@ const recipient = (id: number, overrides: Partial<MassMessageRecipient> = {}): M
   flaggedCount: 0,
   daysOverdue: null,
   cancelsOn: null,
-  ...overrides
+  ...overrides,
 })
 
 describe('formatCnDate', () => {
@@ -27,11 +36,16 @@ describe('formatCnDate', () => {
 
 describe('fillTemplate', () => {
   it('fills in every placeholder', () => {
-    const filled = fillTemplate('{{date}}: log in at {{siteUrl}}, or {{siteUrl}}/login', {
-      date: 'Oct 09',
-      siteUrl: 'https://vep.example'
-    })
-    expect(filled).toBe('Oct 09: log in at https://vep.example, or https://vep.example/login')
+    const filled = fillTemplate(
+      '{{date}}: log in at {{siteUrl}}, or {{siteUrl}}/login',
+      {
+        date: 'Oct 09',
+        siteUrl: 'https://vep.example',
+      },
+    )
+    expect(filled).toBe(
+      'Oct 09: log in at https://vep.example, or https://vep.example/login',
+    )
   })
 })
 
@@ -50,14 +64,20 @@ describe('getBatches', () => {
 
 describe('describeRecipientActions', () => {
   it('lists only the actions the recipient has', () => {
-    expect(describeRecipientActions(recipient(1, { sendCount: 2, blockedCount: 1 }))).toBe('2 to send, 1 blocked')
-    expect(describeRecipientActions(recipient(1, { acceptCount: 1 }))).toBe('1 to accept')
+    expect(
+      describeRecipientActions(recipient(1, { sendCount: 2, blockedCount: 1 })),
+    ).toBe('2 to send, 1 blocked')
+    expect(describeRecipientActions(recipient(1, { acceptCount: 1 }))).toBe(
+      '1 to accept',
+    )
   })
 })
 
 describe('getSendMessageLink', () => {
   it("links to CN's message form for the nation", () => {
-    expect(getSendMessageLink(202)).toBe('https://www.cybernations.net/send_message.asp?Nation_ID=202')
+    expect(getSendMessageLink(202)).toBe(
+      'https://www.cybernations.net/send_message.asp?Nation_ID=202',
+    )
   })
 })
 

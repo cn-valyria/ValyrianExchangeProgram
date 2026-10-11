@@ -33,7 +33,9 @@ export const useAdminAccessStore = defineStore('adminAccess', {
       this.error = null
 
       try {
-        const { data, error } = await apiFetch<AdminAccessSetting[]>('/api/admin/settings/access')
+        const { data, error } = await apiFetch<AdminAccessSetting[]>(
+          '/api/admin/settings/access',
+        )
 
         if (error.value) {
           console.error('Failed to load admin access settings:', error.value)

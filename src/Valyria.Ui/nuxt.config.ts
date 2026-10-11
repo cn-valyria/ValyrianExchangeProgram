@@ -25,9 +25,9 @@ export default defineNuxtConfig({
         'info',
         'success',
         'warning',
-        'error'
-      ]
-    }
+        'error',
+      ],
+    },
   },
 
   // Global CSS

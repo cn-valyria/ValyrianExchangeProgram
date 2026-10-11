@@ -1,6 +1,8 @@
 <template>
   <div>
-    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Last 5 Days' Deal Aid</p>
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      Last 5 Days' Deal Aid
+    </p>
     <div class="h-64">
       <Line :data="chartData" :options="chartOptions" />
     </div>
@@ -8,13 +10,30 @@
 </template>
 
 <script setup lang="ts">
-import { Chart as ChartJS, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Filler } from 'chart.js'
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js'
 import { Line } from 'vue-chartjs'
 import dateFormat from 'dateformat'
 import type { DealAidCountByDay } from '~/stores/admin'
 
 // Register Chart.js components
-ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend, Filler)
+ChartJS.register(
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+  Filler,
+)
 
 interface Props {
   data: DealAidCountByDay[] | undefined
@@ -24,11 +43,11 @@ const props = defineProps<Props>()
 
 const chartData = computed(() => {
   return {
-    labels: props.data?.map(x => dateFormat(new Date(x.day), "mmm-dd")) ?? [],
+    labels: props.data?.map((x) => dateFormat(new Date(x.day), 'mmm-dd')) ?? [],
     datasets: [
       {
         label: 'Aid matched to deals',
-        data: props.data?.map(x => x.aidCount) ?? [],
+        data: props.data?.map((x) => x.aidCount) ?? [],
         fill: true,
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderColor: 'rgb(59, 130, 246)',

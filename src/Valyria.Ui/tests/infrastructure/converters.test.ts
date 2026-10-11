@@ -3,7 +3,9 @@ import { convertToAllianceAcronym } from '~/infrastructure/converters'
 
 describe('convertToAllianceAcronym', () => {
   it('uses the known acronym, ignoring case', () => {
-    expect(convertToAllianceAcronym('Christian Coalition Of Countries')).toBe('CCC')
+    expect(convertToAllianceAcronym('Christian Coalition Of Countries')).toBe(
+      'CCC',
+    )
     expect(convertToAllianceAcronym('the imperial order')).toBe('TIO')
   })
 

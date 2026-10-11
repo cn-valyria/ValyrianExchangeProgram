@@ -1,4 +1,4 @@
-import { JSONParse, JSONStringify } from "json-with-bigint"
+import { JSONParse, JSONStringify } from 'json-with-bigint'
 
 interface ApiClientOptions extends Omit<RequestInit, 'body'> {
   skipAuth?: boolean
@@ -27,13 +27,15 @@ export const useApiClient = () => {
 
   const apiFetch = async <T>(
     endpoint: string,
-    options: ApiClientOptions = {}
+    options: ApiClientOptions = {},
   ): Promise<ApiResponse<T>> => {
     const { skipAuth = false, body, ...fetchOptions } = options
     const authStore = useAuthStore()
 
     // Helper to make the actual request
-    const makeRequest = async (token: string | null): Promise<ApiResponse<T>> => {
+    const makeRequest = async (
+      token: string | null,
+    ): Promise<ApiResponse<T>> => {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...((fetchOptions.headers as Record<string, string>) || {}),
@@ -76,7 +78,8 @@ export const useApiClient = () => {
         return {
           data: ref(null) as Ref<T | null>,
           error: ref({
-            message: (err as { message?: string } | null)?.message || 'Network error',
+            message:
+              (err as { message?: string } | null)?.message || 'Network error',
             statusCode: 0,
           }) as Ref<ApiError | null>,
         }

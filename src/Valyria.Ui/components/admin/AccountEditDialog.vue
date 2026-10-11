@@ -1,8 +1,10 @@
 <template>
   <UModal :close="{ onClick: () => emit('close', false) }">
-
     <template #header>
-      <h3 v-if="isInUpdateState" class="text-lg font-semibold text-gray-900 dark:text-white">
+      <h3
+        v-if="isInUpdateState"
+        class="text-lg font-semibold text-gray-900 dark:text-white"
+      >
         {{ state.rulerName }}'s Account
       </h3>
       <h3 v-else class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -11,14 +13,27 @@
     </template>
 
     <template #body>
-      <UForm ref="form" :schema="schema" :state="state" class="space-y-4" @submit="onSubmit" @error="onError">
+      <UForm
+        ref="form"
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+        @error="onError"
+      >
         <!-- Account Data Section -->
         <div>
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Data</h2>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            Account Data
+          </h2>
 
           <fieldset :disabled="isInUpdateState" class="space-y-4 px-2">
             <UFormField label="Nation ID" name="nationId">
-              <UInput v-model="nationIdInput" placeholder="The account's NationID" class="w-full" />
+              <UInput
+                v-model="nationIdInput"
+                placeholder="The account's NationID"
+                class="w-full"
+              />
             </UFormField>
           </fieldset>
 
@@ -54,7 +69,11 @@
             <UFormField label="Secret Code" name="uniqueCode">
               <div class="flex gap-2">
                 <UInput v-model="state.uniqueCode" class="flex-1" />
-                <UButton label="Generate" color="neutral" @click="generateSecretCode()" />
+                <UButton
+                  label="Generate"
+                  color="neutral"
+                  @click="generateSecretCode()"
+                />
               </div>
             </UFormField>
 
@@ -76,7 +95,10 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <UFormField label="Has Foreign Ministry?" name="hasForeignMinistry">
+              <UFormField
+                label="Has Foreign Ministry?"
+                name="hasForeignMinistry"
+              >
                 <URadioGroup
                   v-model="hasForeignMinistryInput"
                   :items="radioGroupYesNo"
@@ -84,7 +106,10 @@
                 />
               </UFormField>
 
-              <UFormField label="Has Federal Aid Commission?" name="hasFederalAidCommission">
+              <UFormField
+                label="Has Federal Aid Commission?"
+                name="hasFederalAidCommission"
+              >
                 <URadioGroup
                   v-model="hasFederalAidCommissionInput"
                   :items="radioGroupYesNo"
@@ -92,7 +117,10 @@
                 />
               </UFormField>
 
-              <UFormField label="Has Disaster Relief Agency?" name="hasDisasterReliefAgency">
+              <UFormField
+                label="Has Disaster Relief Agency?"
+                name="hasDisasterReliefAgency"
+              >
                 <URadioGroup
                   v-model="hasDisasterReliefAgencyInput"
                   :items="radioGroupYesNo"
@@ -106,7 +134,10 @@
           <div v-if="isInUpdateState" class="my-6">
             <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
               Slots
-              <span class="text-base font-normal text-gray-500 dark:text-gray-400">({{ state.slotsUsed }} / {{ state.slotsTotal }} in deals)</span>
+              <span
+                class="text-base font-normal text-gray-500 dark:text-gray-400"
+                >({{ state.slotsUsed }} / {{ state.slotsTotal }} in deals)</span
+              >
             </h2>
             <AdminAccountSlotsEditor :account-id="state.id" />
           </div>
@@ -146,7 +177,10 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormErrorEvent } from '#ui/types'
-import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
+import {
+  useAdminAccountsStore,
+  type AdminAccount,
+} from '~/stores/adminAccounts'
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
 import { accountRoles } from '~/infrastructure/dataLists'
 
@@ -155,7 +189,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  account: () => ({} as AdminAccount)
+  account: () => ({}) as AdminAccount,
 })
 
 const emit = defineEmits<{ close: [boolean] }>()
@@ -167,9 +201,9 @@ const { apiFetch } = useApiClient()
 const buttonIsLoading = ref(false)
 const form = ref()
 const roles = accountRoles
-const radioGroupYesNo: Array<{ value: string, label: string }> = [
+const radioGroupYesNo: Array<{ value: string; label: string }> = [
   { value: 'Y', label: 'Yes' },
-  { value: 'N', label: 'No' }
+  { value: 'N', label: 'No' },
 ]
 
 // Edit a copy, so cancelling leaves the account in the accounts list untouched. New accounts start
@@ -178,67 +212,82 @@ const state = reactive<AdminAccount>({
   ...props.account,
   hasForeignMinistry: props.account.hasForeignMinistry ?? false,
   hasFederalAidCommission: props.account.hasFederalAidCommission ?? false,
-  hasDisasterReliefAgency: props.account.hasDisasterReliefAgency ?? false
+  hasDisasterReliefAgency: props.account.hasDisasterReliefAgency ?? false,
 })
 
 // Define the Zod schema - only validates when creating
-const schema = z.object({
-  nationId: z.number().nullable(),
-  role: z.string().nullable().optional(),
-  uniqueCode: z.string().min(1, 'Every account must have a unique code provided').nullable().optional(),
-  hasForeignMinistry: z.boolean().nullable(),
-  hasFederalAidCommission: z.boolean().nullable(),
-  hasDisasterReliefAgency: z.boolean().nullable(),
-  discord: z.string().nullable().optional(),
-  discordUniqueId: z.bigint().nullable().optional(),
-  nationName: z.string().nullable().optional(),
-  rulerName: z.string().nullable().optional(),
-  allianceName: z.string().nullable().optional()
-}).superRefine((data, ctx) => {
-  // Only validate these fields when creating (foundProspectAccount)
-  if (data.rulerName && !data.nationId) {
-    if (!data.role) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Every account must have a role that they are enrolled as',
-        path: ['role']
-      })
+const schema = z
+  .object({
+    nationId: z.number().nullable(),
+    role: z.string().nullable().optional(),
+    uniqueCode: z
+      .string()
+      .min(1, 'Every account must have a unique code provided')
+      .nullable()
+      .optional(),
+    hasForeignMinistry: z.boolean().nullable(),
+    hasFederalAidCommission: z.boolean().nullable(),
+    hasDisasterReliefAgency: z.boolean().nullable(),
+    discord: z.string().nullable().optional(),
+    discordUniqueId: z.bigint().nullable().optional(),
+    nationName: z.string().nullable().optional(),
+    rulerName: z.string().nullable().optional(),
+    allianceName: z.string().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // Only validate these fields when creating (foundProspectAccount)
+    if (data.rulerName && !data.nationId) {
+      if (!data.role) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Every account must have a role that they are enrolled as',
+          path: ['role'],
+        })
+      }
+      if (
+        data.hasForeignMinistry === null ||
+        data.hasForeignMinistry === undefined
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Must indicate if the nation has the FM improvement or not',
+          path: ['hasForeignMinistry'],
+        })
+      }
+      if (
+        data.hasFederalAidCommission === null ||
+        data.hasFederalAidCommission === undefined
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Must indicate if the nation has the FAC wonder or not',
+          path: ['hasFederalAidCommission'],
+        })
+      }
+      if (
+        data.hasDisasterReliefAgency === null ||
+        data.hasDisasterReliefAgency === undefined
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Must indicate if the nation has the DRA wonder or not',
+          path: ['hasDisasterReliefAgency'],
+        })
+      }
     }
-    if (data.hasForeignMinistry === null || data.hasForeignMinistry === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Must indicate if the nation has the FM improvement or not',
-        path: ['hasForeignMinistry']
-      })
-    }
-    if (data.hasFederalAidCommission === null || data.hasFederalAidCommission === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Must indicate if the nation has the FAC wonder or not',
-        path: ['hasFederalAidCommission']
-      })
-    }
-    if (data.hasDisasterReliefAgency === null || data.hasDisasterReliefAgency === undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Must indicate if the nation has the DRA wonder or not',
-        path: ['hasDisasterReliefAgency']
-      })
-    }
-  }
-})
+  })
 
 const nationIdInput = computed({
   get() {
     return state.nationId?.toString() ?? ''
   },
   set(val: string) {
-    if (val !== "" && !isNaN(parseInt(val))) {
+    if (val !== '' && !isNaN(parseInt(val))) {
       state.nationId = parseInt(val)
     } else {
       state.nationId = null
     }
-  }
+  },
 })
 
 const hasForeignMinistryInput = computed({
@@ -246,12 +295,12 @@ const hasForeignMinistryInput = computed({
     return (state.hasForeignMinistry ?? false) ? 'Y' : 'N'
   },
   set(val: string) {
-    if (val === "Y" || val === "N") {
-      state.hasForeignMinistry = val === "Y"
+    if (val === 'Y' || val === 'N') {
+      state.hasForeignMinistry = val === 'Y'
     } else {
       state.hasForeignMinistry = null
     }
-  }
+  },
 })
 
 const hasDisasterReliefAgencyInput = computed({
@@ -259,12 +308,12 @@ const hasDisasterReliefAgencyInput = computed({
     return (state.hasDisasterReliefAgency ?? false) ? 'Y' : 'N'
   },
   set(val: string) {
-    if (val === "Y" || val === "N") {
-      state.hasDisasterReliefAgency = val === "Y"
+    if (val === 'Y' || val === 'N') {
+      state.hasDisasterReliefAgency = val === 'Y'
     } else {
       state.hasDisasterReliefAgency = null
     }
-  }
+  },
 })
 
 const hasFederalAidCommissionInput = computed({
@@ -272,12 +321,12 @@ const hasFederalAidCommissionInput = computed({
     return (state.hasFederalAidCommission ?? false) ? 'Y' : 'N'
   },
   set(val: string) {
-    if (val === "Y" || val === "N") {
-      state.hasFederalAidCommission = val === "Y"
+    if (val === 'Y' || val === 'N') {
+      state.hasFederalAidCommission = val === 'Y'
     } else {
       state.hasFederalAidCommission = null
     }
-  }
+  },
 })
 
 const discordUniqueIdInput = computed({
@@ -285,12 +334,12 @@ const discordUniqueIdInput = computed({
     return state.discordUniqueId?.toString() ?? ''
   },
   set(val: string) {
-    if (val !== "" && !isNaN(parseInt(val))) {
+    if (val !== '' && !isNaN(parseInt(val))) {
       state.discordUniqueId = BigInt(val)
     } else {
       state.discordUniqueId = null
     }
-  }
+  },
 })
 
 const isInUpdateState = computed(() => {
@@ -302,7 +351,7 @@ const foundProspectAccount = computed(() => {
 })
 
 const handleClose = () => {
-  emit("close", false);
+  emit('close', false)
 }
 
 interface ProspectAccount {
@@ -313,13 +362,15 @@ interface ProspectAccount {
 }
 
 const prospectSearchErrors: Record<number, string> = {
-  404: "No nation was found with that nation ID.",
-  409: "That nation already has a VEP account."
+  404: 'No nation was found with that nation ID.',
+  409: 'That nation already has a VEP account.',
 }
 
 const findProspectAccount = async () => {
   buttonIsLoading.value = true
-  const { data, error } = await apiFetch<ProspectAccount>(`/api/accounts/prospect?nationId=${state.nationId}`)
+  const { data, error } = await apiFetch<ProspectAccount>(
+    `/api/accounts/prospect?nationId=${state.nationId}`,
+  )
   buttonIsLoading.value = false
 
   if (error.value || !data.value) {
@@ -327,9 +378,10 @@ const findProspectAccount = async () => {
     toast.add({
       color: 'error',
       title: 'Error',
-      description: prospectSearchErrors[error.value?.statusCode]
-        ?? "VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.",
-      duration: 3000
+      description:
+        prospectSearchErrors[error.value?.statusCode] ??
+        'VEP encountered an error while searching for the above nation ID. Please try again, or contact @lilweirdward if the error persists.',
+      duration: 3000,
     })
     return
   }
@@ -337,7 +389,7 @@ const findProspectAccount = async () => {
   Object.assign(state, {
     nationName: data.value.nationName,
     rulerName: data.value.rulerName,
-    allianceName: data.value.allianceName
+    allianceName: data.value.allianceName,
   })
 }
 
@@ -352,10 +404,10 @@ const onSubmit = async () => {
 const onError = async (event: FormErrorEvent) => {
   if (event?.errors?.length > 0) {
     toast.add({
-      description: `Form validation failed: ${event.errors.map(error => error.message).join(', ')}`,
+      description: `Form validation failed: ${event.errors.map((error) => error.message).join(', ')}`,
       title: 'Validation Error',
       color: 'error',
-      duration: 3000
+      duration: 3000,
     })
   }
 }
@@ -367,14 +419,24 @@ const update = async () => {
     const payload = {
       ...state,
       discordUniqueId: state.discordUniqueId ?? null,
-      discord: state.discord || null
+      discord: state.discord || null,
     }
     await adminAccountsStore.updateAccount(payload)
-    toast.add({ color: 'success', title: 'Success', description: 'Account updated successfully!', duration: 3000 })
-    handleClose();
+    toast.add({
+      color: 'success',
+      title: 'Success',
+      description: 'Account updated successfully!',
+      duration: 3000,
+    })
+    handleClose()
   } catch (e) {
     console.error(e)
-    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: ERROR_MESSAGES.default,
+      duration: 3000,
+    })
   }
 
   buttonIsLoading.value = false
@@ -387,14 +449,24 @@ const create = async () => {
     const payload = {
       ...state,
       discordUniqueId: state.discordUniqueId ?? null,
-      discord: state.discord || null
+      discord: state.discord || null,
     }
     await adminAccountsStore.createAccount(payload)
-    toast.add({ color: 'success', title: 'Success', description: 'Account created successfully!', duration: 3000 })
-    handleClose();
+    toast.add({
+      color: 'success',
+      title: 'Success',
+      description: 'Account created successfully!',
+      duration: 3000,
+    })
+    handleClose()
   } catch (e) {
     console.error(e)
-    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 3000 })
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: ERROR_MESSAGES.default,
+      duration: 3000,
+    })
   }
 
   buttonIsLoading.value = false
@@ -405,7 +477,7 @@ const randomIntFromInterval = (min: number, max: number) => {
 }
 
 const generateSecretCode = () => {
-  const newCode = String(randomIntFromInterval(1, 99999)).padStart(5, "0")
+  const newCode = String(randomIntFromInterval(1, 99999)).padStart(5, '0')
   state.uniqueCode = newCode
 }
 </script>

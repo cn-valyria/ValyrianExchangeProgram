@@ -11,8 +11,12 @@
     </UFormField>
 
     <UFormField v-if="selectedAccountId !== undefined" label="Open Slot">
-      <div v-if="isLoading" class="flex items-center gap-2 text-sm text-gray-500">
-        <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" /> Loading open slots...
+      <div
+        v-if="isLoading"
+        class="flex items-center gap-2 text-sm text-gray-500"
+      >
+        <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" />
+        Loading open slots...
       </div>
       <p v-else-if="slots.length === 0" class="text-sm text-gray-500">
         This account has no open slots.
@@ -50,15 +54,19 @@ const selectedSlotId = ref<number | undefined>(undefined)
 const slots = ref<SlotDetail[]>([])
 const isLoading = ref<boolean>(false)
 
-const accountOptions = computed(() => props.accounts.map((account) => ({
-  label: `${account.rulerName} of ${account.nationName}`,
-  value: account.id
-})))
+const accountOptions = computed(() =>
+  props.accounts.map((account) => ({
+    label: `${account.rulerName} of ${account.nationName}`,
+    value: account.id,
+  })),
+)
 
-const slotOptions = computed(() => slots.value.map((s) => ({
-  label: `Slot #${s.slotNumber}: sends ${describeAid(s.techSentCycles, s.cashSentCycles)}, receives ${describeAid(s.techReceivedCycles, s.cashReceivedCycles)}`,
-  value: s.id
-})))
+const slotOptions = computed(() =>
+  slots.value.map((s) => ({
+    label: `Slot #${s.slotNumber}: sends ${describeAid(s.techSentCycles, s.cashSentCycles)}, receives ${describeAid(s.techReceivedCycles, s.cashReceivedCycles)}`,
+    value: s.id,
+  })),
+)
 
 watch(selectedAccountId, async (accountId) => {
   selectedSlotId.value = undefined
@@ -70,7 +78,12 @@ watch(selectedAccountId, async (accountId) => {
     slots.value = await adminDealsStore.loadAvailableSlots(accountId)
   } catch (e) {
     console.error(e)
-    toast.add({ color: 'error', title: 'Error', description: 'Failed to load open slots for that account.', duration: 5000 })
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load open slots for that account.',
+      duration: 5000,
+    })
   } finally {
     isLoading.value = false
   }
@@ -81,17 +94,18 @@ watch(selectedSlotId, (slotId) => {
   const account = props.accounts.find((a) => a.id === selectedAccountId.value)
 
   // Available-slot results don't include the owning account, so attach it for display
-  slot.value = selected && account
-    ? {
-        ...selected,
-        account: {
-          accountId: account.id,
-          nationId: account.nationId,
-          nationName: account.nationName,
-          rulerName: account.rulerName,
-          allianceName: account.allianceName
+  slot.value =
+    selected && account
+      ? {
+          ...selected,
+          account: {
+            accountId: account.id,
+            nationId: account.nationId,
+            nationName: account.nationName,
+            rulerName: account.rulerName,
+            allianceName: account.allianceName,
+          },
         }
-      }
-    : null
+      : null
 })
 </script>

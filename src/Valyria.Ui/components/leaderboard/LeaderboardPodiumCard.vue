@@ -10,14 +10,25 @@
 
       <!-- Rank Badge -->
       <div class="flex justify-center">
-        <UBadge :color="badgeColor" size="lg" variant="solid" class="text-lg font-bold px-4 py-2">
+        <UBadge
+          :color="badgeColor"
+          size="lg"
+          variant="solid"
+          class="text-lg font-bold px-4 py-2"
+        >
           #{{ rank }}
         </UBadge>
       </div>
 
       <!-- Champion Crown (for 1st place) -->
-      <div v-if="isChampion" class="absolute -top-8 left-1/2 transform -translate-x-1/2">
-        <Icon name="heroicons:sparkles" class="h-8 w-8 text-yellow-300 animate-pulse" />
+      <div
+        v-if="isChampion"
+        class="absolute -top-8 left-1/2 transform -translate-x-1/2"
+      >
+        <Icon
+          name="heroicons:sparkles"
+          class="h-8 w-8 text-yellow-300 animate-pulse"
+        />
       </div>
 
       <!-- Account Info -->
@@ -48,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import type { TopScorerAccount } from '~/stores/shared/topScorerAccount';
+import type { TopScorerAccount } from '~/stores/shared/topScorerAccount'
 
 interface Props {
   account: TopScorerAccount

@@ -10,50 +10,95 @@ import { click, mountInApp } from '../helpers/dom'
 const signIn = (...adminRoles: string[]) => {
   const authStore = useAuthStore()
   authStore.isAuthenticated = true
-  authStore.user = { accountId: 42, roles: adminRoles.map((name, id) => ({ id, name })) }
+  authStore.user = {
+    accountId: 42,
+    roles: adminRoles.map((name, id) => ({ id, name })),
+  }
   return authStore
 }
 
-const linkTexts = (root: Element) => Array.from(root.querySelectorAll('a')).map((a) => a.textContent!.trim())
+const linkTexts = (root: Element) =>
+  Array.from(root.querySelectorAll('a')).map((a) => a.textContent!.trim())
 
 describe('NavBar', () => {
   const openMobileMenu = async (root: Element) => {
     // The menu toggle is the only icon-only button
-    await click(Array.from(root.querySelectorAll('button')).find((b) => b.textContent!.trim() === '')!)
+    await click(
+      Array.from(root.querySelectorAll('button')).find(
+        (b) => b.textContent!.trim() === '',
+      )!,
+    )
   }
 
   it('offers signed-out visitors a way to log in', async () => {
     const wrapper = await mountInApp(NavBar)
     await openMobileMenu(wrapper.element)
 
-    expect(linkTexts(wrapper.element)).toEqual(expect.arrayContaining(['Home', 'How It Works', 'Log In']))
+    expect(linkTexts(wrapper.element)).toEqual(
+      expect.arrayContaining(['Home', 'How It Works', 'Log In']),
+    )
     expect(wrapper.findComponent(UDropdownMenu).exists()).toBe(false)
   })
 
   it.each([
     [[], ['My Account'], ['Admin Portal', 'Messages', 'Settings']],
-    [['Admin - Lists'], ['My Account', 'Messages'], ['Admin Portal', 'Settings']],
-    [['Admin (Read-only)'], ['My Account', 'Accounts', 'Aid Activity', 'Deals', 'Messages'], ['Settings']],
-    [['Super Admin'], ['My Account', 'Accounts', 'Aid Activity', 'Deals', 'Messages', 'Settings'], []],
-  ])('shows accounts with roles %j the pages they can use', async (roles, shown, hidden) => {
-    signIn(...roles)
-    const wrapper = await mountInApp(NavBar)
+    [
+      ['Admin - Lists'],
+      ['My Account', 'Messages'],
+      ['Admin Portal', 'Settings'],
+    ],
+    [
+      ['Admin (Read-only)'],
+      ['My Account', 'Accounts', 'Aid Activity', 'Deals', 'Messages'],
+      ['Settings'],
+    ],
+    [
+      ['Super Admin'],
+      [
+        'My Account',
+        'Accounts',
+        'Aid Activity',
+        'Deals',
+        'Messages',
+        'Settings',
+      ],
+      [],
+    ],
+  ])(
+    'shows accounts with roles %j the pages they can use',
+    async (roles, shown, hidden) => {
+      signIn(...roles)
+      const wrapper = await mountInApp(NavBar)
 
-    const menuLabels = (wrapper.findComponent(UDropdownMenu).props('items') as { label: string }[][]).flat().map((item) => item.label)
-    expect(menuLabels).toEqual(expect.arrayContaining([...shown, 'Log Out']))
-    hidden.forEach((label) => expect(menuLabels).not.toContain(label))
+      const menuLabels = (
+        wrapper.findComponent(UDropdownMenu).props('items') as {
+          label: string
+        }[][]
+      )
+        .flat()
+        .map((item) => item.label)
+      expect(menuLabels).toEqual(expect.arrayContaining([...shown, 'Log Out']))
+      hidden.forEach((label) => expect(menuLabels).not.toContain(label))
 
-    await openMobileMenu(wrapper.element)
-    const mobileLinks = linkTexts(wrapper.element)
-    expect(mobileLinks).toEqual(expect.arrayContaining([...shown, 'Log Out']))
-    hidden.filter((label) => label !== 'Admin Portal').forEach((label) => expect(mobileLinks).not.toContain(label))
-  })
+      await openMobileMenu(wrapper.element)
+      const mobileLinks = linkTexts(wrapper.element)
+      expect(mobileLinks).toEqual(expect.arrayContaining([...shown, 'Log Out']))
+      hidden
+        .filter((label) => label !== 'Admin Portal')
+        .forEach((label) => expect(mobileLinks).not.toContain(label))
+    },
+  )
 
   it("links to the signed-in account's page", async () => {
     signIn()
     const wrapper = await mountInApp(NavBar)
 
-    const myAccount = (wrapper.findComponent(UDropdownMenu).props('items') as { label: string; to?: string }[][])[0][0]
+    const myAccount = (
+      wrapper.findComponent(UDropdownMenu).props('items') as {
+        label: string
+        to?: string
+      }[][]
+    )[0][0]
     expect(myAccount).toMatchObject({ label: 'My Account', to: '/account/42' })
   })
 
@@ -62,10 +107,19 @@ describe('NavBar', () => {
     const logout = vi.spyOn(authStore, 'logout').mockImplementation(() => {})
     const wrapper = await mountInApp(NavBar)
 
-    const items = (wrapper.findComponent(UDropdownMenu).props('items') as { label: string; onSelect?: () => void }[][]).flat()
+    const items = (
+      wrapper.findComponent(UDropdownMenu).props('items') as {
+        label: string
+        onSelect?: () => void
+      }[][]
+    ).flat()
     items.find((item) => item.label === 'Log Out')!.onSelect!()
     await openMobileMenu(wrapper.element)
-    await click(Array.from(wrapper.element.querySelectorAll('a')).find((a) => a.textContent!.trim() === 'Log Out')!)
+    await click(
+      Array.from(wrapper.element.querySelectorAll('a')).find(
+        (a) => a.textContent!.trim() === 'Log Out',
+      )!,
+    )
 
     expect(logout).toHaveBeenCalledTimes(2)
   })
@@ -92,14 +146,18 @@ describe('AccountRole chip', () => {
 
 describe('AllianceAcronym chip', () => {
   it('shows the acronym and logo of a known alliance', async () => {
-    const wrapper = await mountInApp(AllianceAcronym, { allianceName: 'The Imperial Order' })
+    const wrapper = await mountInApp(AllianceAcronym, {
+      allianceName: 'The Imperial Order',
+    })
 
     expect(wrapper.text()).toBe('TIO')
     expect(wrapper.find('img').attributes('src')).toContain('alliance/tio.jpg')
   })
 
   it('uses a placeholder logo for other alliances', async () => {
-    const wrapper = await mountInApp(AllianceAcronym, { allianceName: 'Valyrian Exchange Program' })
+    const wrapper = await mountInApp(AllianceAcronym, {
+      allianceName: 'Valyrian Exchange Program',
+    })
 
     expect(wrapper.text()).toBe('VEP')
     expect(wrapper.find('img').attributes('src')).toContain('alliance/none.jpg')

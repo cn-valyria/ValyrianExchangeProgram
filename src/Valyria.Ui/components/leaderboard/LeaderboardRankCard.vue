@@ -3,8 +3,12 @@
     <div class="flex items-center gap-6">
       <!-- Rank Badge -->
       <div class="flex-shrink-0">
-        <div class="h-16 w-16 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-          <span class="text-2xl font-bold text-primary-600 dark:text-primary-400">
+        <div
+          class="h-16 w-16 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center"
+        >
+          <span
+            class="text-2xl font-bold text-primary-600 dark:text-primary-400"
+          >
             {{ account.rank }}
           </span>
         </div>

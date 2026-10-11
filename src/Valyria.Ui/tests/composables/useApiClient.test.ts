@@ -19,7 +19,10 @@ describe('useApiClient', () => {
     vi.unstubAllGlobals()
   })
 
-  const signIn = (accessToken = 'access-1', refreshToken: string | null = 'refresh-1') => {
+  const signIn = (
+    accessToken = 'access-1',
+    refreshToken: string | null = 'refresh-1',
+  ) => {
     const authStore = useAuthStore()
     authStore.accessToken = accessToken
     authStore.refreshToken = refreshToken
@@ -28,7 +31,11 @@ describe('useApiClient', () => {
 
   const lastRequest = () => {
     const [url, init] = fetchMock.mock.lastCall!
-    return { url, init: init!, headers: init!.headers as Record<string, string> }
+    return {
+      url,
+      init: init!,
+      headers: init!.headers as Record<string, string>,
+    }
   }
 
   it('sends the access token and parses JSON responses', async () => {
@@ -49,7 +56,9 @@ describe('useApiClient', () => {
     signIn()
     fetchMock.mockResolvedValue(json('{"discordUniqueId":318737615257993226}'))
 
-    const { data } = await useApiClient().apiFetch<{ discordUniqueId: bigint }>('/api/accounts/1')
+    const { data } = await useApiClient().apiFetch<{ discordUniqueId: bigint }>(
+      '/api/accounts/1',
+    )
 
     expect(data.value!.discordUniqueId).toBe(318737615257993226n)
   })
@@ -58,7 +67,10 @@ describe('useApiClient', () => {
     signIn()
     fetchMock.mockResolvedValue(new Response(null, { status: 200 }))
 
-    await useApiClient().apiFetch('/api/accounts', { method: 'PUT', body: { id: 1, discordUniqueId: 318737615257993226n } })
+    await useApiClient().apiFetch('/api/accounts', {
+      method: 'PUT',
+      body: { id: 1, discordUniqueId: 318737615257993226n },
+    })
 
     const { init } = lastRequest()
     expect(init.method).toBe('PUT')
@@ -90,7 +102,10 @@ describe('useApiClient', () => {
     signIn()
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
 
-    const { data, error } = await useApiClient().apiFetch('/api/deals/1/cancel', { method: 'PUT' })
+    const { data, error } = await useApiClient().apiFetch(
+      '/api/deals/1/cancel',
+      { method: 'PUT' },
+    )
 
     expect(data.value).toBeNull()
     expect(error.value).toBeNull()
@@ -98,12 +113,19 @@ describe('useApiClient', () => {
 
   it('reports failed responses with their status', async () => {
     signIn()
-    fetchMock.mockResolvedValue(new Response('nope', { status: 404, statusText: 'Not Found' }))
+    fetchMock.mockResolvedValue(
+      new Response('nope', { status: 404, statusText: 'Not Found' }),
+    )
 
     const { data, error } = await useApiClient().apiFetch('/api/deals/99')
 
     expect(data.value).toBeNull()
-    expect(error.value).toMatchObject({ status: 404, statusCode: 404, statusMessage: 'Not Found', message: 'Not Found' })
+    expect(error.value).toMatchObject({
+      status: 404,
+      statusCode: 404,
+      statusMessage: 'Not Found',
+      message: 'Not Found',
+    })
   })
 
   it('reports network failures with status 0', async () => {
@@ -127,12 +149,16 @@ describe('useApiClient', () => {
   describe('expired access tokens', () => {
     it('refreshes the token and retries once on a 401', async () => {
       const authStore = signIn()
-      const refresh = vi.spyOn(authStore, 'refreshAccessToken').mockImplementation(async () => {
-        authStore.accessToken = 'access-2'
-        return true
-      })
+      const refresh = vi
+        .spyOn(authStore, 'refreshAccessToken')
+        .mockImplementation(async () => {
+          authStore.accessToken = 'access-2'
+          return true
+        })
       fetchMock
-        .mockResolvedValueOnce(new Response(null, { status: 401, statusText: 'Unauthorized' }))
+        .mockResolvedValueOnce(
+          new Response(null, { status: 401, statusText: 'Unauthorized' }),
+        )
         .mockResolvedValueOnce(json({ ok: true }))
 
       const { data, error } = await useApiClient().apiFetch('/api/accounts/1')
@@ -146,7 +172,9 @@ describe('useApiClient', () => {
     it('returns the 401 when the refresh fails', async () => {
       const authStore = signIn()
       vi.spyOn(authStore, 'refreshAccessToken').mockResolvedValue(false)
-      fetchMock.mockResolvedValue(new Response(null, { status: 401, statusText: 'Unauthorized' }))
+      fetchMock.mockResolvedValue(
+        new Response(null, { status: 401, statusText: 'Unauthorized' }),
+      )
 
       const { error } = await useApiClient().apiFetch('/api/accounts/1')
 
@@ -157,7 +185,9 @@ describe('useApiClient', () => {
     it("doesn't try to refresh without a refresh token, or when auth was skipped", async () => {
       const authStore = signIn('access-1', null)
       const refresh = vi.spyOn(authStore, 'refreshAccessToken')
-      fetchMock.mockResolvedValue(new Response(null, { status: 401, statusText: 'Unauthorized' }))
+      fetchMock.mockResolvedValue(
+        new Response(null, { status: 401, statusText: 'Unauthorized' }),
+      )
 
       await useApiClient().apiFetch('/api/accounts/1')
       authStore.refreshToken = 'refresh-1'
@@ -169,7 +199,9 @@ describe('useApiClient', () => {
     it("doesn't refresh for other errors", async () => {
       const authStore = signIn()
       const refresh = vi.spyOn(authStore, 'refreshAccessToken')
-      fetchMock.mockResolvedValue(new Response(null, { status: 403, statusText: 'Forbidden' }))
+      fetchMock.mockResolvedValue(
+        new Response(null, { status: 403, statusText: 'Forbidden' }),
+      )
 
       await useApiClient().apiFetch('/api/admin/settings/access')
 
@@ -178,8 +210,12 @@ describe('useApiClient', () => {
 
     it('treats an "Unauthorized" status text as a 401', async () => {
       const authStore = signIn()
-      const refresh = vi.spyOn(authStore, 'refreshAccessToken').mockResolvedValue(false)
-      fetchMock.mockResolvedValue(new Response(null, { status: 400, statusText: 'Unauthorized request' }))
+      const refresh = vi
+        .spyOn(authStore, 'refreshAccessToken')
+        .mockResolvedValue(false)
+      fetchMock.mockResolvedValue(
+        new Response(null, { status: 400, statusText: 'Unauthorized request' }),
+      )
 
       await useApiClient().apiFetch('/api/accounts/1')
 
@@ -189,16 +225,20 @@ describe('useApiClient', () => {
     it('shares one refresh between requests that fail together', async () => {
       const authStore = signIn()
       let finishRefresh!: (succeeded: boolean) => void
-      const refresh = vi.spyOn(authStore, 'refreshAccessToken').mockImplementation(
-        () => new Promise((resolve) => {
-          finishRefresh = (succeeded) => {
-            authStore.accessToken = 'access-2'
-            resolve(succeeded)
-          }
-        }),
-      )
+      const refresh = vi
+        .spyOn(authStore, 'refreshAccessToken')
+        .mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              finishRefresh = (succeeded) => {
+                authStore.accessToken = 'access-2'
+                resolve(succeeded)
+              }
+            }),
+        )
       fetchMock.mockImplementation(async (_url, init) =>
-        (init!.headers as Record<string, string>).Authorization === 'Bearer access-2'
+        (init!.headers as Record<string, string>).Authorization ===
+        'Bearer access-2'
           ? json({ ok: true })
           : new Response(null, { status: 401, statusText: 'Unauthorized' }),
       )
@@ -213,16 +253,24 @@ describe('useApiClient', () => {
       const results = await Promise.all([first, second])
 
       expect(refresh).toHaveBeenCalledOnce()
-      expect(results.map((r) => r.data.value)).toEqual([{ ok: true }, { ok: true }])
+      expect(results.map((r) => r.data.value)).toEqual([
+        { ok: true },
+        { ok: true },
+      ])
     })
 
     it('gives up on requests waiting for a refresh that fails', async () => {
       const authStore = signIn()
       let finishRefresh!: (succeeded: boolean) => void
       vi.spyOn(authStore, 'refreshAccessToken').mockImplementation(
-        () => new Promise((resolve) => { finishRefresh = resolve }),
+        () =>
+          new Promise((resolve) => {
+            finishRefresh = resolve
+          }),
       )
-      fetchMock.mockResolvedValue(new Response(null, { status: 401, statusText: 'Unauthorized' }))
+      fetchMock.mockResolvedValue(
+        new Response(null, { status: 401, statusText: 'Unauthorized' }),
+      )
 
       const client = useApiClient()
       const first = client.apiFetch('/api/a')

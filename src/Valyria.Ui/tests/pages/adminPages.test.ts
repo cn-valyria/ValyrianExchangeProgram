@@ -11,8 +11,25 @@ import { DealActivityState } from '~/stores/account'
 import type { AidActivityItem } from '~/stores/adminAidActivity'
 import { DealFlagReason, DealFlagType } from '~/stores/adminDeals'
 import { MassMessageCode } from '~/stores/adminMassMessages'
-import { accountSimplified, adminAccount, adminDeal, dealFlag, massMessage, recipient } from '../helpers/fixtures'
-import { bodyText, button, buttons, click, hasButton, inputByPlaceholder, mountInApp, toasts, type } from '../helpers/dom'
+import {
+  accountSimplified,
+  adminAccount,
+  adminDeal,
+  dealFlag,
+  massMessage,
+  recipient,
+} from '../helpers/fixtures'
+import {
+  bodyText,
+  button,
+  buttons,
+  click,
+  hasButton,
+  inputByPlaceholder,
+  mountInApp,
+  toasts,
+  type,
+} from '../helpers/dom'
 
 // happy-dom has no canvas
 vi.mock('vue-chartjs', () => import('../helpers/chartStub'))
@@ -25,10 +42,16 @@ beforeEach(() => {
 const signIn = (...adminRoles: string[]) => {
   const authStore = useAuthStore()
   authStore.isAuthenticated = true
-  authStore.user = { accountId: 1, roles: adminRoles.map((name, id) => ({ id, name })) }
+  authStore.user = {
+    accountId: 1,
+    roles: adminRoles.map((name, id) => ({ id, name })),
+  }
 }
 
-const tableRows = () => Array.from(document.querySelectorAll('tbody tr')).map((row) => row.textContent ?? '')
+const tableRows = () =>
+  Array.from(document.querySelectorAll('tbody tr')).map(
+    (row) => row.textContent ?? '',
+  )
 
 describe('admin dashboard page', () => {
   it('loads and shows the dashboard', async () => {
@@ -37,8 +60,17 @@ describe('admin dashboard page', () => {
     vi.spyOn(store, 'loadDashboard').mockImplementation(async () => {
       store.dashboard = {
         generalProgramSummary: { totalAccounts: 120, activeDeals: 230 },
-        aidRatioSummary: { totalIncomingCashSlots: 1, totalOutgoingCashSlots: 1, totalIncomingTechSlots: 1, totalOutgoingTechSlots: 1 },
-        dealHealthSummary: { accountsWaiting: 3, slotsWaiting: 7, openFlags: 0 },
+        aidRatioSummary: {
+          totalIncomingCashSlots: 1,
+          totalOutgoingCashSlots: 1,
+          totalIncomingTechSlots: 1,
+          totalOutgoingTechSlots: 1,
+        },
+        dealHealthSummary: {
+          accountsWaiting: 3,
+          slotsWaiting: 7,
+          openFlags: 0,
+        },
         slotUsageSummary: { maxCapacity: 400, currentSlotsUsed: 300 },
         dealAidPerDay: [],
         accountsPerRole: [],
@@ -59,18 +91,36 @@ describe('admin dashboard page', () => {
 
   it("shows an error when the dashboard can't be loaded", async () => {
     signIn('Super Admin')
-    vi.spyOn(useAdminStore(), 'loadDashboard').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminStore(), 'loadDashboard').mockRejectedValue(
+      new Error('down'),
+    )
 
     await mountInApp(DashboardPage, {}, { route: '/admin' })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load dashboard data. Please try again.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load dashboard data. Please try again.',
+    })
   })
 })
 
 describe('admin accounts page', () => {
   const accounts = [
-    adminAccount(1, { rulerName: 'Bob', nationName: 'Buyland', allianceName: 'Fark', role: 'B', slotsUsed: 4, slotsTotal: 4 }),
-    adminAccount(2, { rulerName: 'Sue', nationName: 'Sellland', allianceName: 'Valyria', role: 'S', openFlagCount: 2 }),
+    adminAccount(1, {
+      rulerName: 'Bob',
+      nationName: 'Buyland',
+      allianceName: 'Fark',
+      role: 'B',
+      slotsUsed: 4,
+      slotsTotal: 4,
+    }),
+    adminAccount(2, {
+      rulerName: 'Sue',
+      nationName: 'Sellland',
+      allianceName: 'Valyria',
+      role: 'S',
+      openFlagCount: 2,
+    }),
   ]
 
   const stubAccounts = () => {
@@ -95,8 +145,10 @@ describe('admin accounts page', () => {
     expect(rows[1]).toContain('Seller')
     expect(rows[1]).toContain('2')
     // Role badges use the same colors as the role chip
-    const roleBadge = (row: number, text: string) => Array.from(document.querySelectorAll('tbody tr')[row].querySelectorAll('span'))
-      .find((span) => span.textContent?.trim() === text)!
+    const roleBadge = (row: number, text: string) =>
+      Array.from(
+        document.querySelectorAll('tbody tr')[row].querySelectorAll('span'),
+      ).find((span) => span.textContent?.trim() === text)!
     expect(roleBadge(0, 'Buyer').className).toContain('text-warning')
     expect(roleBadge(1, 'Seller').className).toContain('text-error')
   })
@@ -105,9 +157,16 @@ describe('admin accounts page', () => {
     signIn('Super Admin')
     stubAccounts()
     await mountInApp(AccountsPage, {}, { route: '/admin/accounts' })
-    const search = inputByPlaceholder('Search by nation, ruler, alliance, or role...')
+    const search = inputByPlaceholder(
+      'Search by nation, ruler, alliance, or role...',
+    )
 
-    for (const [query, expected] of [['sell', 'Sue'], ['FARK', 'Bob'], ['seller', 'Sue'], ['bob', 'Bob']]) {
+    for (const [query, expected] of [
+      ['sell', 'Sue'],
+      ['FARK', 'Bob'],
+      ['seller', 'Sue'],
+      ['bob', 'Bob'],
+    ]) {
       await type(search, query)
       expect(tableRows()).toHaveLength(1)
       expect(tableRows()[0]).toContain(expected)
@@ -119,9 +178,15 @@ describe('admin accounts page', () => {
   it('reloads with on-hold accounts when asked', async () => {
     signIn('Super Admin')
     const load = stubAccounts()
-    const wrapper = await mountInApp(AccountsPage, {}, { route: '/admin/accounts' })
+    const wrapper = await mountInApp(
+      AccountsPage,
+      {},
+      { route: '/admin/accounts' },
+    )
 
-    await click(wrapper.findComponent(USwitch).find('button').element as HTMLElement)
+    await click(
+      wrapper.findComponent(USwitch).find('button').element as HTMLElement,
+    )
 
     expect(load).toHaveBeenLastCalledWith(true)
   })
@@ -143,19 +208,26 @@ describe('admin accounts page', () => {
   it('deletes an account', async () => {
     signIn('Super Admin')
     stubAccounts()
-    const deleteAccount = vi.spyOn(useAdminAccountsStore(), 'deleteAccount').mockResolvedValue()
+    const deleteAccount = vi
+      .spyOn(useAdminAccountsStore(), 'deleteAccount')
+      .mockResolvedValue()
     await mountInApp(AccountsPage, {}, { route: '/admin/accounts' })
 
     await click(buttons('Delete')[0])
 
     expect(deleteAccount).toHaveBeenCalledWith(1)
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Account deleted successfully.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Account deleted successfully.',
+    })
   })
 
   it('shows an error when deleting fails', async () => {
     signIn('Super Admin')
     stubAccounts()
-    vi.spyOn(useAdminAccountsStore(), 'deleteAccount').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminAccountsStore(), 'deleteAccount').mockRejectedValue(
+      new Error('down'),
+    )
     await mountInApp(AccountsPage, {}, { route: '/admin/accounts' })
 
     await click(buttons('Delete')[0])
@@ -178,14 +250,20 @@ describe('admin accounts page', () => {
   it.each([
     ['loading', 'Failed to load accounts. Please try again.', false],
     ['reloading', 'Failed to reload accounts. Please try again.', true],
-  ])("shows an error when %s fails", async (_when, description, toggle) => {
+  ])('shows an error when %s fails', async (_when, description, toggle) => {
     signIn('Super Admin')
     const load = stubAccounts()
     if (!toggle) load.mockRejectedValue(new Error('down'))
-    const wrapper = await mountInApp(AccountsPage, {}, { route: '/admin/accounts' })
+    const wrapper = await mountInApp(
+      AccountsPage,
+      {},
+      { route: '/admin/accounts' },
+    )
     if (toggle) {
       load.mockRejectedValue(new Error('down'))
-      await click(wrapper.findComponent(USwitch).find('button').element as HTMLElement)
+      await click(
+        wrapper.findComponent(USwitch).find('button').element as HTMLElement,
+      )
     }
 
     expect(toasts().at(-1)).toMatchObject({ color: 'error', description })
@@ -193,7 +271,10 @@ describe('admin accounts page', () => {
 })
 
 describe('admin aid activity page', () => {
-  const aid = (aidId: number, overrides: Partial<AidActivityItem> = {}): AidActivityItem => ({
+  const aid = (
+    aidId: number,
+    overrides: Partial<AidActivityItem> = {},
+  ): AidActivityItem => ({
     aidId,
     sentOn: '2026-10-01T12:00:00',
     status: 2,
@@ -207,7 +288,10 @@ describe('admin aid activity page', () => {
     ...overrides,
   })
 
-  const stubPage = (results: AidActivityItem[], totalCount = results.length) => {
+  const stubPage = (
+    results: AidActivityItem[],
+    totalCount = results.length,
+  ) => {
     const store = useAdminAidActivityStore()
     return vi.spyOn(store, 'loadPage').mockImplementation(async () => {
       store.currentPage = { totalCount, results }
@@ -218,7 +302,22 @@ describe('admin aid activity page', () => {
     signIn('Super Admin')
     const load = stubPage([
       aid(1),
-      aid(2, { status: 1, money: 0, technology: 50, dealId: null, sentOn: null, reason: '', receiver: { nationId: 300, nationName: null as never, rulerName: null as never, allianceName: '', accountId: null, role: null } }),
+      aid(2, {
+        status: 1,
+        money: 0,
+        technology: 50,
+        dealId: null,
+        sentOn: null,
+        reason: '',
+        receiver: {
+          nationId: 300,
+          nationName: null as never,
+          rulerName: null as never,
+          allianceName: '',
+          accountId: null,
+          role: null,
+        },
+      }),
       aid(3, { status: 3, sender: { ...accountSimplified(3), role: 'H' } }),
       aid(4, { status: 4 }),
       aid(5, { status: 9 }),
@@ -248,7 +347,11 @@ describe('admin aid activity page', () => {
   it('pages through the results', async () => {
     signIn('Super Admin')
     const load = stubPage([aid(1)], 60)
-    const wrapper = await mountInApp(AidActivityPage, {}, { route: '/admin/aid-activity' })
+    const wrapper = await mountInApp(
+      AidActivityPage,
+      {},
+      { route: '/admin/aid-activity' },
+    )
 
     wrapper.findComponent(UPagination).vm.$emit('update:page', 3)
     await flushPromises()
@@ -259,16 +362,26 @@ describe('admin aid activity page', () => {
   it('goes back to the first page when a toggle changes', async () => {
     signIn('Super Admin')
     const load = stubPage([aid(1)], 60)
-    const wrapper = await mountInApp(AidActivityPage, {}, { route: '/admin/aid-activity' })
+    const wrapper = await mountInApp(
+      AidActivityPage,
+      {},
+      { route: '/admin/aid-activity' },
+    )
 
-    await click(wrapper.findAllComponents(USwitch)[1].find('button').element as HTMLElement)
+    await click(
+      wrapper.findAllComponents(USwitch)[1].find('button')
+        .element as HTMLElement,
+    )
     expect(useAdminAidActivityStore().unmatchedOnly).toBe(true)
     expect(load).toHaveBeenLastCalledWith(25, 0)
 
     wrapper.findComponent(UPagination).vm.$emit('update:page', 2)
     await flushPromises()
     load.mockClear()
-    await click(wrapper.findAllComponents(USwitch)[0].find('button').element as HTMLElement)
+    await click(
+      wrapper.findAllComponents(USwitch)[0].find('button')
+        .element as HTMLElement,
+    )
 
     expect(load).toHaveBeenCalledOnce()
     expect(load).toHaveBeenLastCalledWith(25, 0)
@@ -283,8 +396,18 @@ describe('admin aid activity page', () => {
     for (const [filters, summary] of [
       [{ search: 'Bob', direction: 'sent' }, 'sent by "Bob"'],
       [{ search: 'Bob', direction: 'received' }, 'received by "Bob"'],
-      [{ search: 'Bob', sentSince: new Date(2026, 9, 1), sentUntil: new Date(2026, 9, 1) }, `"Bob", ${new Date(2026, 9, 1).toLocaleDateString()}`],
-      [{ sentSince: new Date(2026, 9, 1), sentUntil: new Date(2026, 9, 3) }, `${new Date(2026, 9, 1).toLocaleDateString()} to ${new Date(2026, 9, 3).toLocaleDateString()}`],
+      [
+        {
+          search: 'Bob',
+          sentSince: new Date(2026, 9, 1),
+          sentUntil: new Date(2026, 9, 1),
+        },
+        `"Bob", ${new Date(2026, 9, 1).toLocaleDateString()}`,
+      ],
+      [
+        { sentSince: new Date(2026, 9, 1), sentUntil: new Date(2026, 9, 3) },
+        `${new Date(2026, 9, 1).toLocaleDateString()} to ${new Date(2026, 9, 3).toLocaleDateString()}`,
+      ],
     ] as const) {
       store.filters = { ...filters }
       await flushPromises()
@@ -309,11 +432,16 @@ describe('admin aid activity page', () => {
 
   it("shows an error when a page can't be loaded", async () => {
     signIn('Super Admin')
-    vi.spyOn(useAdminAidActivityStore(), 'loadPage').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminAidActivityStore(), 'loadPage').mockRejectedValue(
+      new Error('down'),
+    )
 
     await mountInApp(AidActivityPage, {}, { route: '/admin/aid-activity' })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'The current page failed to load' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'The current page failed to load',
+    })
   })
 })
 
@@ -325,25 +453,52 @@ describe('admin deals page', () => {
         store.activeDeals = {
           totalCount: 40,
           results: [
-            adminDeal({ id: 10, responsibleAccountId: 1, daysResponsible: 2, cancelsOn: '2026-10-14T00:00:00', hasOpenFlag: true, lastActivityDate: '2026-10-05T00:00:00' }),
+            adminDeal({
+              id: 10,
+              responsibleAccountId: 1,
+              daysResponsible: 2,
+              cancelsOn: '2026-10-14T00:00:00',
+              hasOpenFlag: true,
+              lastActivityDate: '2026-10-05T00:00:00',
+            }),
             adminDeal({ id: 11, state: DealActivityState.PendingStart }),
           ],
         }
       }),
       queue: vi.spyOn(store, 'loadWaitQueue').mockImplementation(async () => {
-        store.waitQueue = [{ accountId: 3, slotsNeeded: 2, enteredQueueOn: '2026-10-01T00:00:00', nextSlotOpensOn: null, priorityScore: 9.5, account: accountSimplified(3) }]
+        store.waitQueue = [
+          {
+            accountId: 3,
+            slotsNeeded: 2,
+            enteredQueueOn: '2026-10-01T00:00:00',
+            nextSlotOpensOn: null,
+            priorityScore: 9.5,
+            account: accountSimplified(3),
+          },
+        ]
       }),
       flags: vi.spyOn(store, 'loadFlags').mockImplementation(async () => {
         store.flags = [
           dealFlag({ id: 5 }),
-          dealFlag({ id: 6, flagType: DealFlagType.FiveDayReplacement, flagReason: DealFlagReason.OutOfSequenceAid }),
-          dealFlag({ id: 7, flagType: DealFlagType.AidFailed, flagReason: null }),
+          dealFlag({
+            id: 6,
+            flagType: DealFlagType.FiveDayReplacement,
+            flagReason: DealFlagReason.OutOfSequenceAid,
+          }),
+          dealFlag({
+            id: 7,
+            flagType: DealFlagType.AidFailed,
+            flagReason: null,
+          }),
         ]
       }),
     }
   }
 
-  const showTab = async (wrapper: Awaited<ReturnType<typeof mountInApp>>, tab: string) => {
+  const showTab = async (
+    wrapper: Awaited<ReturnType<typeof mountInApp>>,
+    tab: string,
+  ) => {
     wrapper.findComponent(UTabs).vm.$emit('update:modelValue', tab)
     await flushPromises()
   }
@@ -405,9 +560,13 @@ describe('admin deals page', () => {
     signIn('Super Admin')
     const loads = stubDeals()
     const wrapper = await mountInApp(DealsPage, {}, { route: '/admin/deals' })
-    const waitForDebounce = () => new Promise((resolve) => setTimeout(resolve, 350))
+    const waitForDebounce = () =>
+      new Promise((resolve) => setTimeout(resolve, 350))
 
-    await type(inputByPlaceholder('Search by nation, ruler, or alliance...'), ' bob ')
+    await type(
+      inputByPlaceholder('Search by nation, ruler, or alliance...'),
+      ' bob ',
+    )
     await waitForDebounce()
     await flushPromises()
     expect(loads.deals).toHaveBeenLastCalledWith('bob', 25, 0)
@@ -415,7 +574,10 @@ describe('admin deals page', () => {
     wrapper.findComponent(UPagination).vm.$emit('update:page', 2)
     await flushPromises()
     loads.deals.mockClear()
-    await type(inputByPlaceholder('Search by nation, ruler, or alliance...'), 'sue')
+    await type(
+      inputByPlaceholder('Search by nation, ruler, or alliance...'),
+      'sue',
+    )
     await waitForDebounce()
     await flushPromises()
     expect(loads.deals).toHaveBeenCalledOnce()
@@ -431,7 +593,10 @@ describe('admin deals page', () => {
 
     await click(buttons('Cancel')[0])
     expect(bodyText()).toContain('Cancel Deal #10')
-    await type(inputByPlaceholder('Why is this deal being cancelled?'), 'Partner left')
+    await type(
+      inputByPlaceholder('Why is this deal being cancelled?'),
+      'Partner left',
+    )
     await click(button('Cancel Deal'))
     await flushPromises()
 
@@ -457,9 +622,11 @@ describe('admin deals page', () => {
     signIn('Super Admin')
     const loads = stubDeals()
     const accountsStore = useAdminAccountsStore()
-    const loadAccounts = vi.spyOn(accountsStore, 'loadAllAccounts').mockImplementation(async () => {
-      accountsStore.accounts = [adminAccount(1), adminAccount(2)]
-    })
+    const loadAccounts = vi
+      .spyOn(accountsStore, 'loadAllAccounts')
+      .mockImplementation(async () => {
+        accountsStore.accounts = [adminAccount(1), adminAccount(2)]
+      })
     await mountInApp(DealsPage, {}, { route: '/admin/deals' })
 
     await click(button('Create Deal'))
@@ -478,19 +645,26 @@ describe('admin deals page', () => {
   it("shows an error instead of the dialog when accounts can't be loaded", async () => {
     signIn('Super Admin')
     stubDeals()
-    vi.spyOn(useAdminAccountsStore(), 'loadAllAccounts').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminAccountsStore(), 'loadAllAccounts').mockRejectedValue(
+      new Error('down'),
+    )
     await mountInApp(DealsPage, {}, { route: '/admin/deals' })
 
     await click(button('Create Deal'))
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load accounts. Please try again.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load accounts. Please try again.',
+    })
     expect(bodyText()).not.toContain('Pair an open slot from one account')
   })
 
   it('resolves a flag', async () => {
     signIn('Super Admin')
     stubDeals()
-    const resolveFlag = vi.spyOn(useAdminDealsStore(), 'resolveFlag').mockResolvedValue()
+    const resolveFlag = vi
+      .spyOn(useAdminDealsStore(), 'resolveFlag')
+      .mockResolvedValue()
     const wrapper = await mountInApp(DealsPage, {}, { route: '/admin/deals' })
     await showTab(wrapper, 'flags')
 
@@ -515,31 +689,60 @@ describe('admin deals page', () => {
     ['deals', 'Failed to load active deals. Please try again.'],
     ['queue', 'Failed to load the wait queue. Please try again.'],
     ['flags', 'Failed to load flagged deals. Please try again.'],
-  ] as const)("shows an error when the %s can't be loaded", async (which, description) => {
-    signIn('Super Admin')
-    stubDeals()[which].mockRejectedValue(new Error('down'))
+  ] as const)(
+    "shows an error when the %s can't be loaded",
+    async (which, description) => {
+      signIn('Super Admin')
+      stubDeals()[which].mockRejectedValue(new Error('down'))
 
-    await mountInApp(DealsPage, {}, { route: '/admin/deals' })
+      await mountInApp(DealsPage, {}, { route: '/admin/deals' })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description })
-  })
+      expect(toasts()[0]).toMatchObject({ color: 'error', description })
+    },
+  )
 })
 
 describe('admin messages page', () => {
-  const recipients = (count: number) => Array.from({ length: count }, (_, i) => recipient(i + 1, { sendCount: 1, discord: i === 0 ? 'ruler1#1' : null }))
+  const recipients = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      recipient(i + 1, { sendCount: 1, discord: i === 0 ? 'ruler1#1' : null }),
+    )
 
-  const stubMessages = (messages = [
-    massMessage(1, { name: 'Send Aid', recipients: recipients(27) }),
-    massMessage(2, { name: 'Final Warning', code: MassMessageCode.FinalWarning, recipients: [recipient(40, { flaggedCount: 1, daysOverdue: 4, cancelsOn: '2026-10-10T00:00:00' })] }),
-    massMessage(3, { name: 'Accept Aid', code: MassMessageCode.AcceptAid, recipients: [] }),
-  ]) => {
+  const stubMessages = (
+    messages = [
+      massMessage(1, { name: 'Send Aid', recipients: recipients(27) }),
+      massMessage(2, {
+        name: 'Final Warning',
+        code: MassMessageCode.FinalWarning,
+        recipients: [
+          recipient(40, {
+            flaggedCount: 1,
+            daysOverdue: 4,
+            cancelsOn: '2026-10-10T00:00:00',
+          }),
+        ],
+      }),
+      massMessage(3, {
+        name: 'Accept Aid',
+        code: MassMessageCode.AcceptAid,
+        recipients: [],
+      }),
+    ],
+  ) => {
     const store = useAdminMassMessagesStore()
     return vi.spyOn(store, 'loadMassMessages').mockImplementation(async () => {
-      store.summary = { cnDate: '2026-10-09T00:00:00', dealStatesUpdatedOn: '2026-10-09T13:45:00', messages }
+      store.summary = {
+        cnDate: '2026-10-09T00:00:00',
+        dealStatesUpdatedOn: '2026-10-09T13:45:00',
+        messages,
+      }
     })
   }
 
-  const showTab = async (wrapper: Awaited<ReturnType<typeof mountInApp>>, id: number) => {
+  const showTab = async (
+    wrapper: Awaited<ReturnType<typeof mountInApp>>,
+    id: number,
+  ) => {
     wrapper.findComponent(UTabs).vm.$emit('update:modelValue', String(id))
     await flushPromises()
   }
@@ -553,15 +756,27 @@ describe('admin messages page', () => {
     expect(bodyText()).toContain('Send Aid (27)')
     expect(bodyText()).toContain('Final Warning (1)')
     expect(bodyText()).toContain('Who gets message 1')
-    expect(bodyText()).toMatch(/Deal Activity Updated On: Oct 09, 2026 \d\d:\d\d/)
-    expect(bodyText()).toContain('First RecipientRuler1Nation1')
+    expect(bodyText()).toMatch(
+      /Deal Activity Updated On: Oct 09, 2026 \d\d:\d\d/,
+    )
+    expect(bodyText()).toMatch(/First Recipient\s*Ruler1\s*Nation1/)
     expect(bodyText()).toContain('Carbon Copy Rulers (24)')
-    expect(button('Send Message', document.querySelector('.bg-gray-50')!).getAttribute('href'))
-      .toBe('https://www.cybernations.net/send_message.asp?Nation_ID=101')
-    const values = Array.from(document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input[readonly], textarea[readonly]')).map((el) => el.value)
+    expect(
+      button(
+        'Send Message',
+        document.querySelector('.bg-gray-50')!,
+      ).getAttribute('href'),
+    ).toBe('https://www.cybernations.net/send_message.asp?Nation_ID=101')
+    const values = Array.from(
+      document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        'input[readonly], textarea[readonly]',
+      ),
+    ).map((el) => el.value)
     expect(values).toContain('VEP Oct 09')
     expect(values).toContain(`Log in at ${useRequestURL().origin} on Oct 09`)
-    expect(values.find((v) => v.startsWith('Ruler2'))!.split('\r\n')).toHaveLength(24)
+    expect(
+      values.find((v) => v.startsWith('Ruler2'))!.split('\r\n'),
+    ).toHaveLength(24)
     expect(bodyText()).toContain('Batch 1 of 2')
     expect(tableRows()).toHaveLength(27)
     expect(tableRows()[0]).toContain('1 to send')
@@ -572,13 +787,15 @@ describe('admin messages page', () => {
     signIn('Super Admin')
     stubMessages()
     await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
-    const [previous, next] = Array.from(document.querySelectorAll<HTMLButtonElement>('.border-t button'))
+    const [previous, next] = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.border-t button'),
+    )
 
     expect(previous.disabled).toBe(true)
     await click(next)
 
     expect(bodyText()).toContain('Batch 2 of 2')
-    expect(bodyText()).toContain('First RecipientRuler26')
+    expect(bodyText()).toMatch(/First Recipient\s*Ruler26/)
     expect(bodyText()).toContain('Carbon Copy Rulers (1)')
     expect(next.disabled).toBe(true)
     await click(previous)
@@ -588,8 +805,16 @@ describe('admin messages page', () => {
   it('shows overdue details for flagged messages, starting at their first batch', async () => {
     signIn('Super Admin')
     stubMessages()
-    const wrapper = await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
-    await click(Array.from(document.querySelectorAll<HTMLButtonElement>('.border-t button'))[1])
+    const wrapper = await mountInApp(
+      MessagesPage,
+      {},
+      { route: '/admin/messages' },
+    )
+    await click(
+      Array.from(
+        document.querySelectorAll<HTMLButtonElement>('.border-t button'),
+      )[1],
+    )
 
     await showTab(wrapper, 2)
 
@@ -600,10 +825,14 @@ describe('admin messages page', () => {
     expect(bodyText()).not.toContain('Batch')
   })
 
-  it("says when no one needs a message today", async () => {
+  it('says when no one needs a message today', async () => {
     signIn('Super Admin')
     stubMessages()
-    const wrapper = await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
+    const wrapper = await mountInApp(
+      MessagesPage,
+      {},
+      { route: '/admin/messages' },
+    )
 
     await showTab(wrapper, 3)
 
@@ -613,35 +842,70 @@ describe('admin messages page', () => {
   it('marks a message sent', async () => {
     signIn('Admin - Lists')
     stubMessages()
-    const setSent = vi.spyOn(useAdminMassMessagesStore(), 'setMessageSent').mockResolvedValue()
-    const wrapper = await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
+    const setSent = vi
+      .spyOn(useAdminMassMessagesStore(), 'setMessageSent')
+      .mockResolvedValue()
+    const wrapper = await mountInApp(
+      MessagesPage,
+      {},
+      { route: '/admin/messages' },
+    )
 
-    await click(wrapper.findComponent(USwitch).find('button').element as HTMLElement)
+    await click(
+      wrapper.findComponent(USwitch).find('button').element as HTMLElement,
+    )
 
     expect(setSent).toHaveBeenCalledWith(1, true)
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Messages marked as sent.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Messages marked as sent.',
+    })
   })
 
   it('shows who sent a message, and can mark it not sent', async () => {
     signIn('Super Admin')
-    stubMessages([massMessage(1, { sentOn: '2026-10-09T15:30:00', sentBy: accountSimplified(9, { rulerName: 'Ada' }), recipients: recipients(1) })])
-    const setSent = vi.spyOn(useAdminMassMessagesStore(), 'setMessageSent').mockResolvedValue()
-    const wrapper = await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
+    stubMessages([
+      massMessage(1, {
+        sentOn: '2026-10-09T15:30:00',
+        sentBy: accountSimplified(9, { rulerName: 'Ada' }),
+        recipients: recipients(1),
+      }),
+    ])
+    const setSent = vi
+      .spyOn(useAdminMassMessagesStore(), 'setMessageSent')
+      .mockResolvedValue()
+    const wrapper = await mountInApp(
+      MessagesPage,
+      {},
+      { route: '/admin/messages' },
+    )
 
     expect(bodyText()).toMatch(/Sent by Ada on Oct 09, 2026 \d\d:\d\d/)
-    await click(wrapper.findComponent(USwitch).find('button').element as HTMLElement)
+    await click(
+      wrapper.findComponent(USwitch).find('button').element as HTMLElement,
+    )
 
     expect(setSent).toHaveBeenCalledWith(1, false)
-    expect(toasts()[0]).toMatchObject({ description: 'Messages marked as not sent.' })
+    expect(toasts()[0]).toMatchObject({
+      description: 'Messages marked as not sent.',
+    })
   })
 
   it('shows an error when marking a message fails', async () => {
     signIn('Super Admin')
     stubMessages()
-    vi.spyOn(useAdminMassMessagesStore(), 'setMessageSent').mockRejectedValue(new Error('down'))
-    const wrapper = await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
+    vi.spyOn(useAdminMassMessagesStore(), 'setMessageSent').mockRejectedValue(
+      new Error('down'),
+    )
+    const wrapper = await mountInApp(
+      MessagesPage,
+      {},
+      { route: '/admin/messages' },
+    )
 
-    await click(wrapper.findComponent(USwitch).find('button').element as HTMLElement)
+    await click(
+      wrapper.findComponent(USwitch).find('button').element as HTMLElement,
+    )
 
     expect(toasts()[0]).toMatchObject({ color: 'error' })
   })
@@ -649,7 +913,11 @@ describe('admin messages page', () => {
   it("doesn't let read-only admins mark messages sent", async () => {
     signIn('Admin (Read-only)')
     stubMessages()
-    const wrapper = await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
+    const wrapper = await mountInApp(
+      MessagesPage,
+      {},
+      { route: '/admin/messages' },
+    )
 
     expect(wrapper.findComponent(USwitch).props('disabled')).toBe(true)
   })
@@ -658,23 +926,38 @@ describe('admin messages page', () => {
     signIn('Super Admin')
     stubMessages()
     const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    })
     await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
 
-    for (const field of Array.from(document.querySelectorAll<HTMLElement>('input[readonly], textarea[readonly]'))) {
+    for (const field of Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'input[readonly], textarea[readonly]',
+      ),
+    )) {
       await click(field)
     }
 
     expect(writeText).toHaveBeenCalledWith('VEP Oct 09')
     expect(writeText).toHaveBeenCalledTimes(3)
     expect(toasts().map((t) => t.description)).toEqual(
-      expect.arrayContaining(['Subject copied to clipboard.', 'Message copied to clipboard.', 'Carbon Copy Rulers copied to clipboard.']))
+      expect.arrayContaining([
+        'Subject copied to clipboard.',
+        'Message copied to clipboard.',
+        'Carbon Copy Rulers copied to clipboard.',
+      ]),
+    )
   })
 
   it('says when copying fails', async () => {
     signIn('Super Admin')
     stubMessages()
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) }, configurable: true })
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+      configurable: true,
+    })
     await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
 
     await click(document.querySelector<HTMLElement>('input[readonly]')!)
@@ -684,29 +967,56 @@ describe('admin messages page', () => {
 
   it("shows an error when the messages can't be loaded", async () => {
     signIn('Super Admin')
-    vi.spyOn(useAdminMassMessagesStore(), 'loadMassMessages').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminMassMessagesStore(), 'loadMassMessages').mockRejectedValue(
+      new Error('down'),
+    )
 
     await mountInApp(MessagesPage, {}, { route: '/admin/messages' })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load mass messages. Please try again.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load mass messages. Please try again.',
+    })
   })
 })
 
 describe('admin settings page', () => {
   const admins = [
-    { accountId: 1, rulerName: 'Ada', nationName: 'Adaland', vepRole: 'B', adminRoleId: 1, adminRoleName: 'Super Admin' },
-    { accountId: 2, rulerName: 'Lee', nationName: 'Leeland', vepRole: 'S', adminRoleId: 3, adminRoleName: 'Admin - Lists' },
+    {
+      accountId: 1,
+      rulerName: 'Ada',
+      nationName: 'Adaland',
+      vepRole: 'B',
+      adminRoleId: 1,
+      adminRoleName: 'Super Admin',
+    },
+    {
+      accountId: 2,
+      rulerName: 'Lee',
+      nationName: 'Leeland',
+      vepRole: 'S',
+      adminRoleId: 3,
+      adminRoleName: 'Admin - Lists',
+    },
   ]
 
   const stubAdmins = () => {
     const store = useAdminAccessStore()
-    return vi.spyOn(store, 'loadAdminAccessSettings').mockImplementation(async () => {
-      store.adminAccessSettings = admins
-    })
+    return vi
+      .spyOn(store, 'loadAdminAccessSettings')
+      .mockImplementation(async () => {
+        store.adminAccessSettings = admins
+      })
   }
 
-  const adminRows = () => Array.from(document.querySelectorAll('table')[0].querySelectorAll('tbody tr')).map((r) => r.textContent ?? '')
-  const teamRows = () => Array.from(document.querySelectorAll('table')[1].querySelectorAll('tbody tr')).map((r) => r.textContent ?? '')
+  const adminRows = () =>
+    Array.from(
+      document.querySelectorAll('table')[0].querySelectorAll('tbody tr'),
+    ).map((r) => r.textContent ?? '')
+  const teamRows = () =>
+    Array.from(
+      document.querySelectorAll('table')[1].querySelectorAll('tbody tr'),
+    ).map((r) => r.textContent ?? '')
 
   it('lists admins, filtered by name or role', async () => {
     signIn('Super Admin')
@@ -723,19 +1033,26 @@ describe('admin settings page', () => {
   it('removes an admin role', async () => {
     signIn('Super Admin')
     stubAdmins()
-    const deleteAccess = vi.spyOn(useAdminAccessStore(), 'deleteAdminAccess').mockResolvedValue(true)
+    const deleteAccess = vi
+      .spyOn(useAdminAccessStore(), 'deleteAdminAccess')
+      .mockResolvedValue(true)
     await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
 
     await click(buttons('Remove')[1])
 
     expect(deleteAccess).toHaveBeenCalledWith({ accountId: 2, adminRoleId: 3 })
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Admin access removed successfully.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Admin access removed successfully.',
+    })
   })
 
   it('shows an error when removing fails', async () => {
     signIn('Super Admin')
     stubAdmins()
-    vi.spyOn(useAdminAccessStore(), 'deleteAdminAccess').mockResolvedValue(false)
+    vi.spyOn(useAdminAccessStore(), 'deleteAdminAccess').mockResolvedValue(
+      false,
+    )
     await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
 
     await click(buttons('Remove')[0])
@@ -756,11 +1073,17 @@ describe('admin settings page', () => {
 
   it("shows an error when admins can't be loaded", async () => {
     signIn('Super Admin')
-    vi.spyOn(useAdminAccessStore(), 'loadAdminAccessSettings').mockRejectedValue(new Error('down'))
+    vi.spyOn(
+      useAdminAccessStore(),
+      'loadAdminAccessSettings',
+    ).mockRejectedValue(new Error('down'))
 
     await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load admin access settings.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load admin access settings.',
+    })
   })
 
   describe('team events (placeholder data until the API exists)', () => {
@@ -777,7 +1100,9 @@ describe('admin settings page', () => {
 
       await click(buttons('Delete')[0])
       expect(teamRows()).toHaveLength(2)
-      expect(toasts()[0]).toMatchObject({ description: 'Team event deleted successfully.' })
+      expect(toasts()[0]).toMatchObject({
+        description: 'Team event deleted successfully.',
+      })
     })
 
     it('opens the dialog to add or edit a team event', async () => {

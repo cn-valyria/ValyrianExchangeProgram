@@ -11,16 +11,31 @@
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-4">
-          <NuxtLink to="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+          <NuxtLink
+            to="/"
+            class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+          >
             Home
           </NuxtLink>
-          <NuxtLink to="/how-it-works" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+          <NuxtLink
+            to="/how-it-works"
+            class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+          >
             How It Works
           </NuxtLink>
 
           <!-- Account Dropdown (Authenticated) -->
-          <UDropdownMenu v-if="isAuthenticated" :items="accountMenuItems" :popper="{ placement: 'bottom-end' }">
-            <UButton color="neutral" variant="ghost" trailing-icon="i-heroicons-chevron-down-20-solid" class="text-gray-300 hover:text-gray-900">
+          <UDropdownMenu
+            v-if="isAuthenticated"
+            :items="accountMenuItems"
+            :popper="{ placement: 'bottom-end' }"
+          >
+            <UButton
+              color="neutral"
+              variant="ghost"
+              trailing-icon="i-heroicons-chevron-down-20-solid"
+              class="text-gray-300 hover:text-gray-900"
+            >
               Account
             </UButton>
           </UDropdownMenu>
@@ -36,55 +51,98 @@
           <UButton
             color="neutral"
             variant="solid"
-            :icon="mobileMenuOpen ? 'i-heroicons-x-mark-20-solid' : 'i-heroicons-bars-3-20-solid'"
+            :icon="
+              mobileMenuOpen
+                ? 'i-heroicons-x-mark-20-solid'
+                : 'i-heroicons-bars-3-20-solid'
+            "
             @click="mobileMenuOpen = !mobileMenuOpen"
           />
         </div>
       </div>
 
       <!-- Mobile Menu -->
-      <div v-if="mobileMenuOpen" class="md:hidden py-4 space-y-2 border-t border-gray-800">
-        <NuxtLink to="/" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+      <div
+        v-if="mobileMenuOpen"
+        class="md:hidden py-4 space-y-2 border-t border-gray-800"
+      >
+        <NuxtLink
+          to="/"
+          class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+        >
           Home
         </NuxtLink>
-        <NuxtLink to="/how-it-works" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+        <NuxtLink
+          to="/how-it-works"
+          class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+        >
           How It Works
         </NuxtLink>
 
         <template v-if="isAuthenticated">
-          <NuxtLink :to="accountUrl" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+          <NuxtLink
+            :to="accountUrl"
+            class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+          >
             My Account
           </NuxtLink>
           <template v-if="accountIsAdmin || accountIsReadOnlyAdmin">
-            <div class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">Admin Portal</div>
-            <NuxtLink to="/admin" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            <div
+              class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase"
+            >
+              Admin Portal
+            </div>
+            <NuxtLink
+              to="/admin"
+              class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+            >
               Home
             </NuxtLink>
-            <NuxtLink to="/admin/accounts" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            <NuxtLink
+              to="/admin/accounts"
+              class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+            >
               Accounts
             </NuxtLink>
-            <NuxtLink to="/admin/aid-activity" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            <NuxtLink
+              to="/admin/aid-activity"
+              class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+            >
               Aid Activity
             </NuxtLink>
-            <NuxtLink to="/admin/deals" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+            <NuxtLink
+              to="/admin/deals"
+              class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+            >
               Deals
             </NuxtLink>
           </template>
-          <NuxtLink v-if="accountIsAdmin || accountCanSendMessages || accountIsReadOnlyAdmin" to="/admin/messages" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+          <NuxtLink
+            v-if="
+              accountIsAdmin || accountCanSendMessages || accountIsReadOnlyAdmin
+            "
+            to="/admin/messages"
+            class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+          >
             Messages
           </NuxtLink>
-          <NuxtLink v-if="accountIsAdmin" to="/admin/settings" class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium">
+          <NuxtLink
+            v-if="accountIsAdmin"
+            to="/admin/settings"
+            class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+          >
             Settings
           </NuxtLink>
-          <a class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium cursor-pointer" @click="handleLogout()">
+          <a
+            class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium cursor-pointer"
+            @click="handleLogout()"
+          >
             Log Out
           </a>
         </template>
         <template v-else>
           <NuxtLink to="/login">
-            <UButton color="primary" block class="mt-2">
-              Log In
-            </UButton>
+            <UButton color="primary" block class="mt-2"> Log In </UButton>
           </NuxtLink>
         </template>
       </div>
@@ -108,16 +166,26 @@ const accountUrl = computed(() => {
 })
 
 const accountIsAdmin = computed(() => {
-  return loggedInUser.value?.roles?.some((role) => role.name === "Super Admin") ?? false
+  return (
+    loggedInUser.value?.roles?.some((role) => role.name === 'Super Admin') ??
+    false
+  )
 })
 
 // The "Admin - Lists" role is named for VEP 2.5's lists, which the Messages page replaced
 const accountCanSendMessages = computed(() => {
-  return loggedInUser.value?.roles?.some((role) => role.name === "Admin - Lists") ?? false
+  return (
+    loggedInUser.value?.roles?.some((role) => role.name === 'Admin - Lists') ??
+    false
+  )
 })
 
 const accountIsReadOnlyAdmin = computed(() => {
-  return loggedInUser.value?.roles?.some((role) => role.name === "Admin (Read-only)") ?? false
+  return (
+    loggedInUser.value?.roles?.some(
+      (role) => role.name === 'Admin (Read-only)',
+    ) ?? false
+  )
 })
 
 const accountMenuItems = computed(() => {
@@ -126,66 +194,72 @@ const accountMenuItems = computed(() => {
       {
         label: 'My Account',
         icon: 'i-heroicons-user-circle',
-        to: accountUrl.value
-      }
-    ]
+        to: accountUrl.value,
+      },
+    ],
   ]
 
-  if (accountIsAdmin.value || accountCanSendMessages.value || accountIsReadOnlyAdmin.value) {
+  if (
+    accountIsAdmin.value ||
+    accountCanSendMessages.value ||
+    accountIsReadOnlyAdmin.value
+  ) {
     const adminItems = []
 
     if (accountIsAdmin.value || accountIsReadOnlyAdmin.value) {
       adminItems.push({
         label: 'Admin Portal',
         slot: 'header',
-        disabled: true
+        disabled: true,
       })
       adminItems.push({
         label: 'Home',
         icon: 'i-heroicons-home',
-        to: '/admin'
+        to: '/admin',
       })
       adminItems.push({
         label: 'Accounts',
         icon: 'i-heroicons-users',
-        to: '/admin/accounts'
+        to: '/admin/accounts',
       })
       adminItems.push({
         label: 'Aid Activity',
         icon: 'i-heroicons-arrows-right-left',
-        to: '/admin/aid-activity'
+        to: '/admin/aid-activity',
       })
       adminItems.push({
         label: 'Deals',
         icon: 'i-heroicons-link',
-        to: '/admin/deals'
+        to: '/admin/deals',
       })
     }
 
     adminItems.push({
       label: 'Messages',
       icon: 'i-heroicons-envelope',
-      to: '/admin/messages'
+      to: '/admin/messages',
     })
 
     if (accountIsAdmin.value) {
       adminItems.push({
         label: 'Settings',
         icon: 'i-heroicons-cog-6-tooth',
-        to: '/admin/settings'
+        to: '/admin/settings',
       })
     }
 
     items.push(adminItems)
   }
 
-  items.push([{
-    label: 'Log Out',
-    icon: 'i-heroicons-arrow-right-on-rectangle',
-    onSelect() {
-      handleLogout()
-    }
-  }])
+  items.push([
+    {
+      label: 'Log Out',
+      icon: 'i-heroicons-arrow-right-on-rectangle',
+      onSelect() {
+        handleLogout()
+      },
+    },
+  ])
 
   return items
 })

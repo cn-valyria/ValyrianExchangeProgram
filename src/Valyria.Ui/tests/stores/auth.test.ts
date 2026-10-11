@@ -4,18 +4,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // imports, so these stub one layer down: $fetch under useFetch (login and refresh), fetch under the
 // API client (loading the user), and the router under navigateTo
 
-const tokens = { accessToken: 'access-1', tokenType: 'Bearer', expiresIn: 86400, refreshToken: 'refresh-1' }
+const tokens = {
+  accessToken: 'access-1',
+  tokenType: 'Bearer',
+  expiresIn: 86400,
+  refreshToken: 'refresh-1',
+}
 const user = { accountId: 42, roles: [{ id: 1, name: 'Super Admin' }] }
 const stored = () => JSON.parse(localStorage.getItem('vep_auth') ?? 'null')
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
 
 const $fetchMock = vi.fn()
 const fetchMock = vi.fn<typeof fetch>()
 let routerPush: ReturnType<typeof vi.spyOn>
 
 // useFetch reports a thrown $fetch error as its error
-const rejected = (message: string) => Object.assign(new Error(message), { statusCode: 401 })
+const rejected = (message: string) =>
+  Object.assign(new Error(message), { statusCode: 401 })
 
 beforeEach(() => {
   vi.stubGlobal('$fetch', $fetchMock)
@@ -38,29 +47,47 @@ describe('auth store', () => {
       await authStore.login({ nationId: '101', uniqueCode: '12345' })
 
       const [url, options] = $fetchMock.mock.lastCall!
-      expect(url).toBe(`${useRuntimeConfig().public.apiUrl}/api/user/authenticate`)
-      expect(options).toMatchObject({ method: 'POST', body: { nationId: '101', uniqueCode: '12345' } })
+      expect(url).toBe(
+        `${useRuntimeConfig().public.apiUrl}/api/user/authenticate`,
+      )
+      expect(options).toMatchObject({
+        method: 'POST',
+        body: { nationId: '101', uniqueCode: '12345' },
+      })
       const [userUrl, userRequest] = fetchMock.mock.lastCall!
-      expect(userUrl).toBe(`${useRuntimeConfig().public.apiUrl}/api/user/account`)
-      expect((userRequest!.headers as Record<string, string>).Authorization).toBe('Bearer access-1')
+      expect(userUrl).toBe(
+        `${useRuntimeConfig().public.apiUrl}/api/user/account`,
+      )
+      expect(
+        (userRequest!.headers as Record<string, string>).Authorization,
+      ).toBe('Bearer access-1')
       expect(authStore.accessToken).toBe('access-1')
       expect(authStore.refreshToken).toBe('refresh-1')
       expect(authStore.loggedInUser).toEqual(user)
       expect(authStore.isLoggedIn).toBe(true)
-      expect(stored()).toEqual({ user, accessToken: 'access-1', refreshToken: 'refresh-1', isAuthenticated: true })
+      expect(stored()).toEqual({
+        user,
+        accessToken: 'access-1',
+        refreshToken: 'refresh-1',
+        isAuthenticated: true,
+      })
     })
 
     it('throws when the credentials are rejected', async () => {
       $fetchMock.mockRejectedValue(rejected('Invalid credentials'))
 
-      await expect(useAuthStore().login({ rulerName: 'Bob', uniqueCode: 'wrong' })).rejects.toThrow('Invalid credentials')
+      await expect(
+        useAuthStore().login({ rulerName: 'Bob', uniqueCode: 'wrong' }),
+      ).rejects.toThrow('Invalid credentials')
       expect(useAuthStore().isAuthenticated).toBe(false)
     })
 
     it('throws a generic message when the error has none', async () => {
       $fetchMock.mockRejectedValue(rejected(''))
 
-      await expect(useAuthStore().login({ rulerName: 'Bob', uniqueCode: 'wrong' })).rejects.toThrow('Authentication failed')
+      await expect(
+        useAuthStore().login({ rulerName: 'Bob', uniqueCode: 'wrong' }),
+      ).rejects.toThrow('Authentication failed')
     })
   })
 
@@ -73,7 +100,9 @@ describe('auth store', () => {
 
     it('stays signed out when the user cannot be loaded', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {})
-      fetchMock.mockResolvedValue(new Response(null, { status: 500, statusText: 'Server Error' }))
+      fetchMock.mockResolvedValue(
+        new Response(null, { status: 500, statusText: 'Server Error' }),
+      )
       const authStore = useAuthStore()
       authStore.accessToken = 'access-1'
 
@@ -91,13 +120,20 @@ describe('auth store', () => {
     })
 
     it('swaps in the new tokens', async () => {
-      $fetchMock.mockResolvedValue({ ...tokens, accessToken: 'access-2', refreshToken: 'refresh-2' })
+      $fetchMock.mockResolvedValue({
+        ...tokens,
+        accessToken: 'access-2',
+        refreshToken: 'refresh-2',
+      })
       const authStore = useAuthStore()
       authStore.refreshToken = 'refresh-1'
 
       expect(await authStore.refreshAccessToken()).toBe(true)
 
-      expect($fetchMock.mock.lastCall![1]).toMatchObject({ method: 'POST', body: { refresh_token: 'refresh-1' } })
+      expect($fetchMock.mock.lastCall![1]).toMatchObject({
+        method: 'POST',
+        body: { refresh_token: 'refresh-1' },
+      })
       expect(authStore.accessToken).toBe('access-2')
       expect(authStore.refreshToken).toBe('refresh-2')
       expect(stored().accessToken).toBe('access-2')
@@ -130,11 +166,21 @@ describe('auth store', () => {
     it('forgets the session', () => {
       localStorage.setItem('vep_auth', JSON.stringify({ accessToken: 'x' }))
       const authStore = useAuthStore()
-      Object.assign(authStore, { user, accessToken: 'a', refreshToken: 'r', isAuthenticated: true })
+      Object.assign(authStore, {
+        user,
+        accessToken: 'a',
+        refreshToken: 'r',
+        isAuthenticated: true,
+      })
 
       authStore.logout()
 
-      expect(authStore.$state).toEqual({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
+      expect(authStore.$state).toEqual({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+      })
       expect(localStorage.getItem('vep_auth')).toBeNull()
     })
 
@@ -148,7 +194,15 @@ describe('auth store', () => {
 
   describe('init', () => {
     it('restores a remembered session without reloading the user', async () => {
-      localStorage.setItem('vep_auth', JSON.stringify({ user, accessToken: 'a', refreshToken: 'r', isAuthenticated: true }))
+      localStorage.setItem(
+        'vep_auth',
+        JSON.stringify({
+          user,
+          accessToken: 'a',
+          refreshToken: 'r',
+          isAuthenticated: true,
+        }),
+      )
       const authStore = useAuthStore()
 
       await authStore.init()
@@ -159,7 +213,15 @@ describe('auth store', () => {
     })
 
     it('loads the user when only the tokens were remembered', async () => {
-      localStorage.setItem('vep_auth', JSON.stringify({ user: null, accessToken: 'a', refreshToken: 'r', isAuthenticated: false }))
+      localStorage.setItem(
+        'vep_auth',
+        JSON.stringify({
+          user: null,
+          accessToken: 'a',
+          refreshToken: 'r',
+          isAuthenticated: false,
+        }),
+      )
       fetchMock.mockResolvedValue(json(user))
       const authStore = useAuthStore()
 

@@ -3,19 +3,23 @@
 # Valyria.Ui - Nuxt 2 to Nuxt 3 Migration Summary
 
 ## Overview
+
 Successfully migrated the Valyria.Ui application from Nuxt 2 to Nuxt 3.15.4 with Vue 3 Composition API, Pinia for state management, and PrimeVue for UI components.
 
 ## Major Changes
 
 ### 1. Framework Upgrades
+
 - **Nuxt**: 2.18.1 → 3.15.4
 - **Vue**: 2.7.16 → 3.5.13
 - **Build Tool**: Webpack 4 → Vite 6
 
 ### 2. State Management: Vuex → Pinia
+
 Migrated all Vuex store modules to Pinia stores:
 
 #### Created Stores:
+
 - **`stores/auth.ts`** - Authentication state management
   - Handles login, logout, token refresh
   - Stores user data and authentication status
@@ -41,6 +45,7 @@ Migrated all Vuex store modules to Pinia stores:
   - Aid list data loading
 
 ### 3. Authentication: Custom Solution
+
 Replaced `@nuxtjs/auth-next` with custom auth implementation:
 
 - **Auth Store** (`stores/auth.ts`) handles all auth operations
@@ -49,45 +54,52 @@ Replaced `@nuxtjs/auth-next` with custom auth implementation:
 - Token persistence using `@pinia-plugin-persistedstate`
 
 ### 4. UI Framework: Buefy → PrimeVue
+
 Complete migration of all UI components:
 
-| Buefy Component | PrimeVue Equivalent |
-|----------------|-------------------|
-| `b-table` | `DataTable` + `Column` |
-| `b-field` + `b-input` | `InputText`, `InputNumber` |
-| `b-button` | `Button` |
-| `b-modal` / `b-dialog` | `Dialog` |
-| `b-select` / `b-dropdown` | `Dropdown` |
-| `b-checkbox` | `Checkbox` |
-| `b-tag` | `Tag` |
-| `b-collapse` | `Accordion` |
-| `b-autocomplete` | `AutoComplete` |
-| `b-loading` | `ProgressSpinner` |
-| `b-tabs` | `TabView` + `TabPanel` |
-| `b-datepicker` | `Calendar` |
+| Buefy Component           | PrimeVue Equivalent        |
+| ------------------------- | -------------------------- |
+| `b-table`                 | `DataTable` + `Column`     |
+| `b-field` + `b-input`     | `InputText`, `InputNumber` |
+| `b-button`                | `Button`                   |
+| `b-modal` / `b-dialog`    | `Dialog`                   |
+| `b-select` / `b-dropdown` | `Dropdown`                 |
+| `b-checkbox`              | `Checkbox`                 |
+| `b-tag`                   | `Tag`                      |
+| `b-collapse`              | `Accordion`                |
+| `b-autocomplete`          | `AutoComplete`             |
+| `b-loading`               | `ProgressSpinner`          |
+| `b-tabs`                  | `TabView` + `TabPanel`     |
+| `b-datepicker`            | `Calendar`                 |
 
 ### 5. Components Migrated (16 total)
+
 All components converted from Options API to Composition API with TypeScript:
 
 #### Core Components:
+
 - **Login.vue** - Authentication modal with form validation
 - **NavBar.vue** - Navigation with auth state
 
 #### Chip Components:
+
 - **chip/AccountRole.vue** - Role badge display
 - **chip/AllianceAcronym.vue** - Alliance badge with images
 
 #### Account Components:
+
 - **account/AidList.vue** - Aid transaction list with accordion
 - **account/Balance.vue** - Complex balance calculator
 - **account/CreditHistory.vue** - Transaction history table
 
 #### Admin Components:
+
 - **admin/AccountEditDialog.vue** - Account CRUD dialog (456 lines)
 - **admin/ManualTransactionDialog.vue** - Manual transaction creator (365 lines)
 - **admin/AidBasedTransactionDialog.vue** - Aid transaction viewer
 
 #### Dashboard Components:
+
 - **admin/dashboard/AccountsByAlliance.vue** - Alliance statistics
 - **admin/dashboard/AccountsByRole.vue** - Role distribution
 - **admin/dashboard/FreeSlotsByList.vue** - Available slots
@@ -96,6 +108,7 @@ All components converted from Options API to Composition API with TypeScript:
 - **admin/dashboard/TotalTransactionsTile.vue** - Transaction stats
 
 ### 6. Pages Migrated (6 total)
+
 All pages converted to Composition API with proper routing:
 
 - **pages/index.vue** - Landing page (public)
@@ -106,6 +119,7 @@ All pages converted to Composition API with proper routing:
 - **pages/admin/lists.vue** - Lists management
 
 ### 7. Infrastructure Updates
+
 Converted utilities to TypeScript:
 
 - **infrastructure/constants.ts** - Type-safe constants with `as const`
@@ -115,12 +129,14 @@ Converted utilities to TypeScript:
 ### 8. Configuration Files
 
 #### Created:
+
 - **nuxt.config.ts** - Nuxt 3 configuration with PrimeVue
 - **tsconfig.json** - TypeScript configuration
 - **vitest.config.ts** - Vitest test configuration
 - **.eslintrc.cjs** - ESLint configuration for Nuxt 3
 
 #### Removed:
+
 - `nuxt.config.js` (replaced by `.ts`)
 - `.babelrc` (Vite doesn't need Babel)
 - `jest.config.js` (replaced with Vitest)
@@ -129,6 +145,7 @@ Converted utilities to TypeScript:
 - Old Vuex `store/` directory
 
 ### 9. Styling Updates
+
 - **assets/css/main.scss** - Updated to PrimeVue styles
   - Removed Bulma/Buefy imports
   - Added PrimeVue customizations
@@ -137,7 +154,9 @@ Converted utilities to TypeScript:
 ## API Changes
 
 ### State Management
+
 **Before (Vuex):**
+
 ```js
 this.$store.dispatch('account/loadAccount', accountId)
 this.$store.getters['isAuthenticated']
@@ -145,6 +164,7 @@ this.$store.state.account.account
 ```
 
 **After (Pinia):**
+
 ```ts
 const authStore = useAuthStore()
 const accountStore = useAccountStore()
@@ -155,25 +175,31 @@ accountStore.account
 ```
 
 ### HTTP Requests
+
 **Before:**
+
 ```js
 await this.$axios.get(`accounts/${accountId}`)
 ```
 
 **After:**
+
 ```ts
 const config = useRuntimeConfig()
 await $fetch(`${config.public.apiUrl}/api/accounts/${accountId}`)
 ```
 
 ### Routing
+
 **Before:**
+
 ```js
 this.$router.push('/')
 const id = this.$route.params.id
 ```
 
 **After:**
+
 ```ts
 const router = useRouter()
 const route = useRoute()
@@ -183,12 +209,15 @@ const id = route.params.id
 ```
 
 ### Notifications
+
 **Before:**
+
 ```js
 this.$toast.success('Success!')
 ```
 
 **After:**
+
 ```ts
 const toast = useToast()
 toast.add({
@@ -202,6 +231,7 @@ toast.add({
 ## Package.json Changes
 
 ### Dependencies Added:
+
 - `@nuxt/icon` - Icon management
 - `@pinia-plugin-persistedstate/nuxt` - State persistence
 - `@pinia/nuxt` - Pinia integration
@@ -211,6 +241,7 @@ toast.add({
 - `primevue` - UI component library
 
 ### Dependencies Removed:
+
 - `@nuxtjs/auth-next` - Replaced with custom auth
 - `@nuxtjs/axios` - Using native `useFetch`
 - `@nuxtjs/toast` - Using PrimeVue Toast
@@ -221,19 +252,23 @@ toast.add({
 - `webpack` - Using Vite
 
 ### Dev Dependencies Changes:
+
 - Added `@nuxt/eslint`, `@nuxt/test-utils`, `vitest`, `@vitest/ui`
 - Added `happy-dom` for test environment
 - Removed `jest`, `vue-jest`, `babel-jest`
 
 ## Environment Variables
+
 Update your `.env` file:
 
 **Before:**
+
 ```
 ApiUrl=http://localhost:5000
 ```
 
 **After:**
+
 ```
 NUXT_PUBLIC_API_URL=http://localhost:5000
 ```
@@ -241,22 +276,26 @@ NUXT_PUBLIC_API_URL=http://localhost:5000
 ## Running the Application
 
 ### Development:
+
 ```bash
 npm run dev
 ```
 
 ### Build for Production:
+
 ```bash
 npm run build
 npm run preview
 ```
 
 ### Generate Static Site:
+
 ```bash
 npm run generate
 ```
 
 ### Run Tests:
+
 ```bash
 npm run test
 ```
@@ -313,6 +352,7 @@ npm run test
 ## Support
 
 For issues or questions about this migration:
+
 - Review Nuxt 3 docs: https://nuxt.com/docs
 - PrimeVue docs: https://primevue.org
 - Pinia docs: https://pinia.vuejs.org

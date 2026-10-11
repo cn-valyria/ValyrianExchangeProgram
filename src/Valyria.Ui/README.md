@@ -14,6 +14,7 @@ A modern Nuxt 3 application for managing the Valyrian Exchange Program, built wi
 ## Design System
 
 This application uses **Nuxt UI**, a modern component library built on:
+
 - **Tailwind CSS** for utility-first styling
 - **Headless UI** for accessible components
 - **Heroicons** for beautiful icons
@@ -23,17 +24,21 @@ This application uses **Nuxt UI**, a modern component library built on:
 ## Getting Started
 
 ### Install Dependencies
+
 ```bash
 npm install --legacy-peer-deps
 ```
 
 ### Environment Variables
+
 Create a `.env` file:
+
 ```env
 NUXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 ### Run Development Server
+
 ```bash
 npm run dev
 ```
@@ -65,6 +70,7 @@ Tests marked `it.skip('BUG: ...')` describe known bugs. Remove the `.skip` once 
 ## Project Status
 
 ### ✅ Completed
+
 - Nuxt 2 → Nuxt 3 migration
 - Vuex → Pinia migration
 - Buefy/PrimeVue → Nuxt UI redesign
@@ -75,6 +81,7 @@ Tests marked `it.skip('BUG: ...')` describe known bugs. Remove the `.skip` once 
 - Authentication system with custom middleware
 
 ### 🔄 In Progress
+
 - 5 admin pages need Bulma → Tailwind conversion
 - See `REDESIGN_STATUS.md` for detailed status
 

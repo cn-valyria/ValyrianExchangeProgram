@@ -1,14 +1,30 @@
 <template>
-  <UCard v-if="actions.length > 0" :ui="{ root: flaggedCount > 0 ? 'ring-2 ring-red-500/60' : 'ring-2 ring-amber-500/50' }">
+  <UCard
+    v-if="actions.length > 0"
+    :ui="{
+      root:
+        flaggedCount > 0
+          ? 'ring-2 ring-red-500/60'
+          : 'ring-2 ring-amber-500/50',
+    }"
+  >
     <template #header>
       <div class="flex items-center justify-between gap-4">
         <div>
-          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Action Needed Today</h2>
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+            Action Needed Today
+          </h2>
           <p class="text-sm text-gray-600 dark:text-gray-400">
-            Based on today's CN data. Deals not listed here don't need anything from you today.
+            Based on today's CN data. Deals not listed here don't need anything
+            from you today.
           </p>
         </div>
-        <UBadge :color="flaggedCount > 0 ? 'error' : 'warning'" size="lg" variant="subtle" class="shrink-0">
+        <UBadge
+          :color="flaggedCount > 0 ? 'error' : 'warning'"
+          size="lg"
+          variant="subtle"
+          class="shrink-0"
+        >
           {{ actions.length }} {{ actions.length === 1 ? 'deal' : 'deals' }}
         </UBadge>
       </div>
@@ -45,25 +61,46 @@
                   :href="getNationLink(action.deal.partnerSlot.account)"
                   target="_blank"
                   class="text-fg-brand hover:underline"
-                >{{ action.deal.partnerSlot.account.rulerName }} of {{ action.deal.partnerSlot.account.nationName }}</a>
+                  >{{ action.deal.partnerSlot.account.rulerName }} of
+                  {{ action.deal.partnerSlot.account.nationName }}</a
+                >
               </span>
-              <ChipAllianceAcronym :alliance-name="action.deal.partnerSlot.account.allianceName" />
-              <UBadge v-if="action.flagged" color="error" variant="solid" size="sm" icon="i-heroicons-flag">
+              <ChipAllianceAcronym
+                :alliance-name="action.deal.partnerSlot.account.allianceName"
+              />
+              <UBadge
+                v-if="action.flagged"
+                color="error"
+                variant="solid"
+                size="sm"
+                icon="i-heroicons-flag"
+              >
                 Flagged
               </UBadge>
             </div>
-            <p class="text-sm" :class="action.flagged ? 'text-red-700 dark:text-red-300 font-medium' : 'text-gray-600 dark:text-gray-400'">
+            <p
+              class="text-sm"
+              :class="
+                action.flagged
+                  ? 'text-red-700 dark:text-red-300 font-medium'
+                  : 'text-gray-600 dark:text-gray-400'
+              "
+            >
               {{ action.detail }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-500">
               Slot #{{ action.deal.mySlot.slotNumber }}
-              <template v-if="action.deal.partnerDiscord"> · Discord: {{ action.deal.partnerDiscord }}</template>
+              <template v-if="action.deal.partnerDiscord">
+                · Discord: {{ action.deal.partnerDiscord }}</template
+              >
             </p>
           </div>
 
           <UButton
             v-if="action.kind === 'send'"
-            :to="getAidFormLink(action.deal.partnerSlot.account, props.myNationId)"
+            :to="
+              getAidFormLink(action.deal.partnerSlot.account, props.myNationId)
+            "
             target="_blank"
             :color="action.flagged ? 'error' : 'primary'"
             icon="i-heroicons-paper-airplane"
@@ -86,7 +123,14 @@
 </template>
 
 <script setup lang="ts">
-import { AID_INFORMATION_LINK, getAidFormLink, getDealActions, getNationLink, type DealAction, type DealActionKind } from '~/infrastructure/deals'
+import {
+  AID_INFORMATION_LINK,
+  getAidFormLink,
+  getDealActions,
+  getNationLink,
+  type DealAction,
+  type DealActionKind,
+} from '~/infrastructure/deals'
 import type { DealDetail } from '~/stores/account'
 
 interface Props {
@@ -96,7 +140,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   deals: () => [],
-  myNationId: 0
+  myNationId: 0,
 })
 
 const ACTION_ICONS: Record<DealActionKind, string> = {
@@ -104,16 +148,20 @@ const ACTION_ICONS: Record<DealActionKind, string> = {
   accept: 'i-heroicons-inbox-arrow-down',
   receive: 'i-heroicons-arrow-down-tray',
   freeSlot: 'i-heroicons-no-symbol',
-  outOfTurn: 'i-heroicons-arrows-right-left'
+  outOfTurn: 'i-heroicons-arrows-right-left',
 }
 
 const actions = computed(() => getDealActions(props.deals))
 
-const flaggedCount = computed(() => actions.value.filter((action) => action.flagged).length)
+const flaggedCount = computed(
+  () => actions.value.filter((action) => action.flagged).length,
+)
 
 const iconClass = (action: DealAction): string => {
-  if (action.flagged) return 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
-  if (action.kind === 'receive') return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
+  if (action.flagged)
+    return 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+  if (action.kind === 'receive')
+    return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
   return 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300'
 }
 </script>

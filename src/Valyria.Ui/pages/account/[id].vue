@@ -1,18 +1,27 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Loading Overlay -->
-    <div v-if="loading" class="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-primary-500 animate-spin" />
+    <div
+      v-if="loading"
+      class="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center"
+    >
+      <UIcon
+        name="i-heroicons-arrow-path"
+        class="w-12 h-12 text-primary-500 animate-spin"
+      />
     </div>
 
     <!-- Header Section -->
-    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+    <div
+      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+    >
       <UContainer class="py-6">
         <div class="flex flex-col gap-6">
           <!-- Top Section: Account Info (Centered) -->
           <div class="flex flex-col items-center text-center space-y-3">
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-              <span class="font-extrabold">{{ account.rulerName }}</span> of {{ account.nationName }}
+              <span class="font-extrabold">{{ account.rulerName }}</span> of
+              {{ account.nationName }}
             </h1>
             <div class="flex flex-wrap gap-2 justify-center">
               <ChipAccountRole :code="account.role" />
@@ -32,8 +41,13 @@
             </div>
 
             <!-- Right: Deal Health -->
-            <div class="flex justify-center lg:justify-start lg:pl-4 lg:border-l border-gray-200 dark:border-gray-700">
-              <AccountDealHealth :deals="dealsSummary.activeDeals" :notifications="dealsSummary.notifications" />
+            <div
+              class="flex justify-center lg:justify-start lg:pl-4 lg:border-l border-gray-200 dark:border-gray-700"
+            >
+              <AccountDealHealth
+                :deals="dealsSummary.activeDeals"
+                :notifications="dealsSummary.notifications"
+              />
             </div>
           </div>
         </div>
@@ -44,7 +58,10 @@
     <UContainer class="py-8">
       <div class="space-y-6">
         <!-- Action Needed Card: only shows when a deal needs something from this account today -->
-        <AccountActionNeeded :deals="dealsSummary.activeDeals" :my-nation-id="account.nationId" />
+        <AccountActionNeeded
+          :deals="dealsSummary.activeDeals"
+          :my-nation-id="account.nationId"
+        />
 
         <!-- Active Deals Card -->
         <AccountActiveDeals
@@ -92,8 +109,9 @@ onMounted(async () => {
     toast.add({
       color: 'error',
       title: 'Access Denied',
-      description: "You're not logged into the account that you tried to access.",
-      duration: 5000
+      description:
+        "You're not logged into the account that you tried to access.",
+      duration: 5000,
     })
     await router.push('/')
     return
@@ -103,7 +121,7 @@ onMounted(async () => {
     await Promise.all([
       accountStore.loadAccount(accountId.value),
       accountStore.loadDealsSummary(accountId.value),
-      accountStore.loadDealHistory(accountId.value)
+      accountStore.loadDealHistory(accountId.value),
     ])
   } catch (error) {
     console.error('Failed to load account data:', error)
@@ -111,7 +129,7 @@ onMounted(async () => {
       color: 'error',
       title: 'Error',
       description: 'Failed to load account data. Please try again.',
-      duration: 5000
+      duration: 5000,
     })
   } finally {
     loading.value = false

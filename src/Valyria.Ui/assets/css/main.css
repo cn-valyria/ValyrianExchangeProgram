@@ -1,6 +1,6 @@
 /* Tailwind CSS v4 imports (Nuxt UI v3 includes Tailwind CSS v4) */
-@import "tailwindcss";
-@import "@nuxt/ui";
+@import 'tailwindcss';
+@import '@nuxt/ui';
 
 /* Custom styles for Valyrian Exchange Program */
 

@@ -1,10 +1,16 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+  <div
+    class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8"
+  >
     <div class="max-w-md w-full space-y-8">
       <!-- Logo and Header -->
       <div class="text-center">
         <NuxtLink to="/">
-          <img src="~/assets/img/logo.png" class="h-16 mx-auto" alt="VEP Logo" />
+          <img
+            src="~/assets/img/logo.png"
+            class="h-16 mx-auto"
+            alt="VEP Logo"
+          />
         </NuxtLink>
         <h2 class="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
           VEP Login Portal
@@ -16,7 +22,12 @@
 
       <!-- Login Form -->
       <UCard class="mt-8">
-        <UForm :schema="schema" :state="state" class="space-y-6" @submit="onSubmit">
+        <UForm
+          :schema="schema"
+          :state="state"
+          class="space-y-6"
+          @submit="onSubmit"
+        >
           <!-- Username field (for password managers) -->
           <!-- This field will accept either Nation ID or Ruler Name -->
           <UFormField label="Nation ID or Ruler Name" name="username" required>
@@ -45,11 +56,20 @@
 
           <!-- Helper text -->
           <div class="text-sm text-gray-500 dark:text-gray-400">
-            <p>You can use either your <strong>Nation ID</strong> (numeric) or your <strong>Ruler Name</strong> to log in.</p>
+            <p>
+              You can use either your <strong>Nation ID</strong> (numeric) or
+              your <strong>Ruler Name</strong> to log in.
+            </p>
           </div>
 
           <!-- Submit Button -->
-          <UButton type="submit" color="primary" block size="lg" :loading="isLoading">
+          <UButton
+            type="submit"
+            color="primary"
+            block
+            size="lg"
+            :loading="isLoading"
+          >
             Log In
           </UButton>
         </UForm>
@@ -57,7 +77,10 @@
 
       <!-- Back to Home Link -->
       <div class="text-center">
-        <NuxtLink to="/" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+        <NuxtLink
+          to="/"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+        >
           Back to Home
         </NuxtLink>
       </div>
@@ -69,7 +92,7 @@
 import { z } from 'zod'
 
 definePageMeta({
-  layout: 'full-screen'
+  layout: 'full-screen',
 })
 
 const authStore = useAuthStore()
@@ -81,13 +104,13 @@ const isLoading = ref(false)
 // Define the form state with a single username field
 const state = reactive({
   username: '',
-  uniqueCode: ''
+  uniqueCode: '',
 })
 
 // Define the Zod schema
 const schema = z.object({
   username: z.string().min(1, 'Nation ID or Ruler Name is required'),
-  uniqueCode: z.string().min(1, 'Unique Code is required')
+  uniqueCode: z.string().min(1, 'Unique Code is required'),
 })
 
 onMounted(() => {
@@ -105,7 +128,7 @@ onMounted(() => {
     toast.add({
       title: 'Logout Successful',
       description: "You've successfully signed out of your VEP account.",
-      color: 'success'
+      color: 'success',
     })
   }
 })
@@ -126,18 +149,19 @@ async function onSubmit() {
     toast.add({
       title: 'Login Successful',
       description: 'Welcome back!',
-      color: 'success'
+      color: 'success',
     })
 
     // Redirect to home or intended page
-    const redirectTo = router.currentRoute.value.query.redirect as string || '/'
+    const redirectTo =
+      (router.currentRoute.value.query.redirect as string) || '/'
     router.push(redirectTo)
   } catch (error) {
     console.error('Login failed:', error)
     toast.add({
       title: 'Login Failed',
       description: 'Invalid credentials. Please try again.',
-      color: 'error'
+      color: 'error',
     })
   } finally {
     isLoading.value = false

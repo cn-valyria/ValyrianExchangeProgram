@@ -15,7 +15,14 @@
       </UBadge>
     </div>
 
-    <UProgress v-if="!isOnHold" :model-value="slotsUsed" :max="Math.max(slotsTotal, 1)" :color="badgeColor" size="sm" class="w-40" />
+    <UProgress
+      v-if="!isOnHold"
+      :model-value="slotsUsed"
+      :max="Math.max(slotsTotal, 1)"
+      :color="badgeColor"
+      size="sm"
+      class="w-40"
+    />
 
     <!-- Description Row -->
     <div class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
@@ -37,7 +44,9 @@ const props = defineProps<Props>()
 
 const isOnHold = computed(() => props.role === ACCOUNT_ROLE_CODES.onHold)
 
-const slotsOpen = computed(() => Math.max(props.slotsTotal - props.slotsUsed, 0))
+const slotsOpen = computed(() =>
+  Math.max(props.slotsTotal - props.slotsUsed, 0),
+)
 
 const statusLabel = computed(() => {
   if (isOnHold.value) return 'Hold'

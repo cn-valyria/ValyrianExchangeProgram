@@ -1,6 +1,8 @@
 <template>
   <div>
-    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">VEP Accounts</p>
+    <p class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      VEP Accounts
+    </p>
     <div class="h-64">
       <Pie :data="chartData" :options="chartOptions" />
     </div>
@@ -28,17 +30,21 @@ const props = defineProps<Props>()
 
 const chartData = computed(() => {
   return {
-    labels: props.data?.map(x => accountRoles.find(role => role.code === x.role)?.description ?? '') ?? [],
+    labels:
+      props.data?.map(
+        (x) =>
+          accountRoles.find((role) => role.code === x.role)?.description ?? '',
+      ) ?? [],
     datasets: [
       {
-        data: props.data?.map(x => x.totalAccounts) ?? [],
+        data: props.data?.map((x) => x.totalAccounts) ?? [],
         backgroundColor: [
-          'rgba(59, 130, 246, 0.8)',   // blue
-          'rgba(16, 185, 129, 0.8)',   // green
-          'rgba(245, 158, 11, 0.8)',   // amber
-          'rgba(239, 68, 68, 0.8)',    // red
-          'rgba(168, 85, 247, 0.8)',   // purple
-          'rgba(236, 72, 153, 0.8)',   // pink
+          'rgba(59, 130, 246, 0.8)', // blue
+          'rgba(16, 185, 129, 0.8)', // green
+          'rgba(245, 158, 11, 0.8)', // amber
+          'rgba(239, 68, 68, 0.8)', // red
+          'rgba(168, 85, 247, 0.8)', // purple
+          'rgba(236, 72, 153, 0.8)', // pink
         ],
         borderColor: [
           'rgb(59, 130, 246)',

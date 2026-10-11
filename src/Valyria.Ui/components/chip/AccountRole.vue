@@ -1,7 +1,9 @@
 <template>
   <div class="flex gap-1">
     <UBadge :color="codeColor" variant="solid" size="md">{{ code }}</UBadge>
-    <UBadge color="neutral" variant="soft" size="md">{{ roleDescription }}</UBadge>
+    <UBadge color="neutral" variant="soft" size="md">{{
+      roleDescription
+    }}</UBadge>
   </div>
 </template>
 

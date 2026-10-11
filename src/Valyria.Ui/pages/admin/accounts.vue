@@ -3,8 +3,12 @@
     <div class="py-8 space-y-6">
       <!-- Header -->
       <div>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">VEP Accounts</h1>
-        <p class="mt-2 text-gray-600 dark:text-gray-400">Manage accounts enrolled in VEP, or enroll new accounts</p>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+          VEP Accounts
+        </h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">
+          Manage accounts enrolled in VEP, or enroll new accounts
+        </p>
       </div>
 
       <!-- Actions and Table Card -->
@@ -24,7 +28,9 @@
                 @update:model-value="handleToggleChange"
               >
                 <template #label>
-                  <span class="text-sm text-gray-600 dark:text-gray-400">Show On Hold</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-400"
+                    >Show On Hold</span
+                  >
                 </template>
               </USwitch>
               <UButton
@@ -54,7 +60,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
-import { useAdminAccountsStore, type AdminAccount } from '~/stores/adminAccounts'
+import {
+  useAdminAccountsStore,
+  type AdminAccount,
+} from '~/stores/adminAccounts'
 import { useAuthStore } from '~/stores/auth'
 import { accountRoles, getAccountRoleColor } from '~/infrastructure/dataLists'
 import AccountEditDialog from '~/components/admin/AccountEditDialog.vue'
@@ -78,7 +87,11 @@ const roles = accountRoles
 
 // Check if user has read-only access
 const isReadOnly = computed(() => {
-  return loggedInUser.value?.roles?.some((role) => role.name === "Admin (Read-only)") ?? false
+  return (
+    loggedInUser.value?.roles?.some(
+      (role) => role.name === 'Admin (Read-only)',
+    ) ?? false
+  )
 })
 
 // Table columns definition
@@ -89,26 +102,43 @@ const columns: TableColumn<AdminAccount>[] = [
     cell: ({ row }) => {
       const account = row.original
       return h('div', [
-        h('div', { class: 'font-medium text-gray-900 dark:text-white' }, account.rulerName),
-        h('div', { class: 'text-sm text-gray-500 dark:text-gray-400' }, account.nationName)
+        h(
+          'div',
+          { class: 'font-medium text-gray-900 dark:text-white' },
+          account.rulerName,
+        ),
+        h(
+          'div',
+          { class: 'text-sm text-gray-500 dark:text-gray-400' },
+          account.nationName,
+        ),
       ])
-    }
+    },
   },
   {
     accessorKey: 'allianceName',
     header: 'Alliance',
-    cell: ({ row }) => h('span', { class: 'text-gray-900 dark:text-white' }, row.original.allianceName)
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: 'text-gray-900 dark:text-white' },
+        row.original.allianceName,
+      ),
   },
   {
     accessorKey: 'role',
     header: 'Role',
     cell: ({ row }) => {
       const roleCode = row.original.role
-      return h(resolveComponent('UBadge'), {
-        color: getAccountRoleColor(roleCode),
-        variant: 'subtle'
-      }, () => getRoleDescription(roleCode))
-    }
+      return h(
+        resolveComponent('UBadge'),
+        {
+          color: getAccountRoleColor(roleCode),
+          variant: 'subtle',
+        },
+        () => getRoleDescription(roleCode),
+      )
+    },
   },
   {
     accessorKey: 'slotsUsed',
@@ -116,10 +146,14 @@ const columns: TableColumn<AdminAccount>[] = [
     cell: ({ row }) => {
       const account = row.original
       const isFull = account.slotsUsed >= account.slotsTotal
-      return h('span', {
-        class: `font-mono ${isFull ? 'text-gray-900 dark:text-white' : 'text-blue-600 dark:text-blue-400 font-semibold'}`
-      }, `${account.slotsUsed} / ${account.slotsTotal}`)
-    }
+      return h(
+        'span',
+        {
+          class: `font-mono ${isFull ? 'text-gray-900 dark:text-white' : 'text-blue-600 dark:text-blue-400 font-semibold'}`,
+        },
+        `${account.slotsUsed} / ${account.slotsTotal}`,
+      )
+    },
   },
   {
     accessorKey: 'openFlagCount',
@@ -127,9 +161,13 @@ const columns: TableColumn<AdminAccount>[] = [
     cell: ({ row }) => {
       const count = row.original.openFlagCount
       return count > 0
-        ? h(resolveComponent('UBadge'), { color: 'error', variant: 'subtle' }, () => count)
+        ? h(
+            resolveComponent('UBadge'),
+            { color: 'error', variant: 'subtle' },
+            () => count,
+          )
         : h('span', { class: 'text-gray-400 dark:text-gray-500' }, '0')
-    }
+    },
   },
   {
     accessorKey: 'id',
@@ -142,7 +180,7 @@ const columns: TableColumn<AdminAccount>[] = [
           color: 'primary',
           variant: 'soft',
           size: 'xs',
-          onClick: () => editAccount(account)
+          onClick: () => editAccount(account),
         }),
         h(resolveComponent('UButton'), {
           label: 'Delete',
@@ -150,16 +188,16 @@ const columns: TableColumn<AdminAccount>[] = [
           variant: 'soft',
           size: 'xs',
           loading: accountIdBeingDeleted.value === account.id,
-          onClick: () => deleteAccountById(account.id)
-        })
+          onClick: () => deleteAccountById(account.id),
+        }),
       ])
-    }
-  }
+    },
+  },
 ]
 
 // Helper function to get role description
 const getRoleDescription = (roleCode: string): string => {
-  const role = roles.find(r => r.code === roleCode)
+  const role = roles.find((r) => r.code === roleCode)
   return role ? role.description : roleCode
 }
 
@@ -184,7 +222,7 @@ const filteredAccounts = computed(() => {
 const displayColumns = computed(() => {
   if (isReadOnly.value) {
     // Filter out the Actions column (last column with header 'Actions')
-    return columns.filter(col => col.header !== 'Actions')
+    return columns.filter((col) => col.header !== 'Actions')
   }
   return columns
 })
@@ -192,14 +230,14 @@ const displayColumns = computed(() => {
 // Create new account
 const createAccount = (): void => {
   modal.open({
-    account: {} as AdminAccount
+    account: {} as AdminAccount,
   })
 }
 
 // Edit existing account
 const editAccount = (account: AdminAccount): void => {
   modal.open({
-    account: account
+    account: account,
   })
 }
 
@@ -213,15 +251,16 @@ const deleteAccountById = async (accountId: number): Promise<void> => {
       color: 'success',
       title: 'Success',
       description: 'Account deleted successfully.',
-      duration: 3000
+      duration: 3000,
     })
   } catch (error) {
     console.error('Failed to delete account:', error)
     toast.add({
       color: 'error',
       title: 'Error',
-      description: 'VEP encountered an error while deleting the account. Please try again, or contact @lilweirdward if the error persists.',
-      duration: 5000
+      description:
+        'VEP encountered an error while deleting the account. Please try again, or contact @lilweirdward if the error persists.',
+      duration: 5000,
     })
   } finally {
     accountIdBeingDeleted.value = 0
@@ -239,7 +278,7 @@ const handleToggleChange = async (): Promise<void> => {
       color: 'error',
       title: 'Error',
       description: 'Failed to reload accounts. Please try again.',
-      duration: 5000
+      duration: 5000,
     })
   } finally {
     loading.value = false
@@ -258,7 +297,7 @@ onMounted(async () => {
       color: 'error',
       title: 'Error',
       description: 'Failed to load accounts. Please try again.',
-      duration: 5000
+      duration: 5000,
     })
   } finally {
     loading.value = false

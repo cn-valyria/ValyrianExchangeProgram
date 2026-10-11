@@ -7,12 +7,24 @@ import {
   type SlotDetail,
 } from '~/stores/account'
 import type { AdminAccount } from '~/stores/adminAccounts'
-import { DealFlagReason, DealFlagType, type AdminDeal, type DealFlag } from '~/stores/adminDeals'
-import { MassMessageCode, type MassMessage, type MassMessageRecipient } from '~/stores/adminMassMessages'
+import {
+  DealFlagReason,
+  DealFlagType,
+  type AdminDeal,
+  type DealFlag,
+} from '~/stores/adminDeals'
+import {
+  MassMessageCode,
+  type MassMessage,
+  type MassMessageRecipient,
+} from '~/stores/adminMassMessages'
 
 // Builders for the shapes the API returns. Each takes overrides for whatever a test cares about
 
-export const accountSimplified = (id: number, overrides: Partial<AccountSimplified> = {}): AccountSimplified => ({
+export const accountSimplified = (
+  id: number,
+  overrides: Partial<AccountSimplified> = {},
+): AccountSimplified => ({
   accountId: id,
   nationId: 100 + id,
   nationName: `Nation${id}`,
@@ -38,7 +50,9 @@ export const slot = (
 })
 
 // A buyer's deal with a seller: the buyer (me) sends $9M, the seller sends 100 tech
-export const dealDetail = (overrides: Partial<DealDetail> = {}): DealDetail => ({
+export const dealDetail = (
+  overrides: Partial<DealDetail> = {},
+): DealDetail => ({
   id: 1,
   createdOn: '2026-10-01T00:00:00',
   mySlot: slot(1, { cash: 1 }, { techReceivedCycles: 1 }),
@@ -82,7 +96,10 @@ export const account = (overrides: Partial<Account> = {}): Account => ({
   ...overrides,
 })
 
-export const adminAccount = (id: number, overrides: Partial<AdminAccount> = {}): AdminAccount => ({
+export const adminAccount = (
+  id: number,
+  overrides: Partial<AdminAccount> = {},
+): AdminAccount => ({
   id,
   nationId: 100 + id,
   nationName: `Nation${id}`,
@@ -140,7 +157,10 @@ export const dealFlag = (overrides: Partial<DealFlag> = {}): DealFlag => ({
   ...overrides,
 })
 
-export const recipient = (id: number, overrides: Partial<MassMessageRecipient> = {}): MassMessageRecipient => ({
+export const recipient = (
+  id: number,
+  overrides: Partial<MassMessageRecipient> = {},
+): MassMessageRecipient => ({
   accountId: id,
   nationId: 100 + id,
   rulerName: `Ruler${id}`,
@@ -156,7 +176,10 @@ export const recipient = (id: number, overrides: Partial<MassMessageRecipient> =
   ...overrides,
 })
 
-export const massMessage = (id: number, overrides: Partial<MassMessage> = {}): MassMessage => ({
+export const massMessage = (
+  id: number,
+  overrides: Partial<MassMessage> = {},
+): MassMessage => ({
   id,
   code: MassMessageCode.SendAid,
   name: `Message ${id}`,
@@ -171,7 +194,9 @@ export const massMessage = (id: number, overrides: Partial<MassMessage> = {}): M
 
 // What useApiClient's apiFetch resolves to
 export const apiOk = <T>(data: T) => ({ data: ref(data), error: ref(null) })
-export const apiError = (error: Record<string, unknown> = { statusCode: 500, message: 'Server Error' }) => ({
+export const apiError = (
+  error: Record<string, unknown> = { statusCode: 500, message: 'Server Error' },
+) => ({
   data: ref(null),
   error: ref(error),
 })

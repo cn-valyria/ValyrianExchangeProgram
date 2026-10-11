@@ -1,12 +1,18 @@
 <template>
   <UModal :close="{ onClick: () => emit('close', false) }">
-
     <template #header>
-      <h3 class="text-lg font-semibold">{{ props.editingTeamEvent.id ? 'Edit' : 'Add' }} Team Event</h3>
+      <h3 class="text-lg font-semibold">
+        {{ props.editingTeamEvent.id ? 'Edit' : 'Add' }} Team Event
+      </h3>
     </template>
 
     <template #body>
-      <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+      <UForm
+        :schema="schema"
+        :state="state"
+        class="space-y-4"
+        @submit="onSubmit"
+      >
         <UFormField label="Team">
           <USelect
             v-model="state.team"
@@ -24,7 +30,10 @@
         </UFormField>
 
         <UFormField label="Event Name (optional)">
-          <UTextarea v-model="state.eventName" placeholder="Event name or description" />
+          <UTextarea
+            v-model="state.eventName"
+            placeholder="Event name or description"
+          />
         </UFormField>
 
         <!-- Hidden submit button for form submission -->
@@ -35,16 +44,14 @@
     <template #footer>
       <div class="flex justify-end gap-2">
         <UButton label="Cancel" color="neutral" @click="handleClose" />
-        <UButton color="primary" @click="submitForm()">
-          Save
-        </UButton>
+        <UButton color="primary" @click="submitForm()"> Save </UButton>
       </div>
     </template>
   </UModal>
 </template>
 
 <script setup lang="ts">
-import z from 'zod';
+import z from 'zod'
 import type { TeamEvent } from '~/stores/shared/teamEvent'
 
 const toast = useToast()
@@ -54,7 +61,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  editingTeamEvent: () => ({})
+  editingTeamEvent: () => ({}),
 })
 
 const emit = defineEmits<{ close: [boolean] }>()
@@ -67,7 +74,7 @@ const state = reactive<TeamEvent>(props.editingTeamEvent)
 const schema = z.object({
   team: z.string().nullable(),
   eventType: z.string().nullable(),
-  eventName: z.string().nullable().optional()
+  eventName: z.string().nullable().optional(),
 })
 
 // Team options
@@ -84,17 +91,17 @@ const teamOptions = [
   { label: 'Black', value: 'Black' },
   { label: 'Yellow', value: 'Yellow' },
   { label: 'Pink', value: 'Pink' },
-  { label: 'None (Grey)', value: 'None (Grey)' }
+  { label: 'None (Grey)', value: 'None (Grey)' },
 ]
 
 // Event type options
 const eventTypeOptions = [
   { label: '+1 Aid Slot', value: '+1 Aid Slot' },
-  { label: '-1 Aid Slot', value: '-1 Aid Slot' }
+  { label: '-1 Aid Slot', value: '-1 Aid Slot' },
 ]
 
 const handleClose = () => {
-  emit("close", false);
+  emit('close', false)
 }
 
 const submitForm = () => {
@@ -102,7 +109,12 @@ const submitForm = () => {
 }
 
 const onSubmit = async () => {
-  toast.add({ color: 'success', title: 'Success', description: 'Team event saved successfully!', duration: 3000 })
+  toast.add({
+    color: 'success',
+    title: 'Success',
+    description: 'Team event saved successfully!',
+    duration: 3000,
+  })
   handleClose()
 }
 </script>

@@ -1,15 +1,26 @@
 <template>
   <div class="flex gap-1 items-center">
-    <UBadge color="neutral" variant="soft" size="md" class="flex items-center gap-1">
-      <img :src="allianceImage" height="18" width="18" alt="Alliance" class="rounded" />
+    <UBadge
+      color="neutral"
+      variant="soft"
+      size="md"
+      class="flex items-center gap-1"
+    >
+      <img
+        :src="allianceImage"
+        height="18"
+        width="18"
+        alt="Alliance"
+        class="rounded"
+      />
       <span>{{ allianceAcronym }}</span>
     </UBadge>
   </div>
 </template>
 
 <script setup lang="ts">
-import { convertToAllianceAcronym } from '~/infrastructure/converters';
-import { allianceAcronyms } from '~/infrastructure/dataLists';
+import { convertToAllianceAcronym } from '~/infrastructure/converters'
+import { allianceAcronyms } from '~/infrastructure/dataLists'
 
 const props = defineProps<{
   allianceName: string | undefined
@@ -28,6 +39,7 @@ const allianceImage = computed(() => {
     fileName = allianceAcronym.value.toLowerCase()
   }
 
-  return new URL(`../../assets/img/alliance/${fileName}.jpg`, import.meta.url).href
+  return new URL(`../../assets/img/alliance/${fileName}.jpg`, import.meta.url)
+    .href
 })
 </script>

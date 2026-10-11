@@ -49,15 +49,20 @@ export const useAdminAidActivityStore = defineStore('adminAidActivity', {
 
       const params = new URLSearchParams()
       if (this.filters.search) params.append('search', this.filters.search)
-      if (this.filters.search && this.filters.direction) params.append('direction', this.filters.direction)
-      if (this.filters.sentSince) params.append('sentSince', toDateParam(this.filters.sentSince))
-      if (this.filters.sentUntil) params.append('sentUntil', toDateParam(this.filters.sentUntil))
+      if (this.filters.search && this.filters.direction)
+        params.append('direction', this.filters.direction)
+      if (this.filters.sentSince)
+        params.append('sentSince', toDateParam(this.filters.sentSince))
+      if (this.filters.sentUntil)
+        params.append('sentUntil', toDateParam(this.filters.sentUntil))
       params.append('includeOnHold', this.includeOnHold.toString())
       params.append('unmatchedOnly', this.unmatchedOnly.toString())
       params.append('limit', limit.toString())
       params.append('offset', offset.toString())
 
-      const { data, error } = await apiFetch<AidActivityPage>(`/api/deals/admin/aid-activity?${params.toString()}`)
+      const { data, error } = await apiFetch<AidActivityPage>(
+        `/api/deals/admin/aid-activity?${params.toString()}`,
+      )
 
       if (error.value) {
         console.error('Failed to load aid activity:', error.value)

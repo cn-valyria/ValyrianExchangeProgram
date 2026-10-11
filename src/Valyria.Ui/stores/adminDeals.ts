@@ -1,5 +1,10 @@
 import { defineStore } from 'pinia'
-import type { AccountSimplified, DealActivityState, DealBlockedReason, SlotDetail } from './account'
+import type {
+  AccountSimplified,
+  DealActivityState,
+  DealBlockedReason,
+  SlotDetail,
+} from './account'
 
 export interface AdminDeal {
   id: number
@@ -97,7 +102,9 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     async loadWaitQueue() {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<WaitQueueEntry[]>('/api/deals/admin/wait-queue')
+      const { data, error } = await apiFetch<WaitQueueEntry[]>(
+        '/api/deals/admin/wait-queue',
+      )
 
       if (error.value) {
         console.error('Failed to load wait queue:', error.value)
@@ -112,7 +119,9 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     async loadFlags() {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<DealFlag[]>('/api/deals/admin/flagged')
+      const { data, error } = await apiFetch<DealFlag[]>(
+        '/api/deals/admin/flagged',
+      )
 
       if (error.value) {
         console.error('Failed to load flagged deals:', error.value)
@@ -155,10 +164,13 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     async resolveFlag(flagId: number, adminNotes: string) {
       const { apiFetch } = useApiClient()
 
-      const { error } = await apiFetch<null>(`/api/deals/admin/flags/${flagId}/resolve`, {
-        method: 'PUT',
-        body: { adminNotes },
-      })
+      const { error } = await apiFetch<null>(
+        `/api/deals/admin/flags/${flagId}/resolve`,
+        {
+          method: 'PUT',
+          body: { adminNotes },
+        },
+      )
 
       if (error.value) {
         console.error('Failed to resolve flag:', error.value)
@@ -171,7 +183,9 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     async loadAvailableSlots(accountId: number): Promise<SlotDetail[]> {
       const { apiFetch } = useApiClient()
 
-      const { data, error } = await apiFetch<SlotDetail[]>(`/api/slots/available/${accountId}`)
+      const { data, error } = await apiFetch<SlotDetail[]>(
+        `/api/slots/available/${accountId}`,
+      )
 
       if (error.value) {
         console.error('Failed to load available slots:', error.value)

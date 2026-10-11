@@ -79,13 +79,20 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async login(credentials: { nationId?: string; rulerName?: string; uniqueCode: string }) {
+    async login(credentials: {
+      nationId?: string
+      rulerName?: string
+      uniqueCode: string
+    }) {
       const config = useRuntimeConfig()
       // Login doesn't use the API client to avoid circular dependency
-      const { data, error } = await useFetch<TokenResponse>(`${config.public.apiUrl}/api/user/authenticate`, {
-        method: 'POST',
-        body: credentials,
-      })
+      const { data, error } = await useFetch<TokenResponse>(
+        `${config.public.apiUrl}/api/user/authenticate`,
+        {
+          method: 'POST',
+          body: credentials,
+        },
+      )
 
       if (error.value) {
         throw new Error(error.value.message || 'Authentication failed')
@@ -125,12 +132,15 @@ export const useAuthStore = defineStore('auth', {
 
       const config = useRuntimeConfig()
       // Refresh doesn't use the API client to avoid circular dependency
-      const { data, error } = await useFetch<TokenResponse>(`${config.public.apiUrl}/api/user/refresh`, {
-        method: 'POST',
-        body: {
-          refresh_token: this.refreshToken,
+      const { data, error } = await useFetch<TokenResponse>(
+        `${config.public.apiUrl}/api/user/refresh`,
+        {
+          method: 'POST',
+          body: {
+            refresh_token: this.refreshToken,
+          },
         },
-      })
+      )
 
       if (error.value) {
         console.error('Token refresh failed:', error.value)

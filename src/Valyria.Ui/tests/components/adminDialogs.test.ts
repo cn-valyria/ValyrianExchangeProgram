@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { CalendarDate } from '@internationalized/date'
-import { UCalendar, UInputMenu, UInputNumber, URadioGroup, USelect, USelectMenu } from '#components'
+import {
+  UCalendar,
+  UInputMenu,
+  UInputNumber,
+  URadioGroup,
+  USelect,
+  USelectMenu,
+} from '#components'
 import AccountEditDialog from '~/components/admin/AccountEditDialog.vue'
 import AccountSlotsEditor from '~/components/admin/AccountSlotsEditor.vue'
 import AdminAccessSettingsDialog from '~/components/admin/AdminAccessSettingsDialog.vue'
@@ -12,8 +19,24 @@ import CancelDealDialog from '~/components/admin/CancelDealDialog.vue'
 import CreateDealDialog from '~/components/admin/CreateDealDialog.vue'
 import DealSlotPicker from '~/components/admin/DealSlotPicker.vue'
 import ResolveFlagDialog from '~/components/admin/ResolveFlagDialog.vue'
-import { adminAccount, adminDeal, apiError, apiOk, dealFlag, slot } from '../helpers/fixtures'
-import { bodyText, button, buttons, click, inputByPlaceholder, mountInApp, toasts, type } from '../helpers/dom'
+import {
+  adminAccount,
+  adminDeal,
+  apiError,
+  apiOk,
+  dealFlag,
+  slot,
+} from '../helpers/fixtures'
+import {
+  bodyText,
+  button,
+  buttons,
+  click,
+  inputByPlaceholder,
+  mountInApp,
+  toasts,
+  type,
+} from '../helpers/dom'
 
 // Only AccountEditDialog calls the API directly; everything else goes through stores, which are spied on
 const { apiFetch } = vi.hoisted(() => ({ apiFetch: vi.fn() }))
@@ -25,29 +48,48 @@ beforeEach(() => {
 })
 
 // Dialogs are opened through useOverlay in the app; open: true renders them the same way
-const openDialog = (component: Parameters<typeof mountInApp>[0], props: Record<string, unknown> = {}) => {
+const openDialog = (
+  component: Parameters<typeof mountInApp>[0],
+  props: Record<string, unknown> = {},
+) => {
   const onClose = vi.fn()
-  return mountInApp(component, { open: true, onClose, ...props }).then((wrapper) => ({ wrapper, onClose }))
+  return mountInApp(component, { open: true, onClose, ...props }).then(
+    (wrapper) => ({ wrapper, onClose }),
+  )
 }
 
 describe('CancelDealDialog', () => {
   it('requires a reason, then cancels the deal with it', async () => {
-    const cancelDeal = vi.spyOn(useAdminDealsStore(), 'cancelDeal').mockResolvedValue()
-    const { onClose } = await openDialog(CancelDealDialog, { deal: adminDeal({ id: 10 }) })
+    const cancelDeal = vi
+      .spyOn(useAdminDealsStore(), 'cancelDeal')
+      .mockResolvedValue()
+    const { onClose } = await openDialog(CancelDealDialog, {
+      deal: adminDeal({ id: 10 }),
+    })
 
     expect(bodyText()).toContain('This ends the deal between Ruler1 and Ruler2')
     expect(button('Cancel Deal').disabled).toBe(true)
-    await type(inputByPlaceholder('Why is this deal being cancelled?'), '  Partner left VEP  ')
+    await type(
+      inputByPlaceholder('Why is this deal being cancelled?'),
+      '  Partner left VEP  ',
+    )
     await click(button('Cancel Deal'))
 
     expect(cancelDeal).toHaveBeenCalledWith(10, 'Partner left VEP')
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Deal #10 cancelled.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Deal #10 cancelled.',
+    })
     expect(onClose).toHaveBeenCalledWith(true)
   })
 
   it('stays open with an error when cancelling fails', async () => {
-    vi.spyOn(useAdminDealsStore(), 'cancelDeal').mockRejectedValue(new Error('down'))
-    const { onClose } = await openDialog(CancelDealDialog, { deal: adminDeal() })
+    vi.spyOn(useAdminDealsStore(), 'cancelDeal').mockRejectedValue(
+      new Error('down'),
+    )
+    const { onClose } = await openDialog(CancelDealDialog, {
+      deal: adminDeal(),
+    })
 
     await type(inputByPlaceholder('Why is this deal being cancelled?'), 'x')
     await click(button('Cancel Deal'))
@@ -58,7 +100,9 @@ describe('CancelDealDialog', () => {
 
   it('closes without changes from Keep Deal', async () => {
     const cancelDeal = vi.spyOn(useAdminDealsStore(), 'cancelDeal')
-    const { onClose } = await openDialog(CancelDealDialog, { deal: adminDeal() })
+    const { onClose } = await openDialog(CancelDealDialog, {
+      deal: adminDeal(),
+    })
 
     await click(button('Keep Deal'))
 
@@ -69,21 +113,35 @@ describe('CancelDealDialog', () => {
 
 describe('ResolveFlagDialog', () => {
   it('resolves the flag with the notes', async () => {
-    const resolveFlag = vi.spyOn(useAdminDealsStore(), 'resolveFlag').mockResolvedValue()
-    const { onClose } = await openDialog(ResolveFlagDialog, { flag: dealFlag({ id: 5, dealId: 10 }) })
+    const resolveFlag = vi
+      .spyOn(useAdminDealsStore(), 'resolveFlag')
+      .mockResolvedValue()
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: dealFlag({ id: 5, dealId: 10 }),
+    })
 
     expect(bodyText()).toContain('Resolve Flag on Deal #10')
-    await type(inputByPlaceholder('Optional notes on how this was resolved'), ' Partner was on vacation ')
+    await type(
+      inputByPlaceholder('Optional notes on how this was resolved'),
+      ' Partner was on vacation ',
+    )
     await click(button('Resolve'))
 
     expect(resolveFlag).toHaveBeenCalledWith(5, 'Partner was on vacation')
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Flag resolved.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Flag resolved.',
+    })
     expect(onClose).toHaveBeenCalledWith(true)
   })
 
   it('stays open with an error when resolving fails', async () => {
-    vi.spyOn(useAdminDealsStore(), 'resolveFlag').mockRejectedValue(new Error('down'))
-    const { onClose } = await openDialog(ResolveFlagDialog, { flag: dealFlag() })
+    vi.spyOn(useAdminDealsStore(), 'resolveFlag').mockRejectedValue(
+      new Error('down'),
+    )
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: dealFlag(),
+    })
 
     await click(button('Resolve'))
 
@@ -92,7 +150,9 @@ describe('ResolveFlagDialog', () => {
   })
 
   it('closes without changes from Cancel', async () => {
-    const { onClose } = await openDialog(ResolveFlagDialog, { flag: dealFlag() })
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: dealFlag(),
+    })
 
     await click(button('Cancel'))
 
@@ -101,34 +161,63 @@ describe('ResolveFlagDialog', () => {
 })
 
 describe('DealSlotPicker', () => {
-  const accounts = [adminAccount(1), adminAccount(2, { rulerName: 'Sue', nationName: 'Sellland' })]
+  const accounts = [
+    adminAccount(1),
+    adminAccount(2, { rulerName: 'Sue', nationName: 'Sellland' }),
+  ]
 
   it("loads the chosen account's open slots, and picks one with its account attached", async () => {
-    const loadSlots = vi.spyOn(useAdminDealsStore(), 'loadAvailableSlots')
-      .mockResolvedValue([slot(7, { tech: 1 }, { slotNumber: 3, cashReceivedCycles: 1, account: undefined as never })])
+    const loadSlots = vi
+      .spyOn(useAdminDealsStore(), 'loadAvailableSlots')
+      .mockResolvedValue([
+        slot(
+          7,
+          { tech: 1 },
+          { slotNumber: 3, cashReceivedCycles: 1, account: undefined as never },
+        ),
+      ])
     const onUpdate = vi.fn()
-    const wrapper = await mountInApp(DealSlotPicker, { label: 'First Account', accounts, 'onUpdate:modelValue': onUpdate })
+    const wrapper = await mountInApp(DealSlotPicker, {
+      label: 'First Account',
+      accounts,
+      'onUpdate:modelValue': onUpdate,
+    })
 
     const accountSelect = wrapper.findComponent(USelectMenu)
-    expect((accountSelect.props('items') as { label: string }[]).map((i) => i.label)).toEqual(['Ruler1 of Nation1', 'Sue of Sellland'])
+    expect(
+      (accountSelect.props('items') as { label: string }[]).map((i) => i.label),
+    ).toEqual(['Ruler1 of Nation1', 'Sue of Sellland'])
     accountSelect.vm.$emit('update:modelValue', 2)
     await flushPromises()
 
     expect(loadSlots).toHaveBeenCalledWith(2)
     const slotSelect = wrapper.findAllComponents(USelectMenu)[1]
-    expect((slotSelect.props('items') as { label: string }[])[0].label).toBe('Slot #3: sends 100 tech, receives $9M')
+    expect((slotSelect.props('items') as { label: string }[])[0].label).toBe(
+      'Slot #3: sends 100 tech, receives $9M',
+    )
     slotSelect.vm.$emit('update:modelValue', 7)
     await flushPromises()
 
-    expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({
-      id: 7,
-      account: { accountId: 2, nationId: 102, nationName: 'Sellland', rulerName: 'Sue', allianceName: 'Valyria' },
-    }))
+    expect(onUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: 7,
+        account: {
+          accountId: 2,
+          nationId: 102,
+          nationName: 'Sellland',
+          rulerName: 'Sue',
+          allianceName: 'Valyria',
+        },
+      }),
+    )
   })
 
   it('says when the account has no open slots', async () => {
     vi.spyOn(useAdminDealsStore(), 'loadAvailableSlots').mockResolvedValue([])
-    const wrapper = await mountInApp(DealSlotPicker, { label: 'First Account', accounts })
+    const wrapper = await mountInApp(DealSlotPicker, {
+      label: 'First Account',
+      accounts,
+    })
 
     wrapper.findComponent(USelectMenu).vm.$emit('update:modelValue', 1)
     await flushPromises()
@@ -137,19 +226,33 @@ describe('DealSlotPicker', () => {
   })
 
   it("shows an error when the slots can't be loaded", async () => {
-    vi.spyOn(useAdminDealsStore(), 'loadAvailableSlots').mockRejectedValue(new Error('down'))
-    const wrapper = await mountInApp(DealSlotPicker, { label: 'First Account', accounts })
+    vi.spyOn(useAdminDealsStore(), 'loadAvailableSlots').mockRejectedValue(
+      new Error('down'),
+    )
+    const wrapper = await mountInApp(DealSlotPicker, {
+      label: 'First Account',
+      accounts,
+    })
 
     wrapper.findComponent(USelectMenu).vm.$emit('update:modelValue', 1)
     await flushPromises()
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load open slots for that account.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load open slots for that account.',
+    })
   })
 
   it('clears the slot when the account is cleared', async () => {
-    const loadSlots = vi.spyOn(useAdminDealsStore(), 'loadAvailableSlots').mockResolvedValue([slot(7)])
+    const loadSlots = vi
+      .spyOn(useAdminDealsStore(), 'loadAvailableSlots')
+      .mockResolvedValue([slot(7)])
     const onUpdate = vi.fn()
-    const wrapper = await mountInApp(DealSlotPicker, { label: 'First Account', accounts, 'onUpdate:modelValue': onUpdate })
+    const wrapper = await mountInApp(DealSlotPicker, {
+      label: 'First Account',
+      accounts,
+      'onUpdate:modelValue': onUpdate,
+    })
     wrapper.findComponent(USelectMenu).vm.$emit('update:modelValue', 1)
     await flushPromises()
     wrapper.findAllComponents(USelectMenu)[1].vm.$emit('update:modelValue', 7)
@@ -164,10 +267,40 @@ describe('DealSlotPicker', () => {
 })
 
 describe('CreateDealDialog', () => {
-  const buyerSlot = slot(1, { cash: 1 }, { techReceivedCycles: 1, account: { accountId: 1, nationId: 101, nationName: 'Buyland', rulerName: 'Bob', allianceName: 'V' } })
-  const sellerSlot = slot(2, { tech: 1 }, { cashReceivedCycles: 1, account: { accountId: 2, nationId: 102, nationName: 'Sellland', rulerName: 'Sue', allianceName: 'V' } })
+  const buyerSlot = slot(
+    1,
+    { cash: 1 },
+    {
+      techReceivedCycles: 1,
+      account: {
+        accountId: 1,
+        nationId: 101,
+        nationName: 'Buyland',
+        rulerName: 'Bob',
+        allianceName: 'V',
+      },
+    },
+  )
+  const sellerSlot = slot(
+    2,
+    { tech: 1 },
+    {
+      cashReceivedCycles: 1,
+      account: {
+        accountId: 2,
+        nationId: 102,
+        nationName: 'Sellland',
+        rulerName: 'Sue',
+        allianceName: 'V',
+      },
+    },
+  )
 
-  const pick = async (wrapper: Awaited<ReturnType<typeof mountInApp>>, first: unknown, second: unknown) => {
+  const pick = async (
+    wrapper: Awaited<ReturnType<typeof mountInApp>>,
+    first: unknown,
+    second: unknown,
+  ) => {
     const pickers = wrapper.findAllComponents(DealSlotPicker)
     pickers[0].vm.$emit('update:modelValue', first)
     pickers[1].vm.$emit('update:modelValue', second)
@@ -175,8 +308,12 @@ describe('CreateDealDialog', () => {
   }
 
   it('creates a deal between two matching slots', async () => {
-    const createDeal = vi.spyOn(useAdminDealsStore(), 'createDeal').mockResolvedValue()
-    const { wrapper, onClose } = await openDialog(CreateDealDialog, { accounts: [adminAccount(1), adminAccount(2)] })
+    const createDeal = vi
+      .spyOn(useAdminDealsStore(), 'createDeal')
+      .mockResolvedValue()
+    const { wrapper, onClose } = await openDialog(CreateDealDialog, {
+      accounts: [adminAccount(1), adminAccount(2)],
+    })
     expect(button('Create Deal').disabled).toBe(true)
 
     await pick(wrapper, buyerSlot, sellerSlot)
@@ -184,7 +321,10 @@ describe('CreateDealDialog', () => {
     expect(bodyText()).toContain('Bob sends $9M; Sue sends 100 tech')
     await click(button('Create Deal'))
     expect(createDeal).toHaveBeenCalledWith(1, 2)
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Deal created.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Deal created.',
+    })
     expect(onClose).toHaveBeenCalledWith(true)
   })
 
@@ -200,15 +340,22 @@ describe('CreateDealDialog', () => {
   it('refuses a deal between two slots of the same account', async () => {
     const { wrapper } = await openDialog(CreateDealDialog, { accounts: [] })
 
-    await pick(wrapper, buyerSlot, { ...sellerSlot, account: buyerSlot.account })
+    await pick(wrapper, buyerSlot, {
+      ...sellerSlot,
+      account: buyerSlot.account,
+    })
 
     expect(bodyText()).toContain('Both slots belong to the same account')
     expect(button('Create Deal').disabled).toBe(true)
   })
 
   it('stays open with an error when creating fails', async () => {
-    vi.spyOn(useAdminDealsStore(), 'createDeal').mockRejectedValue(new Error('duplicate'))
-    const { wrapper, onClose } = await openDialog(CreateDealDialog, { accounts: [] })
+    vi.spyOn(useAdminDealsStore(), 'createDeal').mockRejectedValue(
+      new Error('duplicate'),
+    )
+    const { wrapper, onClose } = await openDialog(CreateDealDialog, {
+      accounts: [],
+    })
     await pick(wrapper, buyerSlot, sellerSlot)
 
     await click(button('Create Deal'))
@@ -227,7 +374,10 @@ describe('CreateDealDialog', () => {
 })
 
 describe('AccountSlotsEditor', () => {
-  const slots = () => [slot(1, { cash: 1 }, { slotNumber: 1 }), slot(2, { cash: 1 }, { slotNumber: 2, hasActiveDeal: false })]
+  const slots = () => [
+    slot(1, { cash: 1 }, { slotNumber: 1 }),
+    slot(2, { cash: 1 }, { slotNumber: 2, hasActiveDeal: false }),
+  ]
 
   it('lists the slots, and only saves one that was changed', async () => {
     const store = useAdminAccountsStore()
@@ -238,7 +388,8 @@ describe('AccountSlotsEditor', () => {
     expect(store.loadAccountSlots).toHaveBeenCalledWith(4)
     expect(wrapper.text()).toContain('Slot #1In a deal')
     expect(wrapper.text()).toContain('Slot #2Open')
-    const saveButtons = () => wrapper.findAll('button').filter((b) => b.text() === 'Save')
+    const saveButtons = () =>
+      wrapper.findAll('button').filter((b) => b.text() === 'Save')
     expect(saveButtons().map((b) => b.attributes('disabled'))).toEqual(['', ''])
 
     wrapper.findAllComponents(UInputNumber)[4].vm.$emit('update:modelValue', 2)
@@ -246,8 +397,13 @@ describe('AccountSlotsEditor', () => {
     expect(saveButtons()[1].attributes('disabled')).toBeUndefined()
     await click(saveButtons()[1].element as HTMLElement)
 
-    expect(updateSlot).toHaveBeenCalledWith(expect.objectContaining({ id: 2, techSentCycles: 2 }))
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Slot #2 updated.' })
+    expect(updateSlot).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 2, techSentCycles: 2 }),
+    )
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Slot #2 updated.',
+    })
     expect(saveButtons()[1].attributes('disabled')).toBe('')
   })
 
@@ -274,28 +430,44 @@ describe('AccountSlotsEditor', () => {
   })
 
   it("shows an error when the slots can't be loaded", async () => {
-    vi.spyOn(useAdminAccountsStore(), 'loadAccountSlots').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminAccountsStore(), 'loadAccountSlots').mockRejectedValue(
+      new Error('down'),
+    )
     await mountInApp(AccountSlotsEditor, { accountId: 4 })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: "Failed to load this account's slots." })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: "Failed to load this account's slots.",
+    })
   })
 })
 
 describe('AccountEditDialog', () => {
-  const prospect = { nationId: 123, nationName: 'Newland', rulerName: 'Nia', allianceName: 'Valyria' }
+  const prospect = {
+    nationId: 123,
+    nationName: 'Newland',
+    rulerName: 'Nia',
+    allianceName: 'Valyria',
+  }
 
   describe('creating an account', () => {
     it('finds the nation, then creates the account', async () => {
       apiFetch.mockResolvedValue(apiOk(prospect))
-      const createAccount = vi.spyOn(useAdminAccountsStore(), 'createAccount').mockResolvedValue()
-      const { wrapper, onClose } = await openDialog(AccountEditDialog, { account: {} })
+      const createAccount = vi
+        .spyOn(useAdminAccountsStore(), 'createAccount')
+        .mockResolvedValue()
+      const { wrapper, onClose } = await openDialog(AccountEditDialog, {
+        account: {},
+      })
 
       expect(bodyText()).toContain('New Account')
       expect(bodyText()).not.toContain('Secret Code')
       await type(inputByPlaceholder("The account's NationID"), '123')
       await click(button('Search'))
 
-      expect(apiFetch).toHaveBeenCalledWith('/api/accounts/prospect?nationId=123')
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/accounts/prospect?nationId=123',
+      )
       expect(bodyText()).toContain('Secret Code')
       wrapper.findComponent(USelectMenu).vm.$emit('update:modelValue', 'S')
       // FAC and DRA have to be picked explicitly today (see the skipped test below)
@@ -304,27 +476,45 @@ describe('AccountEditDialog', () => {
       fac.vm.$emit('update:modelValue', 'N')
       dra.vm.$emit('update:modelValue', 'N')
       await click(button('Generate'))
-      await type(inputByPlaceholder('e.g. 318737615257993226'), '318737615257993226')
+      await type(
+        inputByPlaceholder('e.g. 318737615257993226'),
+        '318737615257993226',
+      )
       await click(button('Create'))
 
       expect(createAccount).toHaveBeenCalledOnce()
       const payload = createAccount.mock.calls[0][0]
       expect(payload).toMatchObject({
-        nationId: 123, rulerName: 'Nia', role: 'S', hasForeignMinistry: true, hasFederalAidCommission: false,
-        hasDisasterReliefAgency: false, discord: null, discordUniqueId: 318737615257993226n,
+        nationId: 123,
+        rulerName: 'Nia',
+        role: 'S',
+        hasForeignMinistry: true,
+        hasFederalAidCommission: false,
+        hasDisasterReliefAgency: false,
+        discord: null,
+        discordUniqueId: 318737615257993226n,
       })
       expect(payload.uniqueCode).toMatch(/^\d{5}$/)
-      expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Account created successfully!' })
+      expect(toasts()[0]).toMatchObject({
+        color: 'success',
+        description: 'Account created successfully!',
+      })
       expect(onClose).toHaveBeenCalledWith(false)
     })
 
     it('stays open with an error when creating fails', async () => {
       apiFetch.mockResolvedValue(apiOk(prospect))
-      vi.spyOn(useAdminAccountsStore(), 'createAccount').mockRejectedValue(new Error('down'))
-      const { wrapper, onClose } = await openDialog(AccountEditDialog, { account: {} })
+      vi.spyOn(useAdminAccountsStore(), 'createAccount').mockRejectedValue(
+        new Error('down'),
+      )
+      const { wrapper, onClose } = await openDialog(AccountEditDialog, {
+        account: {},
+      })
       await type(inputByPlaceholder("The account's NationID"), '123')
       await click(button('Search'))
-      wrapper.findAllComponents(URadioGroup).forEach((radio) => radio.vm.$emit('update:modelValue', 'N'))
+      wrapper
+        .findAllComponents(URadioGroup)
+        .forEach((radio) => radio.vm.$emit('update:modelValue', 'N'))
       await click(button('Generate'))
 
       await click(button('Create'))
@@ -335,7 +525,9 @@ describe('AccountEditDialog', () => {
 
     it('creates an account with the improvements left at their default of No', async () => {
       apiFetch.mockResolvedValue(apiOk(prospect))
-      const createAccount = vi.spyOn(useAdminAccountsStore(), 'createAccount').mockResolvedValue()
+      const createAccount = vi
+        .spyOn(useAdminAccountsStore(), 'createAccount')
+        .mockResolvedValue()
       const { wrapper } = await openDialog(AccountEditDialog, { account: {} })
       await type(inputByPlaceholder("The account's NationID"), '123')
       await click(button('Search'))
@@ -344,27 +536,37 @@ describe('AccountEditDialog', () => {
 
       await click(button('Create'))
 
-      expect(createAccount).toHaveBeenCalledWith(expect.objectContaining({
-        hasForeignMinistry: false, hasFederalAidCommission: false, hasDisasterReliefAgency: false,
-      }))
+      expect(createAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hasForeignMinistry: false,
+          hasFederalAidCommission: false,
+          hasDisasterReliefAgency: false,
+        }),
+      )
     })
 
     it.each([
       [404, 'No nation was found with that nation ID.'],
       [409, 'That nation already has a VEP account.'],
-      [500, 'VEP encountered an error while searching for the above nation ID.'],
-    ])('explains a failed nation search (%i) and lets the admin try again', async (statusCode, message) => {
-      apiFetch.mockResolvedValue(apiError({ statusCode, message: 'Failed' }))
-      await openDialog(AccountEditDialog, { account: {} })
-      await type(inputByPlaceholder("The account's NationID"), '123')
+      [
+        500,
+        'VEP encountered an error while searching for the above nation ID.',
+      ],
+    ])(
+      'explains a failed nation search (%i) and lets the admin try again',
+      async (statusCode, message) => {
+        apiFetch.mockResolvedValue(apiError({ statusCode, message: 'Failed' }))
+        await openDialog(AccountEditDialog, { account: {} })
+        await type(inputByPlaceholder("The account's NationID"), '123')
 
-      await click(button('Search'))
+        await click(button('Search'))
 
-      expect(toasts()[0]).toMatchObject({ color: 'error' })
-      expect(toasts()[0].description).toContain(message)
-      expect(button('Search').disabled).toBe(false)
-      expect(bodyText()).not.toContain('Secret Code')
-    })
+        expect(toasts()[0]).toMatchObject({ color: 'error' })
+        expect(toasts()[0].description).toContain(message)
+        expect(button('Search').disabled).toBe(false)
+        expect(bodyText()).not.toContain('Secret Code')
+      },
+    )
   })
 
   describe('editing an account', () => {
@@ -372,29 +574,51 @@ describe('AccountEditDialog', () => {
     const saveAccount = () => click(buttons('Save').at(-1)!)
 
     beforeEach(() => {
-      vi.spyOn(useAdminAccountsStore(), 'loadAccountSlots').mockResolvedValue([slot(1)])
+      vi.spyOn(useAdminAccountsStore(), 'loadAccountSlots').mockResolvedValue([
+        slot(1),
+      ])
     })
 
     it('shows the account with its slots, and saves changes', async () => {
-      const updateAccount = vi.spyOn(useAdminAccountsStore(), 'updateAccount').mockResolvedValue()
-      const { wrapper, onClose } = await openDialog(AccountEditDialog, { account: adminAccount(1, { discord: 'old', discordUniqueId: 5n }) })
+      const updateAccount = vi
+        .spyOn(useAdminAccountsStore(), 'updateAccount')
+        .mockResolvedValue()
+      const { wrapper, onClose } = await openDialog(AccountEditDialog, {
+        account: adminAccount(1, { discord: 'old', discordUniqueId: 5n }),
+      })
 
       expect(bodyText()).toContain("Ruler1's Account")
       expect(bodyText()).toContain('(1 / 4 in deals)')
       expect(useAdminAccountsStore().loadAccountSlots).toHaveBeenCalledWith(1)
       await type(inputByPlaceholder('e.g. username or username#1234'), '')
       await type(inputByPlaceholder('e.g. 318737615257993226'), 'not a number')
-      wrapper.findAllComponents(URadioGroup)[2].vm.$emit('update:modelValue', 'Y')
+      wrapper
+        .findAllComponents(URadioGroup)[2]
+        .vm.$emit('update:modelValue', 'Y')
       await saveAccount()
 
-      expect(updateAccount).toHaveBeenCalledWith(expect.objectContaining({ id: 1, discord: null, discordUniqueId: null, hasDisasterReliefAgency: true }))
-      expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Account updated successfully!' })
+      expect(updateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 1,
+          discord: null,
+          discordUniqueId: null,
+          hasDisasterReliefAgency: true,
+        }),
+      )
+      expect(toasts()[0]).toMatchObject({
+        color: 'success',
+        description: 'Account updated successfully!',
+      })
       expect(onClose).toHaveBeenCalledWith(false)
     })
 
     it('stays open with an error when saving fails', async () => {
-      vi.spyOn(useAdminAccountsStore(), 'updateAccount').mockRejectedValue(new Error('down'))
-      const { onClose } = await openDialog(AccountEditDialog, { account: adminAccount(1) })
+      vi.spyOn(useAdminAccountsStore(), 'updateAccount').mockRejectedValue(
+        new Error('down'),
+      )
+      const { onClose } = await openDialog(AccountEditDialog, {
+        account: adminAccount(1),
+      })
 
       await saveAccount()
 
@@ -406,18 +630,27 @@ describe('AccountEditDialog', () => {
       const updateAccount = vi.spyOn(useAdminAccountsStore(), 'updateAccount')
       await openDialog(AccountEditDialog, { account: adminAccount(1) })
 
-      const uniqueCode = Array.from(document.querySelectorAll<HTMLInputElement>('input')).find((input) => input.value === '12345')!
+      const uniqueCode = Array.from(
+        document.querySelectorAll<HTMLInputElement>('input'),
+      ).find((input) => input.value === '12345')!
       await type(uniqueCode, '')
       await saveAccount()
 
       expect(updateAccount).not.toHaveBeenCalled()
-      expect(toasts()[0]).toMatchObject({ title: 'Validation Error', color: 'error' })
-      expect(toasts()[0].description).toContain('Every account must have a unique code provided')
+      expect(toasts()[0]).toMatchObject({
+        title: 'Validation Error',
+        color: 'error',
+      })
+      expect(toasts()[0].description).toContain(
+        'Every account must have a unique code provided',
+      )
     })
 
     it('closes without saving from Cancel', async () => {
       const updateAccount = vi.spyOn(useAdminAccountsStore(), 'updateAccount')
-      const { onClose } = await openDialog(AccountEditDialog, { account: adminAccount(1) })
+      const { onClose } = await openDialog(AccountEditDialog, {
+        account: adminAccount(1),
+      })
 
       await click(button('Cancel'))
 
@@ -425,12 +658,15 @@ describe('AccountEditDialog', () => {
       expect(updateAccount).not.toHaveBeenCalled()
     })
 
-    it("leaves the account in the list alone when the admin cancels", async () => {
+    it('leaves the account in the list alone when the admin cancels', async () => {
       const store = useAdminAccountsStore()
       store.accounts = [adminAccount(1, { discord: 'old' })]
       await openDialog(AccountEditDialog, { account: store.accounts[0] })
 
-      await type(inputByPlaceholder('e.g. username or username#1234'), 'changed')
+      await type(
+        inputByPlaceholder('e.g. username or username#1234'),
+        'changed',
+      )
       await click(button('Cancel'))
 
       expect(store.accounts[0].discord).toBe('old')
@@ -444,8 +680,12 @@ describe('AdminAccessSettingsDialog', () => {
     vi.spyOn(accountsStore, 'loadAllAccounts').mockImplementation(async () => {
       accountsStore.accounts = [adminAccount(1)]
     })
-    const createAccess = vi.spyOn(useAdminAccessStore(), 'createAdminAccess').mockResolvedValue(true)
-    const { wrapper, onClose } = await openDialog(AdminAccessSettingsDialog, { editingAdmin: {} })
+    const createAccess = vi
+      .spyOn(useAdminAccessStore(), 'createAdminAccess')
+      .mockResolvedValue(true)
+    const { wrapper, onClose } = await openDialog(AdminAccessSettingsDialog, {
+      editingAdmin: {},
+    })
 
     expect(accountsStore.loadAllAccounts).toHaveBeenCalledWith(false)
     expect(bodyText()).toContain('Add Admin Access')
@@ -454,8 +694,13 @@ describe('AdminAccessSettingsDialog', () => {
     await flushPromises()
     await click(button('Save'))
 
-    expect(createAccess).toHaveBeenCalledWith(expect.objectContaining({ accountId: 1, adminRoleId: 3 }))
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Access added successfully!' })
+    expect(createAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ accountId: 1, adminRoleId: 3 }),
+    )
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Access added successfully!',
+    })
     expect(onClose).toHaveBeenCalledWith(false)
   })
 
@@ -464,23 +709,32 @@ describe('AdminAccessSettingsDialog', () => {
     accountsStore.accounts = [adminAccount(1)]
     const loadAll = vi.spyOn(accountsStore, 'loadAllAccounts')
 
-    await openDialog(AdminAccessSettingsDialog, { editingAdmin: { accountId: 1, adminRoleId: 1 } })
+    await openDialog(AdminAccessSettingsDialog, {
+      editingAdmin: { accountId: 1, adminRoleId: 1 },
+    })
 
     expect(loadAll).not.toHaveBeenCalled()
     expect(bodyText()).toContain('Edit Admin Access')
   })
 
   it("shows an error when accounts can't be loaded", async () => {
-    vi.spyOn(useAdminAccountsStore(), 'loadAllAccounts').mockRejectedValue(new Error('down'))
+    vi.spyOn(useAdminAccountsStore(), 'loadAllAccounts').mockRejectedValue(
+      new Error('down'),
+    )
 
     await openDialog(AdminAccessSettingsDialog, { editingAdmin: {} })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load accounts. Please try again.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load accounts. Please try again.',
+    })
   })
 
   it('closes without saving from Cancel', async () => {
     useAdminAccountsStore().accounts = [adminAccount(1)]
-    const { onClose } = await openDialog(AdminAccessSettingsDialog, { editingAdmin: {} })
+    const { onClose } = await openDialog(AdminAccessSettingsDialog, {
+      editingAdmin: {},
+    })
 
     await click(button('Cancel'))
 
@@ -489,8 +743,12 @@ describe('AdminAccessSettingsDialog', () => {
 
   it('stays open with an error when the grant fails', async () => {
     useAdminAccountsStore().accounts = [adminAccount(1)]
-    vi.spyOn(useAdminAccessStore(), 'createAdminAccess').mockResolvedValue(false)
-    const { onClose } = await openDialog(AdminAccessSettingsDialog, { editingAdmin: { accountId: 1, adminRoleId: 1 } })
+    vi.spyOn(useAdminAccessStore(), 'createAdminAccess').mockResolvedValue(
+      false,
+    )
+    const { onClose } = await openDialog(AdminAccessSettingsDialog, {
+      editingAdmin: { accountId: 1, adminRoleId: 1 },
+    })
 
     await click(button('Save'))
 
@@ -501,23 +759,43 @@ describe('AdminAccessSettingsDialog', () => {
 
 describe('AdminTeamEventDialog', () => {
   it('saves a team event', async () => {
-    const { wrapper, onClose } = await openDialog(AdminTeamEventDialog, { editingTeamEvent: {} })
+    const { wrapper, onClose } = await openDialog(AdminTeamEventDialog, {
+      editingTeamEvent: {},
+    })
 
     expect(bodyText()).toContain('Add Team Event')
     const [team, eventType] = wrapper.findAllComponents(USelect)
-    expect((team.props('items') as { value: string }[]).map((item) => item.value)).toContain('Aqua')
-    expect((eventType.props('items') as { value: string }[]).map((item) => item.value)).toEqual(['+1 Aid Slot', '-1 Aid Slot'])
+    expect(
+      (team.props('items') as { value: string }[]).map((item) => item.value),
+    ).toContain('Aqua')
+    expect(
+      (eventType.props('items') as { value: string }[]).map(
+        (item) => item.value,
+      ),
+    ).toEqual(['+1 Aid Slot', '-1 Aid Slot'])
     wrapper.findAllComponents(USelect)[0].vm.$emit('update:modelValue', 'Aqua')
-    wrapper.findAllComponents(USelect)[1].vm.$emit('update:modelValue', '+1 Aid Slot')
+    wrapper
+      .findAllComponents(USelect)[1]
+      .vm.$emit('update:modelValue', '+1 Aid Slot')
     await flushPromises()
     await click(button('Save'))
 
-    expect(toasts()[0]).toMatchObject({ color: 'success', description: 'Team event saved successfully!' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description: 'Team event saved successfully!',
+    })
     expect(onClose).toHaveBeenCalledWith(false)
   })
 
   it('edits an existing team event', async () => {
-    const { onClose } = await openDialog(AdminTeamEventDialog, { editingTeamEvent: { id: 1, team: 'Red', eventType: '-1 Aid Slot', eventName: 'Penalty' } })
+    const { onClose } = await openDialog(AdminTeamEventDialog, {
+      editingTeamEvent: {
+        id: 1,
+        team: 'Red',
+        eventType: '-1 Aid Slot',
+        eventName: 'Penalty',
+      },
+    })
 
     expect(bodyText()).toContain('Edit Team Event')
     await click(button('Cancel'))
@@ -529,7 +807,9 @@ describe('AdminTeamEventDialog', () => {
 describe('AidActivityFilter', () => {
   it('applies search text, direction and a date range', async () => {
     const store = useAdminAidActivityStore()
-    const { wrapper, onClose } = await openDialog(AidActivityFilter, { filters: {} })
+    const { wrapper, onClose } = await openDialog(AidActivityFilter, {
+      filters: {},
+    })
     const direction = () => wrapper.findComponent(USelect)
 
     expect(direction().props('disabled')).toBe(true)
@@ -537,12 +817,20 @@ describe('AidActivityFilter', () => {
     expect(direction().props('disabled')).toBe(false)
     direction().vm.$emit('update:modelValue', 'received')
     await click(button('Pick a date'))
-    wrapper.findComponent(UCalendar).vm.$emit('update:modelValue', { start: new CalendarDate(2026, 10, 1), end: new CalendarDate(2026, 10, 9) })
+    wrapper.findComponent(UCalendar).vm.$emit('update:modelValue', {
+      start: new CalendarDate(2026, 10, 1),
+      end: new CalendarDate(2026, 10, 9),
+    })
     await flushPromises()
     expect(bodyText()).toContain('Oct 1, 2026 - Oct 9, 2026')
     await click(button('Apply Filters'))
 
-    expect(store.filters).toEqual({ search: 'Bob', direction: 'received', sentSince: new Date(2026, 9, 1), sentUntil: new Date(2026, 9, 9) })
+    expect(store.filters).toEqual({
+      search: 'Bob',
+      direction: 'received',
+      sentSince: new Date(2026, 9, 1),
+      sentUntil: new Date(2026, 9, 9),
+    })
     expect(onClose).toHaveBeenCalled()
   })
 
@@ -551,18 +839,31 @@ describe('AidActivityFilter', () => {
     const { wrapper } = await openDialog(AidActivityFilter, { filters: {} })
 
     await click(button('Pick a date'))
-    wrapper.findComponent(UCalendar).vm.$emit('update:modelValue', { start: new CalendarDate(2026, 10, 1), end: undefined })
+    wrapper.findComponent(UCalendar).vm.$emit('update:modelValue', {
+      start: new CalendarDate(2026, 10, 1),
+      end: undefined,
+    })
     await flushPromises()
     expect(bodyText()).toContain('Oct 1, 2026')
     await click(button('Apply Filters'))
 
-    expect(store.filters).toEqual({ search: undefined, direction: undefined, sentSince: new Date(2026, 9, 1), sentUntil: new Date(2026, 9, 1) })
+    expect(store.filters).toEqual({
+      search: undefined,
+      direction: undefined,
+      sentSince: new Date(2026, 9, 1),
+      sentUntil: new Date(2026, 9, 1),
+    })
   })
 
   it('starts from the current filters, and clears them', async () => {
     const store = useAdminAidActivityStore()
     const { wrapper } = await openDialog(AidActivityFilter, {
-      filters: { search: 'Sue', direction: 'sent', sentSince: new Date(2026, 9, 1), sentUntil: new Date(2026, 9, 3) },
+      filters: {
+        search: 'Sue',
+        direction: 'sent',
+        sentSince: new Date(2026, 9, 1),
+        sentUntil: new Date(2026, 9, 3),
+      },
     })
 
     expect(inputByPlaceholder('Enter name to search...').value).toBe('Sue')
@@ -573,6 +874,11 @@ describe('AidActivityFilter', () => {
     expect(bodyText()).toContain('Pick a date')
     await click(button('Apply Filters'))
 
-    expect(store.filters).toEqual({ search: undefined, direction: undefined, sentSince: undefined, sentUntil: undefined })
+    expect(store.filters).toEqual({
+      search: undefined,
+      direction: undefined,
+      sentSince: undefined,
+      sentUntil: undefined,
+    })
   })
 })

@@ -1,18 +1,29 @@
 <template>
   <UModal :close="{ onClick: () => emit('close', false) }">
     <template #header>
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create Deal</h3>
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        Create Deal
+      </h3>
     </template>
 
     <template #body>
       <div class="space-y-6">
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Pair an open slot from one account with an open slot from another. Matching normally happens automatically,
-          so only do this to fix up a specific pairing.
+          Pair an open slot from one account with an open slot from another.
+          Matching normally happens automatically, so only do this to fix up a
+          specific pairing.
         </p>
 
-        <AdminDealSlotPicker v-model="slotA" label="First Account" :accounts="props.accounts" />
-        <AdminDealSlotPicker v-model="slotB" label="Second Account" :accounts="props.accounts" />
+        <AdminDealSlotPicker
+          v-model="slotA"
+          label="First Account"
+          :accounts="props.accounts"
+        />
+        <AdminDealSlotPicker
+          v-model="slotB"
+          label="Second Account"
+          :accounts="props.accounts"
+        />
 
         <UAlert
           v-if="isSameAccount"
@@ -73,8 +84,11 @@ const slotA = ref<SlotDetail | null>(null)
 const slotB = ref<SlotDetail | null>(null)
 const isSaving = ref<boolean>(false)
 
-const isSameAccount = computed(() =>
-  slotA.value !== null && slotB.value !== null && slotA.value.account.accountId === slotB.value.account.accountId
+const isSameAccount = computed(
+  () =>
+    slotA.value !== null &&
+    slotB.value !== null &&
+    slotA.value.account.accountId === slotB.value.account.accountId,
 )
 
 // Same rule the matcher uses: each slot's cycles are the exact inverse of the other's
@@ -82,10 +96,12 @@ const slotsAreCompatible = computed(() => {
   const a = slotA.value
   const b = slotB.value
   if (!a || !b) return false
-  return a.techSentCycles === b.techReceivedCycles
-    && a.techReceivedCycles === b.techSentCycles
-    && a.cashSentCycles === b.cashReceivedCycles
-    && a.cashReceivedCycles === b.cashSentCycles
+  return (
+    a.techSentCycles === b.techReceivedCycles &&
+    a.techReceivedCycles === b.techSentCycles &&
+    a.cashSentCycles === b.cashReceivedCycles &&
+    a.cashReceivedCycles === b.cashSentCycles
+  )
 })
 
 const createDeal = async () => {
@@ -94,11 +110,21 @@ const createDeal = async () => {
   isSaving.value = true
   try {
     await adminDealsStore.createDeal(slotA.value.id, slotB.value.id)
-    toast.add({ color: 'success', title: 'Success', description: 'Deal created.', duration: 3000 })
+    toast.add({
+      color: 'success',
+      title: 'Success',
+      description: 'Deal created.',
+      duration: 3000,
+    })
     emit('close', true)
   } catch (e) {
     console.error(e)
-    toast.add({ color: 'error', title: 'Error', description: ERROR_MESSAGES.default, duration: 5000 })
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: ERROR_MESSAGES.default,
+      duration: 5000,
+    })
   } finally {
     isSaving.value = false
   }

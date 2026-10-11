@@ -4,7 +4,14 @@ import HowItWorksPage from '~/pages/how-it-works.vue'
 import IndexPage from '~/pages/index.vue'
 import LoginPage from '~/pages/login.vue'
 import { account, dealDetail } from '../helpers/fixtures'
-import { button, click, inputByPlaceholder, mountInApp, toasts, type } from '../helpers/dom'
+import {
+  button,
+  click,
+  inputByPlaceholder,
+  mountInApp,
+  toasts,
+  type,
+} from '../helpers/dom'
 
 let routerPush: ReturnType<typeof vi.spyOn>
 
@@ -29,11 +36,24 @@ describe('account page', () => {
     const store = useAccountStore()
     const loads = {
       account: vi.spyOn(store, 'loadAccount').mockImplementation(async () => {
-        store.account = account({ rulerName: 'Bob', nationName: 'Buyland', nationId: 101 })
+        store.account = account({
+          rulerName: 'Bob',
+          nationName: 'Buyland',
+          nationId: 101,
+        })
       }),
-      summary: vi.spyOn(store, 'loadDealsSummary').mockImplementation(async () => {
-        store.dealsSummary = { slotsUsed: 1, slotsTotal: 4, slotsAvailable: 3, slotsFull: false, activeDeals: [dealDetail({ isMyTurnToSend: true })], notifications: [] }
-      }),
+      summary: vi
+        .spyOn(store, 'loadDealsSummary')
+        .mockImplementation(async () => {
+          store.dealsSummary = {
+            slotsUsed: 1,
+            slotsTotal: 4,
+            slotsAvailable: 3,
+            slotsFull: false,
+            activeDeals: [dealDetail({ isMyTurnToSend: true })],
+            notifications: [],
+          }
+        }),
       history: vi.spyOn(store, 'loadDealHistory').mockResolvedValue(),
     }
     return loads
@@ -73,14 +93,20 @@ describe('account page', () => {
 
     const wrapper = await mountInApp(AccountPage, {}, { route: '/account/1' })
 
-    expect(toasts()[0]).toMatchObject({ color: 'error', description: 'Failed to load account data. Please try again.' })
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load account data. Please try again.',
+    })
     expect(wrapper.find('.animate-spin').exists()).toBe(false)
   })
 })
 
 describe('login page', () => {
   const fillIn = async (username: string, uniqueCode: string) => {
-    await type(inputByPlaceholder('Enter your Nation ID or Ruler Name'), username)
+    await type(
+      inputByPlaceholder('Enter your Nation ID or Ruler Name'),
+      username,
+    )
     await type(inputByPlaceholder('Enter your unique code'), uniqueCode)
   }
 
@@ -91,7 +117,11 @@ describe('login page', () => {
     await fillIn(' 101 ', '12345')
     await click(button('Log In'))
 
-    expect(login).toHaveBeenCalledWith({ nationId: '101', rulerName: undefined, uniqueCode: '12345' })
+    expect(login).toHaveBeenCalledWith({
+      nationId: '101',
+      rulerName: undefined,
+      uniqueCode: '12345',
+    })
     expect(toasts()[0]).toMatchObject({ title: 'Login Successful' })
     expect(routerPush).toHaveBeenLastCalledWith('/')
   })
@@ -103,12 +133,18 @@ describe('login page', () => {
     await fillIn('Bob the Builder', '12345')
     await click(button('Log In'))
 
-    expect(login).toHaveBeenCalledWith({ nationId: undefined, rulerName: 'Bob the Builder', uniqueCode: '12345' })
+    expect(login).toHaveBeenCalledWith({
+      nationId: undefined,
+      rulerName: 'Bob the Builder',
+      uniqueCode: '12345',
+    })
     expect(routerPush).toHaveBeenLastCalledWith('/account/1')
   })
 
   it('says when the credentials are wrong', async () => {
-    vi.spyOn(useAuthStore(), 'login').mockRejectedValue(new Error('Invalid credentials'))
+    vi.spyOn(useAuthStore(), 'login').mockRejectedValue(
+      new Error('Invalid credentials'),
+    )
     await mountInApp(LoginPage, {}, { route: '/login' })
 
     await fillIn('101', 'wrong')
@@ -140,13 +176,19 @@ describe('login page', () => {
   it('explains why a visitor was sent to log in', async () => {
     await mountInApp(LoginPage, {}, { route: '/login?auth=failed' })
 
-    expect(toasts()[0]).toMatchObject({ title: 'Authentication Required', color: 'error' })
+    expect(toasts()[0]).toMatchObject({
+      title: 'Authentication Required',
+      color: 'error',
+    })
   })
 
   it('confirms a logout', async () => {
     await mountInApp(LoginPage, {}, { route: '/login?auth=logout' })
 
-    expect(toasts()[0]).toMatchObject({ title: 'Logout Successful', color: 'success' })
+    expect(toasts()[0]).toMatchObject({
+      title: 'Logout Successful',
+      color: 'success',
+    })
   })
 })
 
@@ -159,7 +201,11 @@ describe('public pages', () => {
   })
 
   it('the how it works page explains the program', async () => {
-    const wrapper = await mountInApp(HowItWorksPage, {}, { route: '/how-it-works' })
+    const wrapper = await mountInApp(
+      HowItWorksPage,
+      {},
+      { route: '/how-it-works' },
+    )
 
     expect(wrapper.text().length).toBeGreaterThan(500)
   })

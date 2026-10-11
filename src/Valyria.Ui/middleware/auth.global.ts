@@ -40,7 +40,7 @@ export default defineNuxtRouteMiddleware((to) => {
         color: 'error',
         title: 'Access Denied',
         description: 'You do not have permission to access this page.',
-        duration: 5000
+        duration: 5000,
       })
       return navigateTo('/')
     }

@@ -11,7 +11,7 @@ export interface TotalSlotsGroup {
 }
 
 export interface TotalSlotGroupsByAlliance {
-  slotGroupName: string,
+  slotGroupName: string
   totalSlotGroups: TotalSlotsGroup[]
 }
 
@@ -87,52 +87,89 @@ export const useAdminStore = defineStore('admin', {
         openSlotsResponse,
         accountsPerAllianceResponse,
       ] = await Promise.all([
-        apiFetch<GeneralProgramSummary>('/api/admin/dashboard/general-program-summary'),
+        apiFetch<GeneralProgramSummary>(
+          '/api/admin/dashboard/general-program-summary',
+        ),
         apiFetch<AidRatioSummary>('/api/admin/dashboard/aid-ratio-summary'),
         apiFetch<DealHealthSummary>('/api/admin/dashboard/deal-health-summary'),
         apiFetch<SlotUsageSummary>('/api/admin/dashboard/slot-usage-summary'),
         apiFetch<DealAidCountByDay[]>('/api/admin/dashboard/deal-aid-per-day'),
-        apiFetch<AccountCountByRole[]>('/api/admin/dashboard/accounts-per-role'),
-        apiFetch<TotalSlotGroupsByAlliance[]>('/api/admin/dashboard/total-slots-per-alliance'),
-        apiFetch<OpenSlotCountByRole[]>('/api/admin/dashboard/open-slots-per-role'),
-        apiFetch<AccountCountByAlliance[]>('/api/admin/dashboard/accounts-per-alliance'),
+        apiFetch<AccountCountByRole[]>(
+          '/api/admin/dashboard/accounts-per-role',
+        ),
+        apiFetch<TotalSlotGroupsByAlliance[]>(
+          '/api/admin/dashboard/total-slots-per-alliance',
+        ),
+        apiFetch<OpenSlotCountByRole[]>(
+          '/api/admin/dashboard/open-slots-per-role',
+        ),
+        apiFetch<AccountCountByAlliance[]>(
+          '/api/admin/dashboard/accounts-per-alliance',
+        ),
       ])
 
       // Check for errors
       if (generalProgramSummaryResponse.error.value) {
-        console.error('Failed to load dashboard summary:', generalProgramSummaryResponse.error.value)
+        console.error(
+          'Failed to load dashboard summary:',
+          generalProgramSummaryResponse.error.value,
+        )
         throw generalProgramSummaryResponse.error.value
       }
       if (aidRatioSummaryResponse.error.value) {
-        console.error('Failed to load dashboard summary:', aidRatioSummaryResponse.error.value)
+        console.error(
+          'Failed to load dashboard summary:',
+          aidRatioSummaryResponse.error.value,
+        )
         throw aidRatioSummaryResponse.error.value
       }
       if (dealHealthSummaryResponse.error.value) {
-        console.error('Failed to load deal health summary:', dealHealthSummaryResponse.error.value)
+        console.error(
+          'Failed to load deal health summary:',
+          dealHealthSummaryResponse.error.value,
+        )
         throw dealHealthSummaryResponse.error.value
       }
       if (slotUsageSummaryResponse.error.value) {
-        console.error('Failed to load dashboard summary:', slotUsageSummaryResponse.error.value)
+        console.error(
+          'Failed to load dashboard summary:',
+          slotUsageSummaryResponse.error.value,
+        )
         throw slotUsageSummaryResponse.error.value
       }
       if (dealAidPerDayResponse.error.value) {
-        console.error('Failed to load deal aid per day:', dealAidPerDayResponse.error.value)
+        console.error(
+          'Failed to load deal aid per day:',
+          dealAidPerDayResponse.error.value,
+        )
         throw dealAidPerDayResponse.error.value
       }
       if (accountsPerRoleResponse.error.value) {
-        console.error('Failed to load accounts per role:', accountsPerRoleResponse.error.value)
+        console.error(
+          'Failed to load accounts per role:',
+          accountsPerRoleResponse.error.value,
+        )
         throw accountsPerRoleResponse.error.value
       }
       if (totalSlotsResponse.error.value) {
-        console.error('Failed to load total slots:', totalSlotsResponse.error.value)
+        console.error(
+          'Failed to load total slots:',
+          totalSlotsResponse.error.value,
+        )
         throw totalSlotsResponse.error.value
       }
       if (openSlotsResponse.error.value) {
-        console.error('Failed to load open slots:', openSlotsResponse.error.value)
+        console.error(
+          'Failed to load open slots:',
+          openSlotsResponse.error.value,
+        )
         throw openSlotsResponse.error.value
       }
       if (accountsPerAllianceResponse.error.value) {
-        console.error('Failed to load accounts per alliance:', accountsPerAllianceResponse.error.value)
+        console.error(
+          'Failed to load accounts per alliance:',
+          accountsPerAllianceResponse.error.value,
+        )
         throw accountsPerAllianceResponse.error.value
       }
 

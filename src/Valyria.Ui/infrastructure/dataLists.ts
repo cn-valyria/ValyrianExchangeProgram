@@ -4,7 +4,7 @@ export interface AccountRole {
 }
 
 export interface AllianceAcronym {
-  code: string,
+  code: string
   name: string
 }
 
@@ -26,7 +26,9 @@ export const accountRoles: AccountRole[] = [
 export type AccountRoleColor = 'warning' | 'error' | 'info' | 'neutral'
 
 // Badge color for a role, shared by the role chip and the admin accounts table
-export function getAccountRoleColor(code: string | undefined): AccountRoleColor {
+export function getAccountRoleColor(
+  code: string | undefined,
+): AccountRoleColor {
   switch (code) {
     case 'B': // Buyer
     case 'D': // Cash Donor

@@ -1,5 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-primary-600 via-primary-700 to-purple-700">
+  <div
+    class="min-h-screen bg-gradient-to-br from-primary-600 via-primary-700 to-purple-700"
+  >
     <!-- Hero Section -->
     <section class="relative overflow-hidden">
       <div class="absolute inset-0 bg-grid-white/10"></div>
@@ -7,7 +9,9 @@
         <div class="text-center space-y-4">
           <div class="flex justify-center items-center gap-3">
             <Icon name="heroicons:trophy" class="h-12 w-12 text-yellow-300" />
-            <h1 class="text-5xl sm:text-6xl font-bold text-white tracking-tight">
+            <h1
+              class="text-5xl sm:text-6xl font-bold text-white tracking-tight"
+            >
               Activity Score Leaderboard
             </h1>
           </div>
@@ -68,7 +72,10 @@
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center py-20">
         <div class="text-center space-y-4">
-          <Icon name="heroicons:arrow-path" class="h-12 w-12 text-white animate-spin mx-auto" />
+          <Icon
+            name="heroicons:arrow-path"
+            class="h-12 w-12 text-white animate-spin mx-auto"
+          />
           <p class="text-white text-lg">Loading leaderboard...</p>
         </div>
       </div>
@@ -77,7 +84,10 @@
       <div v-if="!loading && topScorers.length === 0" class="text-center py-20">
         <UCard>
           <div class="space-y-4">
-            <Icon name="heroicons:users" class="h-12 w-12 text-gray-400 mx-auto" />
+            <Icon
+              name="heroicons:users"
+              class="h-12 w-12 text-gray-400 mx-auto"
+            />
             <p class="text-gray-900 dark:text-white text-lg font-semibold">
               No rankings available yet
             </p>
@@ -96,7 +106,7 @@ import type { TopScorerAccount } from '~/stores/shared/topScorerAccount'
 
 // Hidden until there's a deal-based ranking to replace the VEP 2.5 Activity Score
 definePageMeta({
-  middleware: () => navigateTo('/')
+  middleware: () => navigateTo('/'),
 })
 
 const config = useRuntimeConfig()
@@ -118,7 +128,7 @@ const fetchTopScorers = async () => {
       headers: {
         Authorization: `Bearer ${authStore.accessToken}`,
       },
-    }
+    },
   )
 
   if (error.value) {
@@ -126,15 +136,16 @@ const fetchTopScorers = async () => {
     toast.add({
       color: 'error',
       title: 'Error',
-      description: "VEP encountered an error while setting up the leaderboard. Please try again, or contact @lilweirdward if the error persists.",
-      duration: 3000
+      description:
+        'VEP encountered an error while setting up the leaderboard. Please try again, or contact @lilweirdward if the error persists.',
+      duration: 3000,
     })
   }
 
   if (data.value) {
     topScorers.value = data.value as TopScorerAccount[]
   }
-  
+
   loading.value = false
 }
 

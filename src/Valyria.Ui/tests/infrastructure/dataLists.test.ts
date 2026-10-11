@@ -12,7 +12,9 @@ describe('getAccountRoleColor', () => {
   })
 
   it('has a color for every role but On Hold', () => {
-    const uncolored = accountRoles.filter((role) => getAccountRoleColor(role.code) === 'neutral').map((role) => role.code)
+    const uncolored = accountRoles
+      .filter((role) => getAccountRoleColor(role.code) === 'neutral')
+      .map((role) => role.code)
 
     expect(uncolored).toEqual(['H'])
   })
