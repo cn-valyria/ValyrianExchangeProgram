@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeRecipientActions, fillTemplate, formatCnDate, getBatches } from '~/infrastructure/massMessages'
+import { describeRecipientActions, fillTemplate, formatCnDate, getBatches, getSendMessageLink } from '~/infrastructure/massMessages'
 import type { MassMessageRecipient } from '~/stores/adminMassMessages'
 
 const recipient = (id: number, overrides: Partial<MassMessageRecipient> = {}): MassMessageRecipient => ({
@@ -52,5 +52,17 @@ describe('describeRecipientActions', () => {
   it('lists only the actions the recipient has', () => {
     expect(describeRecipientActions(recipient(1, { sendCount: 2, blockedCount: 1 }))).toBe('2 to send, 1 blocked')
     expect(describeRecipientActions(recipient(1, { acceptCount: 1 }))).toBe('1 to accept')
+  })
+})
+
+describe('getSendMessageLink', () => {
+  it("links to CN's message form for the nation", () => {
+    expect(getSendMessageLink(202)).toBe('https://www.cybernations.net/send_message.asp?Nation_ID=202')
+  })
+})
+
+describe('describeRecipientActions with nothing to do', () => {
+  it('is empty', () => {
+    expect(describeRecipientActions(recipient(1))).toBe('')
   })
 })

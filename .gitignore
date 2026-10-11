@@ -413,6 +413,9 @@ dist
 .output
 .gen
 
+# Vitest coverage reports
+coverage/
+
 # Node dependencies
 node_modules
 

@@ -9,7 +9,7 @@ A modern Nuxt 3 application for managing the Valyrian Exchange Program, built wi
 - **State Management**: Pinia 2.3.0
 - **Language**: TypeScript 5.7.2
 - **Build Tool**: Vite 6.0.5
-- **Testing**: Vitest 2.1.8
+- **Testing**: Vitest 3.2 with @nuxt/test-utils
 
 ## Design System
 
@@ -47,7 +47,20 @@ The app will be available at `http://localhost:3000`
 - `npm run generate` - Generate static site
 - `npm run preview` - Preview production build
 - `npm run lint` - Run linting
-- `npm run test` - Run tests
+- `npm run test` - Run tests in watch mode
+- `npm run test:coverage` - Run tests once with a coverage report (open `coverage/index.html`)
+
+## Tests
+
+Tests live in `tests/`, mirroring the app: `infrastructure/`, `composables/`, `stores/`, `middleware/`, `components/` and `pages/`. They run in `@nuxt/test-utils`' Nuxt environment, so components get Nuxt UI, Pinia and auto-imports just like in the app.
+
+- **Stores** are tested against a mocked `useApiClient`; `useApiClient` itself is tested against a stubbed `fetch`.
+- **Components and pages** are mounted inside `UApp` with `mountInApp` (`tests/helpers/dom.ts`), with store actions spied on. Toasts and modals are real, so tests check `useToast().toasts` and interact with dialogs in the page.
+- **Charts** are swapped for a stub (`tests/helpers/chartStub.ts`) because happy-dom has no canvas.
+- **The auth store and global middleware** load when the test app boots, before `mockNuxtImport` can replace their imports, so their tests stub one layer down (`$fetch`, `fetch` and `router.push`).
+- Builders for API data are in `tests/helpers/fixtures.ts`.
+
+Tests marked `it.skip('BUG: ...')` describe known bugs. Remove the `.skip` once the bug is fixed.
 
 ## Project Status
 
