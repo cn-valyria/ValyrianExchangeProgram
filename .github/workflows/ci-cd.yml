@@ -60,11 +60,21 @@ jobs:
           MYSQL_ROOT_PASSWORD: ci
           MYSQL_DATABASE: vep_db
         ports: ["3306:3306"]
+        # Ping over TCP: during first-start init the image runs a socket-only temporary server, which a plain
+        # `mysqladmin ping` would report as healthy before the real server is listening on 3306
         options: >-
-          --health-cmd "mysqladmin ping -pci"
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -pci"
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v5
+      - name: Wait for MySQL
+        run: |
+          for _ in $(seq 1 30); do
+            mysql -h 127.0.0.1 -uroot -pci -e "SELECT 1" >/dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          echo "MySQL did not accept connections within 60s" >&2
+          exit 1
       # The views are created with DEFINER=`base_admin`
       - run: mysql -h 127.0.0.1 -uroot -pci -e "CREATE USER 'base_admin'@'%' IDENTIFIED BY 'unused'; GRANT ALL ON *.* TO 'base_admin'@'%';"
       - name: flyway migrate
