@@ -1,0 +1,16 @@
+# Shared Flyway settings for CI and manual runs. Connection details are never stored here; they come from
+# the FLYWAY_URL / FLYWAY_USER / FLYWAY_PASSWORD environment variables (GitHub secrets in CI).
+# Paths are relative to this directory, so run Flyway with -workingDirectory pointing here.
+
+[flyway]
+locations = ["filesystem:migrations"]
+
+# Production was migrated by hand through V11 and then baselined at 11, so V1-V11 never run there.
+# Refuse to auto-baseline: an unbaselined, non-empty database is an error, not something to "fix" silently.
+baselineOnMigrate = false
+
+# `flyway clean` drops every object in the schema. Never allow it.
+cleanDisabled = true
+
+# Fail on badly named files instead of silently skipping them
+validateMigrationNaming = true

@@ -8,18 +8,15 @@ var vepDbConnectionString = builder.AddParameter("VepDbConnectionString");
 var cnDbConnectionString = builder.AddParameter("CnDbConnectionString");
 var discordWebhookUrl = builder.AddParameter("DiscordWebhookUrl");
 
-// Add Flyway migration resource for the database
-// Note: You need to set FlywayJdbcUrl in user secrets with format: jdbc:mysql://host:port/database?user=username&password=password
-// var flywayJdbcUrl = builder.AddParameter("FlywayJdbcUrl");
-// var flyway = builder.AddFlyway("valyria-migrations", "../Valyria.Database/migrations")
-//     .WithArgs("-url", flywayJdbcUrl, "migrate");
+// Database migrations are not an AppHost resource: local runs point at the production database, so they
+// would migrate prod from whatever branch is checked out. The deploy workflow (.github/workflows/ci-cd.yml)
+// runs Flyway against prod right before `aspire deploy`.
 
 // Add the API project with HTTP and HTTPS endpoints
 var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
     .WithExternalHttpEndpoints()
     .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
     .WithEnvironment("JwtSecret", jwtSecret);
-    // .WaitFor(flyway);
 
 var storage = builder.AddAzureStorage("valyria-storage").RunAsEmulator();
 var nationBlob = storage.AddBlobContainer("nation");

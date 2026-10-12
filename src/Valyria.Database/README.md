@@ -4,7 +4,11 @@ This project contains Flyway database migration scripts for the Valyria applicat
 
 ## Overview
 
-Flyway is integrated into the Aspire AppHost using the [CommunityToolkit.Aspire.Hosting.Flyway](https://github.com/CommunityToolkit/Aspire) package. Migrations run automatically when the application starts, ensuring the database schema is up-to-date before the API begins serving requests.
+Migrations run from the GitHub Actions deploy job ([.github/workflows/ci-cd.yml](../../.github/workflows/ci-cd.yml)): once the tests pass on `main`, Flyway migrates production and then `aspire deploy` ships the apps. They are deliberately **not** an AppHost resource, because local `aspire run` points at the production database and would migrate it from whatever branch is checked out.
+
+Shared Flyway settings live in [flyway.toml](flyway.toml). They disable `flyway clean` and refuse to auto-baseline.
+
+Production was migrated by hand through V11 and then baselined at version 11, so Flyway only runs V12 and later there. On a pull request, CI also runs every migration through Flyway on an empty MySQL database.
 
 ## Project Structure
 
@@ -47,41 +51,47 @@ These run whenever their content changes, useful for views, stored procedures, a
 
 ## Configuration
 
-### AppHost Configuration
+### CI (production)
 
-In [Valyria.AppHost/AppHost.cs](../Valyria.AppHost/AppHost.cs):
+The deploy job reads the connection from GitHub `production` environment secrets, which Flyway picks up as environment variables:
 
-```csharp
-var flywayJdbcUrl = builder.AddParameter("FlywayJdbcUrl");
-var flyway = builder.AddFlyway("valyria-migrations", "../Valyria.Database/migrations")
-    .WithArgs("-url", flywayJdbcUrl, "migrate");
+| Secret | Example |
+|---|---|
+| `FLYWAY_URL` | `jdbc:mysql://cn-valyria-prod.mysql.database.azure.com:3306/vep_db?useSsl=true` |
+| `FLYWAY_USER` | the admin login you'd use in MySQL Workbench (it needs DDL rights and must be able to create objects with `DEFINER=base_admin`) |
+| `FLYWAY_PASSWORD` | |
 
-var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
-    .WaitFor(flyway);  // API waits for migrations to complete
-```
+`vep_db` must be the database in the URL: Flyway keeps its `flyway_schema_history` table there, and some migrations have no `USE` statement.
 
-### User Secrets
+The Flyway image connects through the **MariaDB** JDBC driver, not MySQL Connector/J, so Connector/J options such as `sslMode=REQUIRED` are silently ignored. Without TLS, Azure rejects the connection with an "insecure transport" error. `useSsl=true` turns TLS on and verifies the server certificate (including hostname) against Java's built-in trust store, which already has Azure's DigiCert Global Root G2. To pin that root explicitly instead, mount the PEM into the container and add `&serverSslCert=/flyway/certs/DigiCertGlobalRootG2.crt.pem`.
 
-Add the `FlywayJdbcUrl` parameter to your user secrets:
+### Running Flyway by hand
+
+Run Flyway from Docker with this directory as the working directory so it picks up `flyway.toml`:
 
 ```bash
-dotnet user-secrets set "Parameters:FlywayJdbcUrl" "jdbc:mysql://localhost:3306/valyria?user=root&password=yourpassword" --project src/Valyria.AppHost
+# From repository root
+docker run --rm \
+  -v "$PWD/src/Valyria.Database:/flyway/project:ro" \
+  -e FLYWAY_URL="jdbc:mysql://cn-valyria-prod.mysql.database.azure.com:3306/vep_db?useSsl=true" \
+  -e FLYWAY_USER=<admin user> -e FLYWAY_PASSWORD=<password> \
+  flyway/flyway:11.20.3 -workingDirectory=/flyway/project info
 ```
 
-**JDBC URL Format for MySQL:**
-```
-jdbc:mysql://<host>:<port>/<database>?user=<username>&password=<password>
+Swap `info` for `migrate`, `validate` or `baseline` as needed.
+
+### One-time production baseline
+
+Production predates Flyway. Until it is baselined, `migrate` refuses to run ("Found non-empty schema(s) `vep_db` but no schema history table"), so nothing can be replayed by accident. To baseline it, take a backup and then mark V11 as the starting point:
+
+```bash
+az mysql flexible-server backup create --resource-group <rg> --name cn-valyria-prod --backup-name pre-flyway-baseline
+
+# the docker command above, ending with:
+  ... -workingDirectory=/flyway/project baseline -baselineVersion=11 "-baselineDescription=Applied manually before Flyway"
 ```
 
-Example:
-```
-jdbc:mysql://localhost:3306/valyria_db?user=admin&password=SecureP@ss123
-```
-
-Optional parameters:
-```
-jdbc:mysql://localhost:3306/valyria_db?user=admin&password=SecureP@ss123&useSSL=false&allowPublicKeyRetrieval=true
-```
+Afterwards `info` lists V1 through V11 as "Below Baseline" / "Ignored (Baseline)". The next migration, V12, is the first one Flyway applies.
 
 ## Migration Best Practices
 
@@ -192,7 +202,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-3. Run the Aspire application - migrations apply automatically
+3. Open a PR (CI runs it through Flyway on an empty database). Merging to `main` applies it to production before the deploy
 
 ### Viewing Migration Status
 
@@ -211,35 +221,6 @@ Columns:
 - `installed_on`: When migration was applied
 - `execution_time`: How long it took
 - `success`: Whether it succeeded
-
-### Manual Migration (Development/Testing)
-
-If needed, you can run Flyway manually:
-
-```bash
-# Using Docker
-docker run --rm \
-  -v $(pwd)/src/Valyria.Database/migrations:/flyway/sql \
-  flyway/flyway:latest \
-  -url=jdbc:mysql://host.docker.internal:3306/valyria \
-  -user=root \
-  -password=yourpassword \
-  migrate
-
-# Using Flyway CLI (if installed)
-flyway \
-  -url=jdbc:mysql://localhost:3306/valyria \
-  -user=root \
-  -password=yourpassword \
-  -locations=filesystem:./src/Valyria.Database/migrations \
-  migrate
-```
-
-Other commands:
-- `info` - Show migration status
-- `validate` - Validate applied migrations against available ones
-- `baseline` - Baseline an existing database
-- `repair` - Repair metadata table
 
 ## Troubleshooting
 
@@ -264,60 +245,10 @@ DELETE FROM flyway_schema_history WHERE version = 'X';
 
 **Production:** Never modify applied migrations. Create a new migration instead.
 
-### Connection Issues
-Verify your JDBC URL:
-```bash
-# Check user secrets
-dotnet user-secrets list --project src/Valyria.AppHost
-
-# Test connection
-mysql -h localhost -P 3306 -u root -p
-```
-
-## CI/CD Integration
-
-### GitHub Actions Example
-
-```yaml
-name: Deploy
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Run Database Migrations
-        env:
-          FLYWAY_URL: ${{ secrets.DB_JDBC_URL }}
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/src/Valyria.Database/migrations:/flyway/sql \
-            flyway/flyway:latest \
-            -url=$FLYWAY_URL \
-            migrate
-```
-
-### Azure DevOps Example
-
-```yaml
-- task: Docker@2
-  displayName: 'Run Flyway Migrations'
-  inputs:
-    command: 'run'
-    arguments: >
-      --rm
-      -v $(Build.SourcesDirectory)/src/Valyria.Database/migrations:/flyway/sql
-      flyway/flyway:latest
-      -url=$(FlywayJdbcUrl)
-      migrate
-```
-
 ## References
 
 - [Flyway Documentation](https://documentation.red-gate.com/flyway)
 - [MySQL Flyway Support](https://documentation.red-gate.com/fd/mysql-277579322.html)
-- [CommunityToolkit.Aspire.Hosting.Flyway](https://github.com/CommunityToolkit/Aspire)
 - [Aspire PostgreSQL Extensions Documentation](https://aspire.dev/integrations/databases/postgres/postgresql-extensions/)
 
 ## Exporting Current Database Schema

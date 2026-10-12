@@ -1,0 +1,150 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: 10.0.x
+  NODE_VERSION: 22.x
+  FLYWAY_IMAGE: flyway/flyway:11.20.3
+  ASPIRE_CLI_VERSION: 13.6.1
+
+jobs:
+  dotnet-tests:
+    name: .NET tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      # Integration tests start their own MySQL container through Testcontainers (Docker is on the runner)
+      - run: dotnet test Valyria.Aspire.sln
+
+  ui-tests:
+    name: UI lint and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/Valyria.Ui
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: src/Valyria.Ui/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run lint
+      - run: npx vitest run
+
+  # The integration tests apply the migrations with the mysql client, so this checks they also go through Flyway itself
+  # (file naming, DELIMITER parsing, checksums) before Flyway ever runs them against production
+  migrations:
+    name: Flyway migrations on an empty database
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: vep_db
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -pci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+      # The views are created with DEFINER=`base_admin`
+      - run: mysql -h 127.0.0.1 -uroot -pci -e "CREATE USER 'base_admin'@'%' IDENTIFIED BY 'unused'; GRANT ALL ON *.* TO 'base_admin'@'%';"
+      - name: flyway migrate
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/src/Valyria.Database:/flyway/project:ro" \
+            -e FLYWAY_URL="jdbc:mysql://127.0.0.1:3306/vep_db?allowPublicKeyRetrieval=true&useSSL=false" \
+            -e FLYWAY_USER=root -e FLYWAY_PASSWORD=ci \
+            "$FLYWAY_IMAGE" -workingDirectory=/flyway/project migrate
+
+  deploy:
+    name: Deploy to production
+    needs: [dotnet-tests, ui-tests, migrations]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write # OIDC login to Azure
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # The MySQL server only accepts allow-listed IPs, so let this runner in for the length of the migration
+      - name: Open MySQL firewall for this runner
+        id: firewall
+        run: |
+          ip=$(curl -fsS https://api.ipify.org)
+          rule="github-actions-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          az mysql flexible-server firewall-rule create \
+            --resource-group "${{ vars.MYSQL_RESOURCE_GROUP }}" --name "${{ vars.MYSQL_SERVER_NAME }}" \
+            --rule-name "$rule" --start-ip-address "$ip" --end-ip-address "$ip" --output none
+          echo "rule=$rule" >> "$GITHUB_OUTPUT"
+
+      - name: Migrate production database
+        env:
+          FLYWAY_URL: ${{ secrets.FLYWAY_URL }}
+          FLYWAY_USER: ${{ secrets.FLYWAY_USER }}
+          FLYWAY_PASSWORD: ${{ secrets.FLYWAY_PASSWORD }}
+        run: |
+          flyway() {
+            docker run --rm \
+              -v "$GITHUB_WORKSPACE/src/Valyria.Database:/flyway/project:ro" \
+              -e FLYWAY_URL -e FLYWAY_USER -e FLYWAY_PASSWORD \
+              "$FLYWAY_IMAGE" -workingDirectory=/flyway/project "$@"
+          }
+          flyway info
+          flyway migrate
+
+      - name: Close MySQL firewall
+        if: always() && steps.firewall.outputs.rule != ''
+        run: |
+          az mysql flexible-server firewall-rule delete --yes \
+            --resource-group "${{ vars.MYSQL_RESOURCE_GROUP }}" --name "${{ vars.MYSQL_SERVER_NAME }}" \
+            --rule-name "${{ steps.firewall.outputs.rule }}" --output none
+
+      - run: dotnet tool install --global Aspire.Cli --version "$ASPIRE_CLI_VERSION"
+
+      - name: aspire deploy
+        env:
+          Azure__CredentialSource: AzureCli
+          Azure__SubscriptionId: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          Azure__TenantId: ${{ vars.AZURE_TENANT_ID }}
+          Azure__Location: ${{ vars.AZURE_LOCATION }}
+          Azure__ResourceGroup: ${{ vars.AZURE_RESOURCE_GROUP }}
+          Parameters__customDomain: ${{ vars.CUSTOM_DOMAIN }}
+          Parameters__certificateName: ${{ vars.CERTIFICATE_NAME }}
+          Parameters__JwtSecret: ${{ secrets.JWT_SECRET }}
+          Parameters__VepDbConnectionString: ${{ secrets.VEP_DB_CONNECTION_STRING }}
+          Parameters__CnDbConnectionString: ${{ secrets.CN_DB_CONNECTION_STRING }}
+          Parameters__DiscordWebhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: aspire deploy --non-interactive
