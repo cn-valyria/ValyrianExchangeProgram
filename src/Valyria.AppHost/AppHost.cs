@@ -10,16 +10,16 @@ var discordWebhookUrl = builder.AddParameter("DiscordWebhookUrl");
 
 // Add Flyway migration resource for the database
 // Note: You need to set FlywayJdbcUrl in user secrets with format: jdbc:mysql://host:port/database?user=username&password=password
-var flywayJdbcUrl = builder.AddParameter("FlywayJdbcUrl");
-var flyway = builder.AddFlyway("valyria-migrations", "../Valyria.Database/migrations")
-    .WithArgs("-url", flywayJdbcUrl, "migrate");
+// var flywayJdbcUrl = builder.AddParameter("FlywayJdbcUrl");
+// var flyway = builder.AddFlyway("valyria-migrations", "../Valyria.Database/migrations")
+//     .WithArgs("-url", flywayJdbcUrl, "migrate");
 
 // Add the API project with HTTP and HTTPS endpoints
 var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
     .WithExternalHttpEndpoints()
     .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
-    .WithEnvironment("JwtSecret", jwtSecret)
-    .WaitFor(flyway);
+    .WithEnvironment("JwtSecret", jwtSecret);
+    // .WaitFor(flyway);
 
 var storage = builder.AddAzureStorage("valyria-storage").RunAsEmulator();
 var nationBlob = storage.AddBlobContainer("nation");
