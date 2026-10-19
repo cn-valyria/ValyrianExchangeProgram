@@ -10,6 +10,7 @@ using NSubstitute.ExceptionExtensions;
 using DataLoader::Valyria.Batch.DataLoader;
 using Valyria.Core.DTOs;
 using Valyria.Core.DTOs.CN;
+using Valyria.Core.Entities;
 using Valyria.Core.Interfaces;
 using Valyria.Infrastructure.Services.CnFileImport;
 using Valyria.Infrastructure.Services.CnFileImport.Models;
@@ -33,6 +34,7 @@ public class DataLoaderWorkerTests : IDisposable
     private readonly ICnFileParser _parser = Substitute.For<ICnFileParser>();
     private readonly IHostApplicationLifetime _lifetime = Substitute.For<IHostApplicationLifetime>();
     private readonly IDiscordWebhookService _discord = Substitute.For<IDiscordWebhookService>();
+    private readonly IMassMessagesRepository _massMessages = Substitute.For<IMassMessagesRepository>();
     private readonly Dictionary<CnFileType, BlobContainerClient> _containers = new();
     private readonly Dictionary<CnFileType, BlobClient> _blobs = new();
     private readonly int _originalExitCode = Environment.ExitCode;
@@ -61,7 +63,20 @@ public class DataLoaderWorkerTests : IDisposable
         _parser.ParseAsync<CnWarRecord>(Arg.Any<Stream>()).Returns(_ => Async(new CnWarRecord { WarId = 5000 }));
 
         _vepRepository.ProcessDealsAsync(Arg.Any<bool>()).Returns(new DealProcessingResult(3, 1, [111, 222]));
+
+        _massMessages.GetMassMessagesAsync().Returns(new MassMessagesSummary
+        {
+            Messages =
+            [
+                new MassMessage { Code = MassMessageCode.SendAid, Name = "Send Aid", Recipients = [Recipient(333), Recipient(0), Recipient(444)] },
+                new MassMessage { Code = MassMessageCode.AcceptAid, Name = "Accept Aid", Recipients = [Recipient(555)] },
+                new MassMessage { Code = MassMessageCode.Overdue, Name = "Overdue" },
+                new MassMessage { Code = MassMessageCode.FinalWarning, Name = "Final Warning", Recipients = [Recipient(666)] },
+            ]
+        });
     }
+
+    private static MassMessageRecipient Recipient(long discordId) => new() { DiscordUniqueId = discordId };
 
     public void Dispose() => Environment.ExitCode = _originalExitCode;
 
@@ -85,7 +100,8 @@ public class DataLoaderWorkerTests : IDisposable
             _containers[CnFileType.Aid],
             _containers[CnFileType.War],
             _lifetime,
-            _discord);
+            _discord,
+            _massMessages);
 
         await worker.StartAsync(CancellationToken.None);
         await worker.ExecuteTask!;
@@ -114,6 +130,18 @@ public class DataLoaderWorkerTests : IDisposable
     }
 
     [Fact]
+    public async Task PingsEachMassMessagesRecipients_WhenANewAidFileIsImported()
+    {
+        await RunWorker();
+
+        await _discord.Received(1).SendMassMessageNotificationAsync(MassMessageCode.SendAid, Arg.Is<IReadOnlyCollection<long>>(ids => ids.SequenceEqual(new long[] { 333, 444 })));
+        await _discord.Received(1).SendMassMessageNotificationAsync(MassMessageCode.AcceptAid, Arg.Is<IReadOnlyCollection<long>>(ids => ids.SequenceEqual(new long[] { 555 })));
+        await _discord.Received(1).SendMassMessageNotificationAsync(MassMessageCode.Overdue, Arg.Is<IReadOnlyCollection<long>>(ids => ids.Count == 0));
+        await _discord.Received(1).SendMassMessageNotificationAsync(MassMessageCode.FinalWarning, Arg.Is<IReadOnlyCollection<long>>(ids => ids.SequenceEqual(new long[] { 666 })));
+        Assert.Equal(_originalExitCode, Environment.ExitCode);
+    }
+
+    [Fact]
     public async Task SkipsFilesAlreadyImported_AndSkipsTheInactivityCheckWithoutANewAidFile()
     {
         _cnRepository.IsFileAlreadyImported(Arg.Any<string>()).Returns(true);
@@ -128,6 +156,10 @@ public class DataLoaderWorkerTests : IDisposable
 
         await _vepRepository.Received(1).ProcessDealsAsync(checkInactivity: false);
         await _discord.Received(1).SendNewDealsNotificationAsync(Arg.Any<IReadOnlyCollection<long>>());
+
+        // Mass message recipients were already pinged when today's aid file came in
+        await _massMessages.DidNotReceive().GetMassMessagesAsync();
+        await _discord.DidNotReceiveWithAnyArgs().SendMassMessageNotificationAsync(default, default!);
     }
 
     [Fact]

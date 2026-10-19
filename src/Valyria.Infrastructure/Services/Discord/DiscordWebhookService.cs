@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Valyria.Core.Entities;
 using Valyria.Infrastructure.Services.Discord.Models;
 
 namespace Valyria.Infrastructure.Services.Discord;
@@ -25,24 +26,40 @@ public class DiscordWebhookService : IDiscordWebhookService
         _options = options.Value;
     }
 
-    public async Task SendNewDealsNotificationAsync(IReadOnlyCollection<long> discordIds, CancellationToken cancellationToken = default)
+    public Task SendNewDealsNotificationAsync(IReadOnlyCollection<long> discordIds, CancellationToken cancellationToken = default) =>
+        SendMentionsAsync("new deals", NewDealsHeader, discordIds, cancellationToken);
+
+    public Task SendMassMessageNotificationAsync(MassMessageCode code, IReadOnlyCollection<long> discordIds, CancellationToken cancellationToken = default) =>
+        SendMentionsAsync($"{code} mass message", GetMassMessageHeader(code), discordIds, cancellationToken);
+
+    // Like the mass messages themselves, these never include deal-specific information
+    private static string GetMassMessageHeader(MassMessageCode code) => code switch
+    {
+        MassMessageCode.SendAid => "Heads up, you have VEP aid to send or an aid slot to free up today! Check the \"Action Needed Today\" card on your account page to see what to do.",
+        MassMessageCode.AcceptAid => "Heads up, you have a VEP aid offer waiting for you to accept in-game! If it expires, the deal is cancelled. Check the \"Action Needed Today\" card on your account page.",
+        MassMessageCode.Overdue => "One of your VEP deals has been flagged because it's waiting on you. Please check the \"Action Needed Today\" card on your account page as soon as possible.",
+        MassMessageCode.FinalWarning => "FINAL WARNING: One of your VEP deals will be cancelled at the next daily update unless you act today. Check the \"Action Needed Today\" card on your account page now.",
+        _ => throw new ArgumentOutOfRangeException(nameof(code), code, "Unknown mass message code")
+    };
+
+    private async Task SendMentionsAsync(string notificationName, string header, IReadOnlyCollection<long> discordIds, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.WebhookUrl))
         {
-            _logger.LogWarning("Discord webhook URL is not configured. Skipping new deals notification.");
+            _logger.LogWarning("Discord webhook URL is not configured. Skipping {notificationName} notification.", notificationName);
             return;
         }
 
         if (discordIds.Count == 0)
         {
-            _logger.LogInformation("No one picked up a new deal partner. Skipping new deals notification.");
+            _logger.LogInformation("No one to notify. Skipping {notificationName} notification.", notificationName);
             return;
         }
 
         try
         {
             var httpClient = _httpClientFactory.CreateClient();
-            foreach (var content in BuildMentionMessages(NewDealsHeader, discordIds))
+            foreach (var content in BuildMentionMessages(header, discordIds))
             {
                 var message = new DiscordWebhookMessage { Content = content, Embeds = [], Attachments = [] };
                 var response = await httpClient.PostAsJsonAsync(_options.WebhookUrl, message, cancellationToken);
@@ -50,17 +67,17 @@ public class DiscordWebhookService : IDiscordWebhookService
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                    _logger.LogError("Failed to send new deals Discord webhook. Status: {statusCode}, Content: {errorContent}",
-                        response.StatusCode, errorContent);
+                    _logger.LogError("Failed to send {notificationName} Discord webhook. Status: {statusCode}, Content: {errorContent}",
+                        notificationName, response.StatusCode, errorContent);
                     return;
                 }
             }
 
-            _logger.LogInformation("Successfully notified {count} accounts of new deal partners on Discord.", discordIds.Count);
+            _logger.LogInformation("Successfully sent {notificationName} notification to {count} accounts on Discord.", notificationName, discordIds.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while sending new deals Discord webhook notification.");
+            _logger.LogError(ex, "Error occurred while sending {notificationName} Discord webhook notification.", notificationName);
         }
     }
 

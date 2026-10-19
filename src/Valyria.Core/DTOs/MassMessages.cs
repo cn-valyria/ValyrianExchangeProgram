@@ -38,6 +38,10 @@ public class MassMessageRecipient
     public string NationName { get; set; }
     public string AllianceName { get; set; }
     public string Discord { get; set; }
+    /// <summary>
+    /// Used by the data loader to ping the recipient on Discord. 0 if the account has no Discord ID
+    /// </summary>
+    public long DiscordUniqueId { get; set; }
     public int SendCount { get; set; }
     public int AcceptCount { get; set; }
     /// <summary>

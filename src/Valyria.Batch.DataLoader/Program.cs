@@ -29,6 +29,7 @@ builder.Services.AddSingleton<ICnFileParser, CnFileParser>();
 // Register repositories
 builder.Services.AddKeyedSingleton<IDataLoaderRepository>("VepDb", new DataLoaderRepository(vepDbConnectionString));
 builder.Services.AddKeyedSingleton<IDataLoaderRepository>("CnDb", new DataLoaderRepository(cnDbConnectionString));
+builder.Services.AddSingleton<IMassMessagesRepository>(new MassMessagesRepository(vepDbConnectionString));
 
 // Register Discord webhook service
 builder.Services.Configure<DiscordWebhookOptions>((options) => options.WebhookUrl = discordWebhookUrl);

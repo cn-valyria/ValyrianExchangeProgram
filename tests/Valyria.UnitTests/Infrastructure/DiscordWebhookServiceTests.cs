@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using Valyria.Core.Entities;
 using Valyria.Infrastructure.Services.Discord;
 using Valyria.Infrastructure.Services.Discord.Models;
 
@@ -108,5 +109,28 @@ public class DiscordWebhookServiceTests
         var exception = await Record.ExceptionAsync(() => CreateService().SendNewDealsNotificationAsync([111]));
 
         Assert.Null(exception);
+    }
+
+    [Theory]
+    [InlineData(MassMessageCode.SendAid, "Heads up, you have VEP aid to send")]
+    [InlineData(MassMessageCode.AcceptAid, "Heads up, you have a VEP aid offer")]
+    [InlineData(MassMessageCode.Overdue, "One of your VEP deals has been flagged")]
+    [InlineData(MassMessageCode.FinalWarning, "FINAL WARNING:")]
+    public async Task MentionsMassMessageRecipients_UnderThatMessagesHeader(MassMessageCode code, string headerStart)
+    {
+        await CreateService().SendMassMessageNotificationAsync(code, [111, 222]);
+
+        var (uri, body) = Assert.Single(_handler.Requests);
+        Assert.Equal(WebhookUrl, uri!.ToString());
+        Assert.StartsWith(headerStart, body!.Content);
+        Assert.EndsWith(" <@111> <@222>", body.Content);
+    }
+
+    [Fact]
+    public async Task SkipsSending_WhenAMassMessageHasNoRecipients()
+    {
+        await CreateService().SendMassMessageNotificationAsync(MassMessageCode.Overdue, []);
+
+        Assert.Empty(_handler.Requests);
     }
 }

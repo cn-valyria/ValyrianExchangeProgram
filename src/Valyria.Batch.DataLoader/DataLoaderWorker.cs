@@ -25,6 +25,7 @@ public class DataLoaderWorker : BackgroundService
     private readonly BlobContainerClient _warBlobClient;
     private readonly IHostApplicationLifetime _applicationLifetime;
     private readonly IDiscordWebhookService _discordWebhookService;
+    private readonly IMassMessagesRepository _massMessagesRepository;
 
     public DataLoaderWorker(
         ILogger<DataLoaderWorker> logger,
@@ -37,7 +38,8 @@ public class DataLoaderWorker : BackgroundService
         [FromKeyedServices("aid")] BlobContainerClient aidBlobClient,
         [FromKeyedServices("war")] BlobContainerClient warBlobClient,
         IHostApplicationLifetime applicationLifetime,
-        IDiscordWebhookService discordWebhookService)
+        IDiscordWebhookService discordWebhookService,
+        IMassMessagesRepository massMessagesRepository)
     {
         _logger = logger;
         _vepDataLoaderRepository = vepDataLoaderRepository;
@@ -50,6 +52,7 @@ public class DataLoaderWorker : BackgroundService
         _warBlobClient = warBlobClient;
         _applicationLifetime = applicationLifetime;
         _discordWebhookService = discordWebhookService;
+        _massMessagesRepository = massMessagesRepository;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -70,6 +73,11 @@ public class DataLoaderWorker : BackgroundService
 
             // Then process VEP deals against the freshly imported aid
             await ProcessDealsAsync(aidFileImported);
+
+            // The loader runs many times a day, so only ping mass message recipients once per CN day,
+            // when the new aid file comes in and deal states and flags are freshly updated
+            if (aidFileImported)
+                await SendMassMessageNotificationsAsync();
 
             _logger.LogInformation("CN/VEP Data Loader completed at: {time}", DateTimeOffset.Now);
         }
@@ -234,5 +242,25 @@ public class DataLoaderWorker : BackgroundService
 
         // Let anyone who picked up a new partner know about it
         await _discordWebhookService.SendNewDealsNotificationAsync(result.NewPartnerDiscordIds);
+    }
+
+    private async Task SendMassMessageNotificationsAsync()
+    {
+        _logger.LogInformation("Pinging today's mass message recipients on Discord...");
+
+        var summary = await _massMessagesRepository.GetMassMessagesAsync();
+        foreach (var message in summary.Messages)
+        {
+            var discordIds = message.Recipients
+                .Select(r => r.DiscordUniqueId)
+                .Where(id => id != 0)
+                .Distinct()
+                .ToList();
+
+            _logger.LogInformation("{messageName} mass message: {recipientCount} recipients, {discordCount} with a Discord ID.",
+                message.Name, message.Recipients.Count, discordIds.Count);
+
+            await _discordWebhookService.SendMassMessageNotificationAsync(message.Code, discordIds);
+        }
     }
 }

@@ -45,6 +45,7 @@ public class MassMessagesRepositoryTests(MySqlFixture fixture) : RepositoryTestB
         // Bob needs to send, and isn't flagged
         var (bob, sue, sendDeal) = await PairAsync(100, "Bob", 200, "Sue");
         await Data.DealStateAsync(sendDeal, "awaiting_send", bob, sue, responsible: bob, responsibleSince: cnToday);
+        await Data.ExecuteAsync("update account set discord_id = 123456789012345678 where id = @bob", new { bob });
 
         // Dana has an offer to accept and a deal to send on; accepting wins
         var (carl, dana, acceptDeal) = await PairAsync(300, "Carl", 400, "Dana");
@@ -81,6 +82,7 @@ public class MassMessagesRepositoryTests(MySqlFixture fixture) : RepositoryTestB
         var bobRecipient = Assert.Single(byCode[MassMessageCode.SendAid]);
         Assert.Equal((bob, "Bob", "Bobland", "bob", 1, 0, 0, 0), (bobRecipient.AccountId, bobRecipient.RulerName, bobRecipient.NationName,
             bobRecipient.Discord, bobRecipient.SendCount, bobRecipient.AcceptCount, bobRecipient.BlockedCount, bobRecipient.FlaggedCount));
+        Assert.Equal(123456789012345678, bobRecipient.DiscordUniqueId);
         Assert.Null(bobRecipient.DaysOverdue);
 
         var danaRecipient = Assert.Single(byCode[MassMessageCode.AcceptAid]);
