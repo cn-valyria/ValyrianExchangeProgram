@@ -62,7 +62,7 @@ public class DataLoaderWorkerTests : IDisposable
         _parser.ParseAsync<CnAidRecord>(Arg.Any<Stream>()).Returns(_ => Async(new CnAidRecord { AidId = 900 }, new CnAidRecord { AidId = 901 }));
         _parser.ParseAsync<CnWarRecord>(Arg.Any<Stream>()).Returns(_ => Async(new CnWarRecord { WarId = 5000 }));
 
-        _vepRepository.ProcessDealsAsync(Arg.Any<bool>()).Returns(new DealProcessingResult(3, 1, [111, 222]));
+        _vepRepository.ProcessDealsAsync(Arg.Any<bool>()).Returns(new DealProcessingResult(3, 0, 1, [111, 222]));
 
         _massMessages.GetMassMessagesAsync().Returns(new MassMessagesSummary
         {

@@ -237,8 +237,8 @@ public class DataLoaderWorker : BackgroundService
             _logger.LogInformation("No new aid file this run, so skipping the inactivity check. Tracking activity and matching open slots...");
 
         var result = await _vepDataLoaderRepository.ProcessDealsAsync(checkInactivity: aidFileImported);
-        _logger.LogInformation("Deals processed. {activityTracked} aid records linked to deals, {dealsCreated} new deals created.",
-            result.ActivityTracked, result.DealsCreated);
+        _logger.LogInformation("Deals processed. {activityTracked} aid records linked to deals, {accountsHeld} accounts put on hold for deleted nations, {dealsCreated} new deals created.",
+            result.ActivityTracked, result.AccountsHeld, result.DealsCreated);
 
         // Let anyone who picked up a new partner know about it
         await _discordWebhookService.SendNewDealsNotificationAsync(result.NewPartnerDiscordIds);

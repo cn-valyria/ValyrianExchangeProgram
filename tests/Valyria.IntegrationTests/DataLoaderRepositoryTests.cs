@@ -154,6 +154,48 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
     }
 
     [Fact]
+    public async Task ProcessDeals_PutsAccountsWithDeletedNationsOnHold_AndCancelsTheirDeals()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
+        var sue = await Data.MemberAsync(200, "Sue", 'S', discordId: 222);
+        var dealId = await Data.DealAsync((await Data.SlotIdsAsync(bob))[0], (await Data.SlotIdsAsync(sue))[0]);
+
+        // CN deleted Sue's nation for inactivity
+        await Data.ExecuteAsync("delete from cybernations_db.nation where id = 200");
+
+        var result = await VepRepository.ProcessDealsAsync(checkInactivity: true);
+
+        Assert.Equal(1, result.AccountsHeld);
+        Assert.Equal(0, result.DealsCreated);
+        Assert.Equal([('B', bob), ('H', sue)], await Data.QueryAsync<(char, int)>("select va, id from account order by id"));
+        Assert.Equal(("cancelled", "Nation deleted"), (await Data.QueryAsync<(string, string)>(
+            "select status, cancellation_reason from deal where id = @dealId", new { dealId })).Single());
+        Assert.Equal(0, await Data.ScalarAsync<int>(
+            "select count(*) from slot where account_id = @sue and tech_sent_cycles + tech_received_cycles + cash_sent_cycles + cash_received_cycles > 0",
+            new { sue }));
+
+        // Already on hold, so the next run leaves it alone
+        Assert.Equal(0, (await VepRepository.ProcessDealsAsync(checkInactivity: true)).AccountsHeld);
+    }
+
+    [Fact]
+    public async Task ProcessDeals_HoldsNoAccounts_WhenTheNationTableIsEmpty()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B');
+        var sue = await Data.MemberAsync(200, "Sue", 'S');
+        var dealId = await Data.DealAsync((await Data.SlotIdsAsync(bob))[0], (await Data.SlotIdsAsync(sue))[0]);
+
+        // A failed nation import shouldn't wipe out the whole program
+        await Data.ExecuteAsync("delete from cybernations_db.nation");
+
+        var result = await VepRepository.ProcessDealsAsync(checkInactivity: false);
+
+        Assert.Equal(0, result.AccountsHeld);
+        Assert.Equal(["B", "S"], await Data.QueryAsync<string>("select va from account order by id"));
+        Assert.Equal("active", await Data.ScalarAsync<string>("select status from deal where id = @dealId", new { dealId }));
+    }
+
+    [Fact]
     public async Task ProcessDeals_LeavesOutAccountsWithoutADiscordId_AndOnlyReportsNewDeals()
     {
         await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
