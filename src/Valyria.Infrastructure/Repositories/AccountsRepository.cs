@@ -15,19 +15,20 @@ public class AccountsRepository : IAccountsRepository
     
     private const string AccountDetailQuery = @"
 select 	account.id as Id,
-    nation.id as NationId,
-    nation.nation_name as NationName,
-    nation.ruler_name as RulerName,
+    account.nation_id as NationId,
+    coalesce(nation.nation_name, deleted_nation.nation_name) as NationName,
+    coalesce(nation.ruler_name, deleted_nation.ruler_name) as RulerName,
     account.discord as Discord,
     account.discord_id as DiscordUniqueId,
     account.psw as UniqueCode,
     account.va as Role,
     alliance.name as AllianceName,
-    nation.recent_activity as Activity,
-    nation.strength as Strength,
-    nation.infrastructure as Infra,
-    nation.technology as Tech,
-    nation.war_status as WarStatus,
+    coalesce(nation.recent_activity, deleted_nation.recent_activity) as Activity,
+    coalesce(nation.strength, deleted_nation.strength, 0) as Strength,
+    coalesce(nation.infrastructure, deleted_nation.infrastructure, 0) as Infra,
+    coalesce(nation.technology, deleted_nation.technology, 0) as Tech,
+    coalesce(nation.war_status, deleted_nation.war_status) as WarStatus,
+    (nation.id is null) as NationDeleted,
     account.fm as HasForeignMinistry,
     account.fac as HasFederalAidCommission,
     account.dra as HasDisasterReliefAgency,
@@ -35,8 +36,19 @@ select 	account.id as Id,
     coalesce(deal_summary.slots_total, 0) as SlotsTotal,
     coalesce(open_flags.flag_count, 0) as OpenFlagCount
 from vep_db.account account
-join cybernations_db.nation nation on account.nation_id = nation.id
-left join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
+left join cybernations_db.nation nation on account.nation_id = nation.id
+-- CN deletes inactive nations. Show their accounts with the nation as it was when it was deleted
+left join lateral (
+    select an.nation_name, an.ruler_name, an.alliance_id, an.recent_activity, an.strength,
+        an.infrastructure, an.technology, an.war_status
+    from cybernations_db.audit_nation an
+    where an.nation_id = account.nation_id
+        and an.change_code = 'D'
+        and nation.id is null
+    order by an.change_timestamp desc
+    limit 1
+) deleted_nation on true
+left join cybernations_db.alliance alliance on coalesce(nation.alliance_id, deleted_nation.alliance_id) = alliance.id
 left join vep_db.account_deal_summary deal_summary on account.id = deal_summary.account_id
 left join (
     select account_id, count(distinct deal_id) as flag_count

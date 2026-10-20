@@ -18,6 +18,8 @@ public class AccountDetail
     public decimal Infra { get; set; }
     public decimal Tech { get; set; }
     public NationalWarStatus WarStatus { get; set; }
+    // The nation was deleted from CN. The nation fields are from its last known state
+    public bool NationDeleted { get; set; }
     public bool HasForeignMinistry { get; set; }
     public bool HasFederalAidCommission { get; set; }
     public bool HasDisasterReliefAgency { get; set; }

@@ -112,6 +112,18 @@ const columns: TableColumn<AdminAccount>[] = [
           { class: 'text-sm text-gray-500 dark:text-gray-400' },
           account.nationName,
         ),
+        account.nationDeleted
+          ? h(
+              resolveComponent('UBadge'),
+              {
+                color: 'error',
+                variant: 'subtle',
+                size: 'sm',
+                class: 'mt-1',
+              },
+              () => 'Nation deleted',
+            )
+          : null,
       ])
     },
   },

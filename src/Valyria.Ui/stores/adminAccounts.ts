@@ -17,6 +17,7 @@ export interface AdminAccount {
   infra: number
   tech: number
   warStatus: NationalWarStatus
+  nationDeleted: boolean
   hasForeignMinistry: boolean
   hasFederalAidCommission: boolean
   hasDisasterReliefAgency: boolean

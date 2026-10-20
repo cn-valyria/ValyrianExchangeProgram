@@ -52,6 +52,28 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
         Assert.Equal(1, account.SlotsUsed);
         Assert.Equal(6, account.SlotsTotal);
         Assert.Equal(1, account.OpenFlagCount);
+        Assert.False(account.NationDeleted);
+    }
+
+    [Fact]
+    public async Task GetAccountDetails_ShowsDeletedNationsAsTheyWereWhenDeleted()
+    {
+        await Data.AllianceAsync(1, "Valyria");
+        var bob = await Data.MemberAsync(100, "Bob", 'H', allianceId: 1);
+        // No audit row to fall back on, e.g. a nation deleted before auditing started
+        var sue = await Data.AccountAsync(200, 'H');
+
+        // CN deleted Bob's nation. The nation delete trigger keeps its last state in audit_nation
+        await Data.ExecuteAsync("delete from cybernations_db.nation where id = 100");
+
+        var accounts = (await Repository.GetAccountDetailsAsync(includeOnHold: true)).ToDictionary(a => a.Id);
+
+        Assert.Equal((100, "Bobland", "Bob", "Valyria", true),
+            (accounts[bob].NationId, accounts[bob].NationName, accounts[bob].RulerName, accounts[bob].AllianceName, accounts[bob].NationDeleted));
+        Assert.Equal(RecentActivity.ActiveInTheLast3Days, accounts[bob].Activity);
+        Assert.Equal(1000m, accounts[bob].Strength);
+        Assert.Equal((200, null, true), (accounts[sue].NationId, accounts[sue].NationName, accounts[sue].NationDeleted));
+        Assert.True((await Repository.GetAccountByIdAsync(bob)).NationDeleted);
     }
 
     [Fact]

@@ -114,6 +114,7 @@ export const adminAccount = (
   infra: 2000,
   tech: 300,
   warStatus: 2,
+  nationDeleted: false,
   hasForeignMinistry: false,
   hasFederalAidCommission: false,
   hasDisasterReliefAgency: false,

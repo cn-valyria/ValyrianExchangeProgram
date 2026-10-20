@@ -151,6 +151,24 @@ describe('admin accounts page', () => {
       ).find((span) => span.textContent?.trim() === text)!
     expect(roleBadge(0, 'Buyer').className).toContain('text-warning')
     expect(roleBadge(1, 'Seller').className).toContain('text-error')
+    expect(bodyText()).not.toContain('Nation deleted')
+  })
+
+  it('marks accounts whose nation was deleted', async () => {
+    signIn('Super Admin')
+    const store = useAdminAccountsStore()
+    vi.spyOn(store, 'loadAllAccounts').mockImplementation(async () => {
+      store.accounts = [
+        { ...accounts[0] },
+        { ...accounts[1], role: 'H', nationDeleted: true },
+      ]
+    })
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts' })
+
+    const rows = tableRows()
+    expect(rows[0]).not.toContain('Nation deleted')
+    expect(rows[1]).toContain('Nation deleted')
   })
 
   it('filters by nation, ruler, alliance or role', async () => {
