@@ -62,7 +62,8 @@ public class DataLoaderWorkerTests : IDisposable
         _parser.ParseAsync<CnAidRecord>(Arg.Any<Stream>()).Returns(_ => Async(new CnAidRecord { AidId = 900 }, new CnAidRecord { AidId = 901 }));
         _parser.ParseAsync<CnWarRecord>(Arg.Any<Stream>()).Returns(_ => Async(new CnWarRecord { WarId = 5000 }));
 
-        _vepRepository.ProcessDealsAsync(Arg.Any<bool>()).Returns(new DealProcessingResult(3, 0, 1, [111, 222]));
+        _vepRepository.UpdateDealStateAsync(Arg.Any<bool>()).Returns(new DealStateResult(3, 0));
+        _vepRepository.MatchDealsAsync().Returns(new DealMatchingResult(1, [111, 222]));
 
         _massMessages.GetMassMessagesAsync().Returns(new MassMessagesSummary
         {
@@ -123,7 +124,8 @@ public class DataLoaderWorkerTests : IDisposable
             await _blobs[fileType].Received(1).UploadAsync(Arg.Is<Stream>(s => new StreamReader(s).ReadToEnd() == $"{fileType} file contents"));
         }
 
-        await _vepRepository.Received(1).ProcessDealsAsync(checkInactivity: true);
+        await _vepRepository.Received(1).UpdateDealStateAsync(checkInactivity: true);
+        await _vepRepository.Received(1).MatchDealsAsync();
         await _discord.Received(1).SendNewDealsNotificationAsync(Arg.Is<IReadOnlyCollection<long>>(ids => ids.SequenceEqual(new long[] { 111, 222 })));
         _lifetime.Received(1).StopApplication();
         Assert.Equal(_originalExitCode, Environment.ExitCode);
@@ -154,7 +156,8 @@ public class DataLoaderWorkerTests : IDisposable
         await _cnRepository.DidNotReceiveWithAnyArgs().ImportWarsAsync(default!, default!);
         Assert.All(_blobs.Values, blob => Assert.DoesNotContain(blob.ReceivedCalls(), c => c.GetMethodInfo().Name == nameof(BlobClient.UploadAsync)));
 
-        await _vepRepository.Received(1).ProcessDealsAsync(checkInactivity: false);
+        await _vepRepository.Received(1).UpdateDealStateAsync(checkInactivity: false);
+        await _vepRepository.Received(1).MatchDealsAsync();
         await _discord.Received(1).SendNewDealsNotificationAsync(Arg.Any<IReadOnlyCollection<long>>());
 
         // Mass message recipients were already pinged when today's aid file came in
@@ -181,7 +184,35 @@ public class DataLoaderWorkerTests : IDisposable
         await RunWorker();
 
         Assert.Equal(1, Environment.ExitCode);
-        await _vepRepository.DidNotReceive().ProcessDealsAsync(Arg.Any<bool>());
+        await _vepRepository.DidNotReceive().UpdateDealStateAsync(Arg.Any<bool>());
+        _lifetime.Received(1).StopApplication();
+    }
+
+    [Fact]
+    public async Task StillPingsMassMessageRecipients_ButFailsTheRun_WhenMatchingFails()
+    {
+        _vepRepository.MatchDealsAsync().ThrowsAsync(new Exception("Duplicate entry '646-650' for key 'deal.unique_slot_pair'"));
+
+        await RunWorker();
+
+        Assert.Equal(1, Environment.ExitCode);
+        await _discord.DidNotReceiveWithAnyArgs().SendNewDealsNotificationAsync(default!);
+        await _discord.Received(1).SendMassMessageNotificationAsync(MassMessageCode.SendAid, Arg.Any<IReadOnlyCollection<long>>());
+        await _discord.Received(4).SendMassMessageNotificationAsync(Arg.Any<MassMessageCode>(), Arg.Any<IReadOnlyCollection<long>>());
+        _lifetime.Received(1).StopApplication();
+    }
+
+    [Fact]
+    public async Task SkipsMatchingAndMassMessages_WhenTheDealStateUpdateFails()
+    {
+        _vepRepository.UpdateDealStateAsync(Arg.Any<bool>()).ThrowsAsync(new Exception("deadlock"));
+
+        await RunWorker();
+
+        Assert.Equal(1, Environment.ExitCode);
+        await _vepRepository.DidNotReceive().MatchDealsAsync();
+        await _massMessages.DidNotReceive().GetMassMessagesAsync();
+        await _discord.DidNotReceiveWithAnyArgs().SendMassMessageNotificationAsync(default, default!);
         _lifetime.Received(1).StopApplication();
     }
 
@@ -209,6 +240,6 @@ public class DataLoaderWorkerTests : IDisposable
 
         Assert.Equal(1, Environment.ExitCode);
         await _cnRepository.DidNotReceiveWithAnyArgs().ImportWarsAsync(default!, default!);
-        await _vepRepository.DidNotReceive().ProcessDealsAsync(Arg.Any<bool>());
+        await _vepRepository.DidNotReceive().UpdateDealStateAsync(Arg.Any<bool>());
     }
 }

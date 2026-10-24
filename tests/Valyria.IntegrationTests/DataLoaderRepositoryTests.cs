@@ -139,14 +139,14 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task ProcessDeals_MatchesOpenSlots_AndReportsWhoToNotify(bool checkInactivity)
+    public async Task MatchDeals_MatchesOpenSlots_AndReportsWhoToNotify(bool checkInactivity)
     {
         await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
         await Data.MemberAsync(200, "Sue", 'S', discordId: 222);
 
-        var result = await VepRepository.ProcessDealsAsync(checkInactivity);
+        Assert.Equal(0, (await VepRepository.UpdateDealStateAsync(checkInactivity)).ActivityTracked);
+        var result = await VepRepository.MatchDealsAsync();
 
-        Assert.Equal(0, result.ActivityTracked);
         Assert.True(result.DealsCreated > 0);
         Assert.Equal([111L, 222L], result.NewPartnerDiscordIds.Order());
         Assert.Equal(result.DealsCreated, await Data.ScalarAsync<int>("select count(*) from deal where status = 'active'"));
@@ -154,7 +154,7 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
     }
 
     [Fact]
-    public async Task ProcessDeals_PutsAccountsWithDeletedNationsOnHold_AndCancelsTheirDeals()
+    public async Task UpdateDealState_PutsAccountsWithDeletedNationsOnHold_AndCancelsTheirDeals()
     {
         var bob = await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
         var sue = await Data.MemberAsync(200, "Sue", 'S', discordId: 222);
@@ -163,10 +163,10 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
         // CN deleted Sue's nation for inactivity
         await Data.ExecuteAsync("delete from cybernations_db.nation where id = 200");
 
-        var result = await VepRepository.ProcessDealsAsync(checkInactivity: true);
+        var result = await VepRepository.UpdateDealStateAsync(checkInactivity: true);
 
         Assert.Equal(1, result.AccountsHeld);
-        Assert.Equal(0, result.DealsCreated);
+        Assert.Equal(0, (await VepRepository.MatchDealsAsync()).DealsCreated);
         Assert.Equal([('B', bob), ('H', sue)], await Data.QueryAsync<(char, int)>("select va, id from account order by id"));
         Assert.Equal(("cancelled", "Nation deleted"), (await Data.QueryAsync<(string, string)>(
             "select status, cancellation_reason from deal where id = @dealId", new { dealId })).Single());
@@ -175,11 +175,11 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
             new { sue }));
 
         // Already on hold, so the next run leaves it alone
-        Assert.Equal(0, (await VepRepository.ProcessDealsAsync(checkInactivity: true)).AccountsHeld);
+        Assert.Equal(0, (await VepRepository.UpdateDealStateAsync(checkInactivity: true)).AccountsHeld);
     }
 
     [Fact]
-    public async Task ProcessDeals_HoldsNoAccounts_WhenTheNationTableIsEmpty()
+    public async Task UpdateDealState_HoldsNoAccounts_WhenTheNationTableIsEmpty()
     {
         var bob = await Data.MemberAsync(100, "Bob", 'B');
         var sue = await Data.MemberAsync(200, "Sue", 'S');
@@ -188,7 +188,7 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
         // A failed nation import shouldn't wipe out the whole program
         await Data.ExecuteAsync("delete from cybernations_db.nation");
 
-        var result = await VepRepository.ProcessDealsAsync(checkInactivity: false);
+        var result = await VepRepository.UpdateDealStateAsync(checkInactivity: false);
 
         Assert.Equal(0, result.AccountsHeld);
         Assert.Equal(["B", "S"], await Data.QueryAsync<string>("select va from account order by id"));
@@ -196,18 +196,39 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
     }
 
     [Fact]
-    public async Task ProcessDeals_LeavesOutAccountsWithoutADiscordId_AndOnlyReportsNewDeals()
+    public async Task MatchDeals_LeavesOutAccountsWithoutADiscordId_AndOnlyReportsNewDeals()
     {
         await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
         await Data.MemberAsync(200, "Sue", 'S', discordId: 0);
-        var first = await VepRepository.ProcessDealsAsync(checkInactivity: true);
+        var first = await VepRepository.MatchDealsAsync();
         var dealsAfterFirstRun = await Data.ScalarAsync<int>("select count(*) from deal");
 
-        var second = await VepRepository.ProcessDealsAsync(checkInactivity: true);
+        var second = await VepRepository.MatchDealsAsync();
 
         Assert.Equal([111L], first.NewPartnerDiscordIds);
         Assert.Equal(dealsAfterFirstRun + second.DealsCreated, await Data.ScalarAsync<int>("select count(*) from deal"));
         if (second.DealsCreated == 0)
             Assert.Empty(second.NewPartnerDiscordIds);
+    }
+
+    [Fact]
+    public async Task MatchDeals_NeverRematchesASlotPairThatAlreadyHadADeal()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
+        var sue = await Data.MemberAsync(200, "Sue", 'S', discordId: 222);
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+
+        // Their first slots were matched before, and the deal was cancelled. Those slots are
+        // still each other's best candidate, which used to hit deal.unique_slot_pair
+        var cancelledDealId = await Data.DealAsync(bobSlots[0], sueSlots[0], status: "cancelled");
+
+        var result = await VepRepository.MatchDealsAsync();
+
+        Assert.Equal(1, result.DealsCreated);
+        Assert.Equal([111L, 222L], result.NewPartnerDiscordIds.Order());
+        var (slot1, slot2) = (await Data.QueryAsync<(int, int)>(
+            "select slot_1_id, slot_2_id from deal where id <> @cancelledDealId", new { cancelledDealId })).Single();
+        Assert.NotEqual((Math.Min(bobSlots[0], sueSlots[0]), Math.Max(bobSlots[0], sueSlots[0])), (slot1, slot2));
     }
 }

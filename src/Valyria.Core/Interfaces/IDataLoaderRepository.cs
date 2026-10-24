@@ -13,5 +13,6 @@ public interface IDataLoaderRepository
     Task<int> ImportWarsAsync(IReadOnlyCollection<War> data, string fileName);
 
     // VEP data loader methods
-    Task<DealProcessingResult> ProcessDealsAsync(bool checkInactivity);
+    Task<DealStateResult> UpdateDealStateAsync(bool checkInactivity);
+    Task<DealMatchingResult> MatchDealsAsync();
 }

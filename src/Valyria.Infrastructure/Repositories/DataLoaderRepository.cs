@@ -175,7 +175,7 @@ public class DataLoaderRepository : IDataLoaderRepository
         return rowsAffected;
     }
 
-    public async Task<DealProcessingResult> ProcessDealsAsync(bool checkInactivity)
+    public async Task<DealStateResult> UpdateDealStateAsync(bool checkInactivity)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         await sqlConnection.OpenAsync();
@@ -202,7 +202,7 @@ public class DataLoaderRepository : IDataLoaderRepository
                 commandTimeout: DealProcedureTimeoutSeconds);
 
         // Put accounts whose nation was deleted on hold, cancelling their deals, so they aren't
-        // matched below and their partners can be rematched
+        // matched and their partners can be rematched
         var holdParameters = new DynamicParameters();
         holdParameters.Add("p_accounts_held", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
@@ -211,6 +211,14 @@ public class DataLoaderRepository : IDataLoaderRepository
             holdParameters,
             commandType: CommandType.StoredProcedure,
             commandTimeout: DealProcedureTimeoutSeconds);
+
+        return new DealStateResult(activityTracked, holdParameters.Get<int>("p_accounts_held"));
+    }
+
+    public async Task<DealMatchingResult> MatchDealsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.OpenAsync();
 
         // Anything above this id was created by the match run below
         var lastDealIdBeforeMatch = await sqlConnection.ExecuteScalarAsync<int>("select coalesce(max(id), 0) from deal");
@@ -245,11 +253,7 @@ where d.id > @lastDealIdBeforeMatch
 
         var discordIds = await sqlConnection.QueryAsync<long>(newDealDiscordIdsQuery, new { lastDealIdBeforeMatch });
 
-        return new DealProcessingResult(
-            activityTracked,
-            holdParameters.Get<int>("p_accounts_held"),
-            parameters.Get<int>("p_deals_created"),
-            [.. discordIds]);
+        return new DealMatchingResult(parameters.Get<int>("p_deals_created"), [.. discordIds]);
     }
 
     private async Task<int> UpdateTempTable<T>(

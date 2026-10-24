@@ -71,13 +71,23 @@ public class DataLoaderWorker : BackgroundService
 
             _logger.LogInformation("All CN file imports completed");
 
-            // Then process VEP deals against the freshly imported aid
-            await ProcessDealsAsync(aidFileImported);
+            // Then update VEP deals against the freshly imported aid. Mass messages are built from
+            // deal state and flags, so if this fails there's nothing safe to ping anyone about
+            await UpdateDealStateAsync(aidFileImported);
+
+            // A matching failure still fails the run, but shouldn't hold back today's reminders
+            var matchingSucceeded = await TryMatchDealsAsync();
 
             // The loader runs many times a day, so only ping mass message recipients once per CN day,
             // when the new aid file comes in and deal states and flags are freshly updated
             if (aidFileImported)
                 await SendMassMessageNotificationsAsync();
+
+            if (!matchingSucceeded)
+            {
+                Environment.ExitCode = 1;
+                return;
+            }
 
             _logger.LogInformation("CN/VEP Data Loader completed at: {time}", DateTimeOffset.Now);
         }
@@ -227,21 +237,39 @@ public class DataLoaderWorker : BackgroundService
         }
     }
 
-    private async Task ProcessDealsAsync(bool aidFileImported)
+    private async Task UpdateDealStateAsync(bool aidFileImported)
     {
         // Inactivity is measured against today's date, so only check it once today's aid file is in.
-        // Activity tracking and matching are safe to rerun, and matching picks up any admin changes
+        // Activity tracking is safe to rerun
         if (aidFileImported)
-            _logger.LogInformation("Processing deals: tracking activity, checking inactivity and matching open slots...");
+            _logger.LogInformation("Updating deals: tracking activity and checking inactivity...");
         else
-            _logger.LogInformation("No new aid file this run, so skipping the inactivity check. Tracking activity and matching open slots...");
+            _logger.LogInformation("No new aid file this run, so skipping the inactivity check. Tracking activity...");
 
-        var result = await _vepDataLoaderRepository.ProcessDealsAsync(checkInactivity: aidFileImported);
-        _logger.LogInformation("Deals processed. {activityTracked} aid records linked to deals, {accountsHeld} accounts put on hold for deleted nations, {dealsCreated} new deals created.",
-            result.ActivityTracked, result.AccountsHeld, result.DealsCreated);
+        var result = await _vepDataLoaderRepository.UpdateDealStateAsync(checkInactivity: aidFileImported);
+        _logger.LogInformation("Deals updated. {activityTracked} aid records linked to deals, {accountsHeld} accounts put on hold for deleted nations.",
+            result.ActivityTracked, result.AccountsHeld);
+    }
 
-        // Let anyone who picked up a new partner know about it
-        await _discordWebhookService.SendNewDealsNotificationAsync(result.NewPartnerDiscordIds);
+    private async Task<bool> TryMatchDealsAsync()
+    {
+        // Matching is safe to rerun, and picks up any admin changes
+        _logger.LogInformation("Matching open slots...");
+
+        try
+        {
+            var result = await _vepDataLoaderRepository.MatchDealsAsync();
+            _logger.LogInformation("Matching completed. {dealsCreated} new deals created.", result.DealsCreated);
+
+            // Let anyone who picked up a new partner know about it
+            await _discordWebhookService.SendNewDealsNotificationAsync(result.NewPartnerDiscordIds);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while matching deals");
+            return false;
+        }
     }
 
     private async Task SendMassMessageNotificationsAsync()
