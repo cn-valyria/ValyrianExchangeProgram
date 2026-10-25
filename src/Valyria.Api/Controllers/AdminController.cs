@@ -22,196 +22,111 @@ public class AdminController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("dashboard/general-program-summary")]
-    public async Task<IActionResult> GetGeneralProgramSummary()
+    [HttpGet("dashboard/summary")]
+    public async Task<IActionResult> GetProgramSummary()
     {
-        _logger.LogInformation($"Beginning execution for {nameof(GetGeneralProgramSummary)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(GetProgramSummary)} method...");
 
         try
         {
-            var results = await _adminRepository.GetGeneralProgramSummaryAsync();
+            var results = await _adminRepository.GetProgramSummaryAsync();
 
-            _logger.LogInformation("GetGeneralProgramSummary execution complete");
+            _logger.LogInformation("GetProgramSummary execution complete");
 
             return Ok(results);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetGeneralProgramSummary)}", e);
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetProgramSummary)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [HttpGet("dashboard/slot-usage-summary")]
-    public async Task<IActionResult> GetSlotUsageSummary()
+    [HttpGet("dashboard/slot-configs")]
+    public async Task<IActionResult> GetSlotConfigs()
     {
-        _logger.LogInformation($"Beginning execution for {nameof(GetSlotUsageSummary)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(GetSlotConfigs)} method...");
 
         try
         {
-            var results = await _adminRepository.GetSlotUsageSummaryAsync();
+            var results = await _adminRepository.GetSlotConfigsAsync();
 
-            _logger.LogInformation("GetSlotUsageSummary execution complete");
+            _logger.LogInformation("GetSlotConfigs execution complete");
 
             return Ok(results);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetSlotUsageSummary)}", e);
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetSlotConfigs)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [HttpGet("dashboard/deal-health-summary")]
-    public async Task<IActionResult> GetDealHealthSummary()
+    [HttpGet("dashboard/deal-health")]
+    public async Task<IActionResult> GetDealHealth()
     {
-        _logger.LogInformation($"Beginning execution for {nameof(GetDealHealthSummary)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(GetDealHealth)} method...");
 
         try
         {
-            var results = await _adminRepository.GetDealHealthSummaryAsync();
+            var results = await _adminRepository.GetDealHealthAsync();
 
-            _logger.LogInformation("GetDealHealthSummary execution complete");
+            _logger.LogInformation("GetDealHealth execution complete");
 
             return Ok(results);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetDealHealthSummary)}", e);
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetDealHealth)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [HttpGet("dashboard/aid-ratio-summary")]
-    public async Task<IActionResult> GetAidRatioSummary()
+    [HttpGet("dashboard/activity")]
+    public async Task<IActionResult> GetDealActivity([FromQuery] int days = 14)
     {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAidRatioSummary)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(GetDealActivity)} method...");
 
         try
         {
-            var results = await _adminRepository.GetAidRatioSummaryAsync();
+            var results = await _adminRepository.GetDealActivityAsync(days);
 
-            _logger.LogInformation("GetAidRatioSummary execution complete");
+            _logger.LogInformation("GetDealActivity execution complete");
 
             return Ok(results);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAidRatioSummary)}", e);
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetDealActivity)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [HttpGet("dashboard/deal-aid-per-day")]
-    public async Task<IActionResult> GetDealAidPerDay()
+    [HttpGet("dashboard/cancellation-reasons")]
+    public async Task<IActionResult> GetCancellationReasons([FromQuery] int days = 14)
     {
-        _logger.LogInformation($"Beginning execution for {nameof(GetDealAidPerDay)} method...");
+        _logger.LogInformation($"Beginning execution for {nameof(GetCancellationReasons)} method...");
 
         try
         {
-            var results = await _adminRepository.GetDealAidPerDayAsync();
+            var results = await _adminRepository.GetCancellationReasonsAsync(days);
 
-            _logger.LogInformation("GetDealAidPerDay execution complete");
+            _logger.LogInformation("GetCancellationReasons execution complete");
 
             return Ok(results);
         }
         catch (Exception e)
         {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetDealAidPerDay)}", e);
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetCancellationReasons)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
     }
 
-    [HttpGet("dashboard/accounts-per-role")]
-    public async Task<IActionResult> GetAccountsPerRole()
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAccountsPerRole)} method...");
-
-        try
-        {
-            var results = await _adminRepository.GetAccountsPerRoleAsync();
-
-            _logger.LogInformation("GetAccountsPerRole execution complete");
-
-            return Ok(results);
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountsPerRole)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    [HttpGet("dashboard/total-slots-per-alliance")]
-    public async Task<IActionResult> GetTotalSlotsPerAlliance()
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetTotalSlotsPerAlliance)} method...");
-
-        try
-        {
-            var results = await _adminRepository.GetTotalSlotsPerAllianceAsync();
-
-            _logger.LogInformation("GetTotalSlotsPerAlliance execution complete");
-
-            return Ok(results);
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetTotalSlotsPerAlliance)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    [HttpGet("dashboard/open-slots-per-role")]
-    public async Task<IActionResult> GetOpenSlotsPerRole()
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetOpenSlotsPerRole)} method...");
-
-        try
-        {
-            var results = await _adminRepository.GetOpenSlotsPerRoleAsync();
-
-            _logger.LogInformation("GetOpenSlotsPerRole execution complete");
-
-            return Ok(results);
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetOpenSlotsPerRole)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    [HttpGet("dashboard/accounts-per-alliance")]
-    public async Task<IActionResult> GetAccountsPerAlliance()
-    {
-        _logger.LogInformation($"Beginning execution for {nameof(GetAccountsPerAlliance)} method...");
-
-        try
-        {
-            var results = await _adminRepository.GetAccountsPerAllianceAsync();
-
-            _logger.LogInformation("GetAccountsPerAlliance execution complete");
-
-            return Ok(results);
-        }
-        catch (Exception e)
-        {
-            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountsPerAlliance)}", e);
-            _logger.LogError(e, wrapperException.Message);
-            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
-        }
-    }
-
-    // Stacked policies must all pass, so these are Super Admin only
     [HttpGet("settings/access")]
     [Authorize(Policy = Policies.ManageAdminAccess)]
     public async Task<IActionResult> GetAdminAccessSettings()

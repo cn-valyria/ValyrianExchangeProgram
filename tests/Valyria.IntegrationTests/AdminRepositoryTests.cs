@@ -1,4 +1,5 @@
 using MySql.Data.MySqlClient;
+using Valyria.Core.DTOs;
 using Valyria.Infrastructure.Repositories;
 
 namespace Valyria.IntegrationTests;
@@ -8,141 +9,156 @@ public class AdminRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
     private AdminRepository Repository => new(Fixture.VepConnectionString);
 
     /// <summary>
-    /// A buyer and seller in Valyria with an active deal, a donor in Rogues, and an on-hold seller who is ignored everywhere
+    /// A buyer and seller with an active deal, a donor, a flagged seller, and an on-hold seller who is ignored
+    /// everywhere. One of the buyer's slots is edited to receive 2 tech cycles
     /// </summary>
-    private async Task<(int Buyer, int Seller, int Donor, int OnHold)> SeedProgramAsync()
+    private async Task<(int Buyer, int Seller, int Donor, int Flagged, int OnHold)> SeedProgramAsync()
     {
-        await Data.AllianceAsync(1, "Valyria");
-        await Data.AllianceAsync(2, "Rogues");
-        var buyer = await Data.MemberAsync(100, "Bob", 'B', allianceId: 1);
-        var seller = await Data.MemberAsync(200, "Sue", 'S', allianceId: 1, fm: true);
-        var donor = await Data.MemberAsync(300, "Dan", 'D', allianceId: 2);
-        var onHold = await Data.MemberAsync(400, "Hal", 'H', allianceId: 2);
-        await Data.DealAsync((await Data.SlotIdsAsync(buyer))[0], (await Data.SlotIdsAsync(seller))[0]);
-        await Data.DealAsync((await Data.SlotIdsAsync(buyer))[1], (await Data.SlotIdsAsync(seller))[1], status: "cancelled");
-        return (buyer, seller, donor, onHold);
+        var buyer = await Data.MemberAsync(100, "Bob", 'B');
+        var seller = await Data.MemberAsync(200, "Sue", 'S', fm: true);
+        var donor = await Data.MemberAsync(300, "Dan", 'D');
+        var flagged = await Data.MemberAsync(400, "Fay", 'S');
+        var onHold = await Data.MemberAsync(500, "Hal", 'H');
+        var buyerSlots = await Data.SlotIdsAsync(buyer);
+        var sellerSlots = await Data.SlotIdsAsync(seller);
+        await Data.DealAsync(buyerSlots[0], sellerSlots[0]);
+        await Data.DealAsync(buyerSlots[1], sellerSlots[1], status: "cancelled");
+        var flaggedDeal = await Data.DealAsync(buyerSlots[2], (await Data.SlotIdsAsync(flagged))[0], status: "cancelled");
+        await Data.DealFlagAsync(flaggedDeal, "5_day_replacement", flagged, buyer);
+        await Data.DealFlagAsync(flaggedDeal, "1_day_inactive", buyer, flagged, resolvedOn: DateTime.UtcNow);
+        await Data.ExecuteAsync("update vep_db.slot set tech_received_cycles = 2 where id = @id", new { id = buyerSlots[3] });
+        return (buyer, seller, donor, flagged, onHold);
     }
 
     [Fact]
-    public async Task GeneralProgramSummary_CountsActiveAccountsAndDeals()
+    public async Task ProgramSummary_CountsActiveAccountsDealsAndFlags()
     {
         await SeedProgramAsync();
 
-        var summary = await Repository.GetGeneralProgramSummaryAsync();
+        var summary = await Repository.GetProgramSummaryAsync();
 
-        Assert.Equal(3, summary.TotalAccounts);
-        Assert.Equal(1, summary.ActiveDeals);
+        Assert.Equal((4, 1, 1, 1), (summary.TotalAccounts, summary.ActiveDeals, summary.OpenFlags, summary.FlaggedAccounts));
     }
 
     [Fact]
-    public async Task AidRatioSummary_CountsSlotsByAidDirection()
+    public async Task SlotConfigs_GroupSlotsByCycleValues_SplittingOpenSlotsOnFlaggedAccounts()
     {
         await SeedProgramAsync();
 
-        var summary = await Repository.GetAidRatioSummaryAsync();
+        var configs = await Repository.GetSlotConfigsAsync();
 
-        // Buyer: 4 slots receive tech and send cash. Seller (FM): 5 slots send tech and receive cash. Donor: 4 slots send cash
-        Assert.Equal(5, summary.TotalIncomingCashSlots);
-        Assert.Equal(8, summary.TotalOutgoingCashSlots);
-        Assert.Equal(4, summary.TotalIncomingTechSlots);
-        Assert.Equal(5, summary.TotalOutgoingTechSlots);
+        // (tech sent, tech received, cash sent, cash received): accounts, total, in deals, open, open accounts, flagged open
+        Assert.Equal(
+            [
+                ((1, 0, 0, 1), (2, 9, 1, 4, 1, 4)),
+                ((0, 0, 1, 0), (1, 4, 0, 4, 1, 0)),
+                ((0, 1, 1, 0), (1, 3, 1, 2, 1, 0)),
+                ((0, 2, 1, 0), (1, 1, 0, 1, 1, 0)),
+            ],
+            configs.Select(c => (
+                (c.TechSentCycles, c.TechReceivedCycles, c.CashSentCycles, c.CashReceivedCycles),
+                (c.Accounts, c.TotalSlots, c.SlotsInDeals, c.OpenSlots, c.OpenAccounts, c.FlaggedOpenSlots))));
     }
 
     [Fact]
-    public async Task AidRatioSummary_IsZero_WithNoAccounts()
+    public async Task SlotConfigs_IsEmpty_WithNoAccounts()
     {
-        var summary = await Repository.GetAidRatioSummaryAsync();
-
-        Assert.Equal(0, summary.TotalIncomingCashSlots + summary.TotalOutgoingCashSlots + summary.TotalIncomingTechSlots + summary.TotalOutgoingTechSlots);
+        Assert.Empty(await Repository.GetSlotConfigsAsync());
     }
 
     [Fact]
-    public async Task DealHealthSummary_CountsTheWaitQueueAndOpenFlags()
+    public async Task DealHealth_BucketsActiveDealsBySlotPairing()
     {
-        var (buyer, seller, donor, _) = await SeedProgramAsync();
-        await Data.WaitQueueAsync(buyer, 3, 10);
-        await Data.WaitQueueAsync(donor, 4, 5);
-        var deal = await Data.ScalarAsync<int>("select id from deal where status = 'active'");
-        await Data.DealFlagAsync(deal, "1_day_inactive", buyer, seller);
-        await Data.DealFlagAsync(deal, "1_day_inactive", seller, buyer, resolvedOn: DateTime.UtcNow);
+        var today = await Data.CnTodayAsync();
+        var bob = await Data.MemberAsync(100, "Bob", 'B');
+        var sue = await Data.MemberAsync(200, "Sue", 'S', fm: true);
+        var ann = await Data.MemberAsync(300, "Ann", 'B');
+        var sam = await Data.MemberAsync(400, "Sam", 'S');
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        var annSlots = await Data.SlotIdsAsync(ann);
 
-        var summary = await Repository.GetDealHealthSummaryAsync();
+        // No deal_state row yet
+        await Data.DealAsync(bobSlots[0], sueSlots[0]);
+        var inFlight = await Data.DealAsync(bobSlots[1], sueSlots[1]);
+        await Data.DealStateAsync(inFlight, "in_flight", sue, bob);
+        var sendToday = await Data.DealAsync(bobSlots[2], sueSlots[2]);
+        await Data.DealStateAsync(sendToday, "awaiting_send", bob, sue, responsible: bob, responsibleSince: today);
+        var stalled = await Data.DealAsync(bobSlots[3], sueSlots[3]);
+        await Data.DealStateAsync(stalled, "pending_start", bob, sue, stateSince: today.AddDays(-6));
+        // Ann's slots come after Sue's, so Sue's seller slot is slot 1 here
+        var blocked = await Data.DealAsync(annSlots[0], sueSlots[4]);
+        await Data.DealStateAsync(blocked, "blocked", ann, sue, responsible: sue, responsibleSince: today, blockedReason: "receiver_slots_full");
+        var late = await Data.DealAsync(annSlots[1], (await Data.SlotIdsAsync(sam))[0]);
+        await Data.DealStateAsync(late, "awaiting_send", ann, sam, responsible: ann, responsibleSince: today.AddDays(-2));
+        await Data.DealAsync(annSlots[2], (await Data.SlotIdsAsync(sam))[1], status: "cancelled");
 
-        Assert.Equal(2, summary.AccountsWaiting);
-        Assert.Equal(7, summary.SlotsWaiting);
-        Assert.Equal(1, summary.OpenFlags);
+        var health = await Repository.GetDealHealthAsync();
+
+        Assert.Equal(
+            [
+                ("B", "S", DealHealth.OnTrack, 2),
+                ("B", "S", DealHealth.Starting, 1),
+                ("B", "S", DealHealth.Stalled, 1),
+                ("B", "S", DealHealth.AtRisk, 1),
+                ("S", "B", DealHealth.AtRisk, 1),
+            ],
+            health
+                .Select(h => (h.Slot1CashSentCycles == 1 ? "B" : "S", h.Slot2CashSentCycles == 1 ? "B" : "S", h.Health, h.Deals))
+                .Order());
     }
 
     [Fact]
-    public async Task SlotUsageSummary_TotalsCapacityAndUse()
+    public async Task DealActivity_CountsEachCnDay_IncludingQuietDays()
     {
-        await SeedProgramAsync();
+        var today = await Data.CnTodayAsync();
+        var bob = await Data.MemberAsync(100, "Bob", 'B');
+        var sue = await Data.MemberAsync(200, "Sue", 'S');
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        // Deal times are server UTC; noon CN time is 17:00 UTC
+        var yesterdayDeal = await Data.DealAsync(bobSlots[0], sueSlots[0], createdOn: today.AddDays(-1).AddHours(17));
+        var todayDeal = await Data.DealAsync(bobSlots[1], sueSlots[1], createdOn: today.AddHours(17));
+        await Data.ExecuteAsync("update vep_db.deal set status = 'cancelled', cancelled_on = @at where id = @id",
+            new { id = todayDeal, at = today.AddHours(17) });
+        await Data.DealActivityAsync(yesterdayDeal, 1, 100, 200, today.AddDays(-1));
+        var failedLeg = await Data.DealActivityAsync(todayDeal, 1, 100, 200, today, failureReason: "expired");
+        await Data.ExecuteAsync("update vep_db.deal_activity set failed_on = @today where id = @id", new { id = failedLeg, today });
+        await Data.DealActivityAsync(yesterdayDeal, 2, 200, 100, today.AddDays(-5));
 
-        var summary = await Repository.GetSlotUsageSummaryAsync();
+        var activity = await Repository.GetDealActivityAsync(3);
 
-        Assert.Equal(4 + 5 + 4, summary.MaxCapacity);
-        Assert.Equal(2, summary.CurrentSlotsUsed);
+        Assert.Equal([today.AddDays(-2), today.AddDays(-1), today], activity.Select(a => a.Day));
+        Assert.Equal([(0, 0, 0, 0), (1, 0, 1, 0), (1, 1, 1, 1)],
+            activity.Select(a => (a.LegsSent, a.LegsFailed, a.DealsCreated, a.DealsCancelled)));
     }
 
     [Fact]
-    public async Task DealAidPerDay_CountsTheLastFiveDays()
+    public async Task CancellationReasons_CountRecentCancellations_GroupingAdminReasons()
     {
-        await SeedProgramAsync();
-        var deal = await Data.ScalarAsync<int>("select id from deal where status = 'active'");
-        var today = await Data.ScalarAsync<DateTime>("select curdate()");
-        await Data.DealActivityAsync(deal, 1, 100, 200, today.AddDays(-1));
-        await Data.DealActivityAsync(deal, 2, 200, 100, today.AddDays(-1));
-        await Data.DealActivityAsync(deal, 3, 100, 200, today);
-        await Data.DealActivityAsync(deal, 4, 200, 100, today.AddDays(-5));
+        var today = await Data.CnTodayAsync();
+        var bob = await Data.MemberAsync(100, "Bob", 'B');
+        var sue = await Data.MemberAsync(200, "Sue", 'S', fm: true);
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        async Task CancelAsync(int slot, int partnerSlot, string by, string reason, int daysAgo)
+        {
+            var deal = await Data.DealAsync(slot, partnerSlot);
+            await Data.ExecuteAsync(@"
+                update vep_db.deal
+                set status = 'cancelled', cancelled_by = @by, cancellation_reason = @reason, cancelled_on = @at
+                where id = @deal",
+                new { deal, by, reason, at = today.AddDays(-daysAgo).AddHours(17) });
+        }
+        await CancelAsync(bobSlots[0], sueSlots[0], "system", "Nation deleted", 0);
+        await CancelAsync(bobSlots[1], sueSlots[1], "system", "Nation deleted", 29);
+        await CancelAsync(bobSlots[2], sueSlots[2], "zach", "Swapping partners", 3);
+        await CancelAsync(bobSlots[3], sueSlots[3], "system", "Account role changed", 30);
+        await Data.DealAsync(bobSlots[0], sueSlots[4]);
 
-        var perDay = await Repository.GetDealAidPerDayAsync();
+        var reasons = await Repository.GetCancellationReasonsAsync(30);
 
-        Assert.Equal([today.AddDays(-1), today], perDay.Select(d => d.Day));
-        Assert.Equal([2, 1], perDay.Select(d => d.AidCount));
-    }
-
-    [Fact]
-    public async Task TotalSlotsPerAlliance_GroupsNonZeroSlotsByAidDirection()
-    {
-        await SeedProgramAsync();
-
-        var groups = (await Repository.GetTotalSlotsPerAllianceAsync()).ToDictionary(g => g.SlotGroupName, g => g.TotalSlotGroups);
-
-        Assert.Equal(["Incoming Cash", "Outgoing Cash", "Incoming Tech", "Outgoing Tech"], groups.Keys);
-        Assert.Equal([("Valyria", 5)], groups["Incoming Cash"].Select(g => (g.AllianceName, g.TotalSlots)));
-        Assert.Equal([("Rogues", 4), ("Valyria", 4)], groups["Outgoing Cash"].Select(g => (g.AllianceName, g.TotalSlots)).Order());
-        Assert.Equal([("Valyria", 4)], groups["Incoming Tech"].Select(g => (g.AllianceName, g.TotalSlots)));
-        Assert.Equal([("Valyria", 5)], groups["Outgoing Tech"].Select(g => (g.AllianceName, g.TotalSlots)));
-    }
-
-    [Fact]
-    public async Task AccountsPerRole_CountsActiveAccounts()
-    {
-        await SeedProgramAsync();
-
-        var perRole = (await Repository.GetAccountsPerRoleAsync()).ToDictionary(r => r.Role, r => r.TotalAccounts);
-
-        Assert.Equal(new Dictionary<char, int> { ['B'] = 1, ['S'] = 1, ['D'] = 1 }, perRole);
-    }
-
-    [Fact]
-    public async Task OpenSlotsPerRole_CountsUnusedSlots()
-    {
-        await SeedProgramAsync();
-
-        var perRole = await Repository.GetOpenSlotsPerRoleAsync();
-
-        Assert.Equal([('B', 3), ('D', 4), ('S', 4)], perRole.Select(r => (r.Role, r.OpenSlots)));
-    }
-
-    [Fact]
-    public async Task AccountsPerAlliance_CountsActiveAccounts_LargestFirst()
-    {
-        await SeedProgramAsync();
-
-        var perAlliance = await Repository.GetAccountsPerAllianceAsync();
-
-        Assert.Equal([("Valyria", 2), ("Rogues", 1)], perAlliance.Select(a => (a.AllianceName, a.TotalAccounts)));
+        Assert.Equal([("Nation deleted", 2), ("Cancelled by an admin", 1)], reasons.Select(r => (r.Reason, r.Deals)));
     }
 
     [Fact]

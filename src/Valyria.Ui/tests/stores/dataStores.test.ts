@@ -113,17 +113,11 @@ describe('account store', () => {
 
 describe('admin dashboard store', () => {
   const endpoints: Record<string, unknown> = {
-    'general-program-summary': { totalAccounts: 10, activeDeals: 4 },
-    'aid-ratio-summary': { totalIncomingCashSlots: 1 },
-    'deal-health-summary': { accountsWaiting: 2 },
-    'slot-usage-summary': { maxCapacity: 40, currentSlotsUsed: 8 },
-    'deal-aid-per-day': [{ day: '2026-10-09', aidCount: 3 }],
-    'accounts-per-role': [{ role: 'B', totalAccounts: 5 }],
-    'total-slots-per-alliance': [
-      { slotGroupName: 'Incoming Cash', totalSlotGroups: [] },
-    ],
-    'open-slots-per-role': [{ role: 'S', openSlots: 2 }],
-    'accounts-per-alliance': [{ allianceName: 'Valyria', totalAccounts: 7 }],
+    summary: { totalAccounts: 10, activeDeals: 4 },
+    'slot-configs': [{ cashSentCycles: 1, totalSlots: 4 }],
+    'deal-health': [{ health: 0, deals: 4 }],
+    'activity?days=14': [{ day: '2026-10-09', legsSent: 3 }],
+    'cancellation-reasons?days=30': [{ reason: 'Nation deleted', deals: 1 }],
   }
 
   it('loads every dashboard section in parallel', async () => {
@@ -134,17 +128,13 @@ describe('admin dashboard store', () => {
 
     await store.loadDashboard()
 
-    expect(apiFetch).toHaveBeenCalledTimes(9)
+    expect(apiFetch).toHaveBeenCalledTimes(5)
     expect(store.dashboard).toEqual({
-      generalProgramSummary: endpoints['general-program-summary'],
-      aidRatioSummary: endpoints['aid-ratio-summary'],
-      dealHealthSummary: endpoints['deal-health-summary'],
-      slotUsageSummary: endpoints['slot-usage-summary'],
-      dealAidPerDay: endpoints['deal-aid-per-day'],
-      accountsPerRole: endpoints['accounts-per-role'],
-      totalSlotsPerAlliance: endpoints['total-slots-per-alliance'],
-      openSlotsPerRole: endpoints['open-slots-per-role'],
-      accountsPerAlliance: endpoints['accounts-per-alliance'],
+      summary: endpoints.summary,
+      slotConfigs: endpoints['slot-configs'],
+      dealHealth: endpoints['deal-health'],
+      activity: endpoints['activity?days=14'],
+      cancellationReasons: endpoints['cancellation-reasons?days=30'],
     })
   })
 

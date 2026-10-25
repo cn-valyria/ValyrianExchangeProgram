@@ -1,70 +1,78 @@
 import { defineStore } from 'pinia'
 
-export interface DealAidCountByDay {
-  day: string
-  aidCount: number
-}
-
-export interface TotalSlotsGroup {
-  allianceName: string
-  totalSlots: number
-}
-
-export interface TotalSlotGroupsByAlliance {
-  slotGroupName: string
-  totalSlotGroups: TotalSlotsGroup[]
-}
-
-export interface AccountCountByRole {
-  role: string
-  totalAccounts: number
-}
-
-export interface OpenSlotCountByRole {
-  role: string
-  openSlots: number
-}
-
-export interface AccountCountByAlliance {
-  allianceName: string
-  totalAccounts: number
-}
-
-export interface GeneralProgramSummary {
+// Program-wide counts. On-hold accounts are left out
+export interface ProgramSummary {
   totalAccounts: number
   activeDeals: number
-}
-
-// Number of slots that send or receive each kind of aid
-export interface AidRatioSummary {
-  totalIncomingCashSlots: number
-  totalOutgoingCashSlots: number
-  totalIncomingTechSlots: number
-  totalOutgoingTechSlots: number
-}
-
-export interface DealHealthSummary {
-  accountsWaiting: number
-  slotsWaiting: number
   openFlags: number
+  // Accounts with an unresolved flag, which keeps them out of matching
+  flaggedAccounts: number
 }
 
-export interface SlotUsageSummary {
-  maxCapacity: number
-  currentSlotsUsed: number
+export interface SlotCycles {
+  techSentCycles: number
+  techReceivedCycles: number
+  cashSentCycles: number
+  cashReceivedCycles: number
+}
+
+// Every slot with the same cycle values. Matching pairs a slot only with slots whose cycles are the exact inverse
+export interface SlotConfigSummary extends SlotCycles {
+  accounts: number
+  totalSlots: number
+  slotsInDeals: number
+  // Not in a deal, on accounts matching can use
+  openSlots: number
+  // Accounts with at least one of openSlots. Two accounts can share only one deal
+  openAccounts: number
+  // Not in a deal, on accounts kept out of matching by an unresolved flag
+  flaggedOpenSlots: number
+}
+
+// Mirrors Valyria.Core.DTOs.DealHealth, which is serialized as a number
+export enum DealHealth {
+  OnTrack = 0,
+  Starting = 1,
+  Stalled = 2,
+  AtRisk = 3,
+}
+
+export interface DealHealthByPairing {
+  slot1TechSentCycles: number
+  slot1TechReceivedCycles: number
+  slot1CashSentCycles: number
+  slot1CashReceivedCycles: number
+  slot2TechSentCycles: number
+  slot2TechReceivedCycles: number
+  slot2CashSentCycles: number
+  slot2CashReceivedCycles: number
+  health: DealHealth
+  deals: number
+}
+
+export interface DailyDealActivity {
+  day: string
+  legsSent: number
+  legsFailed: number
+  dealsCreated: number
+  dealsCancelled: number
+}
+
+export interface CancellationReasonCount {
+  reason: string
+  deals: number
 }
 
 export interface Dashboard {
-  generalProgramSummary: GeneralProgramSummary
-  aidRatioSummary: AidRatioSummary
-  dealHealthSummary: DealHealthSummary
-  slotUsageSummary: SlotUsageSummary
-  dealAidPerDay: DealAidCountByDay[]
-  accountsPerRole: AccountCountByRole[]
-  totalSlotsPerAlliance: TotalSlotGroupsByAlliance[]
-  openSlotsPerRole: OpenSlotCountByRole[]
-  accountsPerAlliance: AccountCountByAlliance[]
+  summary: ProgramSummary
+  slotConfigs: SlotConfigSummary[]
+  dealHealth: DealHealthByPairing[]
+  activity: DailyDealActivity[]
+  cancellationReasons: CancellationReasonCount[]
 }
+
+export const ACTIVITY_DAYS = 14
+export const CANCELLATION_DAYS = 30
 
 export const useAdminStore = defineStore('admin', {
   state: () => ({
@@ -77,113 +85,46 @@ export const useAdminStore = defineStore('admin', {
 
       // Call all dashboard endpoints in parallel
       const [
-        generalProgramSummaryResponse,
-        aidRatioSummaryResponse,
-        dealHealthSummaryResponse,
-        slotUsageSummaryResponse,
-        dealAidPerDayResponse,
-        accountsPerRoleResponse,
-        totalSlotsResponse,
-        openSlotsResponse,
-        accountsPerAllianceResponse,
+        summaryResponse,
+        slotConfigsResponse,
+        dealHealthResponse,
+        activityResponse,
+        cancellationReasonsResponse,
       ] = await Promise.all([
-        apiFetch<GeneralProgramSummary>(
-          '/api/admin/dashboard/general-program-summary',
+        apiFetch<ProgramSummary>('/api/admin/dashboard/summary'),
+        apiFetch<SlotConfigSummary[]>('/api/admin/dashboard/slot-configs'),
+        apiFetch<DealHealthByPairing[]>('/api/admin/dashboard/deal-health'),
+        apiFetch<DailyDealActivity[]>(
+          `/api/admin/dashboard/activity?days=${ACTIVITY_DAYS}`,
         ),
-        apiFetch<AidRatioSummary>('/api/admin/dashboard/aid-ratio-summary'),
-        apiFetch<DealHealthSummary>('/api/admin/dashboard/deal-health-summary'),
-        apiFetch<SlotUsageSummary>('/api/admin/dashboard/slot-usage-summary'),
-        apiFetch<DealAidCountByDay[]>('/api/admin/dashboard/deal-aid-per-day'),
-        apiFetch<AccountCountByRole[]>(
-          '/api/admin/dashboard/accounts-per-role',
-        ),
-        apiFetch<TotalSlotGroupsByAlliance[]>(
-          '/api/admin/dashboard/total-slots-per-alliance',
-        ),
-        apiFetch<OpenSlotCountByRole[]>(
-          '/api/admin/dashboard/open-slots-per-role',
-        ),
-        apiFetch<AccountCountByAlliance[]>(
-          '/api/admin/dashboard/accounts-per-alliance',
+        apiFetch<CancellationReasonCount[]>(
+          `/api/admin/dashboard/cancellation-reasons?days=${CANCELLATION_DAYS}`,
         ),
       ])
 
-      // Check for errors
-      if (generalProgramSummaryResponse.error.value) {
-        console.error(
-          'Failed to load dashboard summary:',
-          generalProgramSummaryResponse.error.value,
-        )
-        throw generalProgramSummaryResponse.error.value
+      const responses = {
+        summary: summaryResponse,
+        'slot configs': slotConfigsResponse,
+        'deal health': dealHealthResponse,
+        activity: activityResponse,
+        'cancellation reasons': cancellationReasonsResponse,
       }
-      if (aidRatioSummaryResponse.error.value) {
-        console.error(
-          'Failed to load dashboard summary:',
-          aidRatioSummaryResponse.error.value,
-        )
-        throw aidRatioSummaryResponse.error.value
-      }
-      if (dealHealthSummaryResponse.error.value) {
-        console.error(
-          'Failed to load deal health summary:',
-          dealHealthSummaryResponse.error.value,
-        )
-        throw dealHealthSummaryResponse.error.value
-      }
-      if (slotUsageSummaryResponse.error.value) {
-        console.error(
-          'Failed to load dashboard summary:',
-          slotUsageSummaryResponse.error.value,
-        )
-        throw slotUsageSummaryResponse.error.value
-      }
-      if (dealAidPerDayResponse.error.value) {
-        console.error(
-          'Failed to load deal aid per day:',
-          dealAidPerDayResponse.error.value,
-        )
-        throw dealAidPerDayResponse.error.value
-      }
-      if (accountsPerRoleResponse.error.value) {
-        console.error(
-          'Failed to load accounts per role:',
-          accountsPerRoleResponse.error.value,
-        )
-        throw accountsPerRoleResponse.error.value
-      }
-      if (totalSlotsResponse.error.value) {
-        console.error(
-          'Failed to load total slots:',
-          totalSlotsResponse.error.value,
-        )
-        throw totalSlotsResponse.error.value
-      }
-      if (openSlotsResponse.error.value) {
-        console.error(
-          'Failed to load open slots:',
-          openSlotsResponse.error.value,
-        )
-        throw openSlotsResponse.error.value
-      }
-      if (accountsPerAllianceResponse.error.value) {
-        console.error(
-          'Failed to load accounts per alliance:',
-          accountsPerAllianceResponse.error.value,
-        )
-        throw accountsPerAllianceResponse.error.value
+      for (const [name, response] of Object.entries(responses)) {
+        if (response.error.value) {
+          console.error(
+            `Failed to load dashboard ${name}:`,
+            response.error.value,
+          )
+          throw response.error.value
+        }
       }
 
-      // Combine all responses into the dashboard object
       this.dashboard = {
-        generalProgramSummary: generalProgramSummaryResponse.data.value!,
-        aidRatioSummary: aidRatioSummaryResponse.data.value!,
-        dealHealthSummary: dealHealthSummaryResponse.data.value!,
-        slotUsageSummary: slotUsageSummaryResponse.data.value!,
-        dealAidPerDay: dealAidPerDayResponse.data.value!,
-        accountsPerRole: accountsPerRoleResponse.data.value!,
-        totalSlotsPerAlliance: totalSlotsResponse.data.value!,
-        openSlotsPerRole: openSlotsResponse.data.value!,
-        accountsPerAlliance: accountsPerAllianceResponse.data.value!,
+        summary: summaryResponse.data.value!,
+        slotConfigs: slotConfigsResponse.data.value!,
+        dealHealth: dealHealthResponse.data.value!,
+        activity: activityResponse.data.value!,
+        cancellationReasons: cancellationReasonsResponse.data.value!,
       }
     },
   },

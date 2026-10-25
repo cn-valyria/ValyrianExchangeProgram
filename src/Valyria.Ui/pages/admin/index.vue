@@ -11,60 +11,51 @@
       />
     </div>
 
-    <div class="py-8 space-y-8">
+    <div class="py-8 space-y-6">
       <div>
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
           VEP Dashboard
         </h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          As of the last data load. On Hold accounts are left out.
+        </p>
       </div>
 
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <UCard>
-          <AdminDashboardGeneralProgramStatsCard
-            :data="dashboard.generalProgramSummary"
-          />
-        </UCard>
-        <UCard>
-          <AdminDashboardProgramSlotUsageStatCard
-            :data="dashboard.slotUsageSummary"
-          />
-        </UCard>
-        <UCard>
-          <AdminDashboardDealHealthStatCard
-            :data="dashboard.dealHealthSummary"
-          />
-        </UCard>
-        <UCard>
-          <AdminDashboardSlotRatiosStatCard :data="dashboard.aidRatioSummary" />
-        </UCard>
-      </div>
+      <AdminDashboardSummaryCards
+        :summary="dashboard.summary"
+        :markets="markets.markets"
+        :other-deals="markets.otherDeals"
+        :breakdown="breakdown"
+      />
 
-      <!-- Dashboard Tiles - Row 1 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <UCard>
-          <AdminDashboardAccountsByRole :data="dashboard.accountsPerRole" />
-        </UCard>
-        <UCard>
-          <AdminDashboardTotalSlotsByAlliance
-            :data="dashboard.totalSlotsPerAlliance"
-            :alliances="alliances"
-          />
-        </UCard>
-        <UCard>
-          <AdminDashboardDealAidPerDayTile :data="dashboard.dealAidPerDay" />
-        </UCard>
-      </div>
+      <UCard>
+        <AdminDashboardSlotMarkets :markets="markets.markets" />
+      </UCard>
 
-      <!-- Dashboard Tiles - Row 2 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UCard>
-          <AdminDashboardAccountsByAlliance
-            :data="dashboard.accountsPerAlliance"
+          <AdminDashboardOpenSlotBreakdown :breakdown="breakdown" />
+        </UCard>
+        <UCard>
+          <AdminDashboardDealHealthByPairing
+            :markets="markets.markets"
+            :other-deals="markets.otherDeals"
+          />
+        </UCard>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UCard>
+          <AdminDashboardDealActivity
+            :data="dashboard.activity"
+            :days="ACTIVITY_DAYS"
           />
         </UCard>
         <UCard>
-          <AdminDashboardOpenSlotsByRole :data="dashboard.openSlotsPerRole" />
+          <AdminDashboardCancellationReasons
+            :data="dashboard.cancellationReasons"
+            :days="CANCELLATION_DAYS"
+          />
         </UCard>
       </div>
     </div>
@@ -73,7 +64,11 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { useAdminStore } from '~/stores/admin'
+import { ACTIVITY_DAYS, CANCELLATION_DAYS, useAdminStore } from '~/stores/admin'
+import {
+  buildSlotMarkets,
+  getOpenSlotBreakdown,
+} from '~/infrastructure/dashboard'
 
 const toast = useToast()
 
@@ -83,14 +78,14 @@ const { dashboard } = storeToRefs(adminStore)
 
 const loading = ref(true)
 
-const alliances = computed<string[]>(() => {
-  if (!dashboard.value.accountsPerAlliance) {
-    return []
-  }
-  return dashboard.value.accountsPerAlliance.map((row) => row.allianceName)
-})
+const markets = computed(() =>
+  buildSlotMarkets(dashboard.value.slotConfigs, dashboard.value.dealHealth),
+)
 
-// Check admin access and load dashboard on mount
+const breakdown = computed(() =>
+  getOpenSlotBreakdown(dashboard.value.slotConfigs, markets.value.markets),
+)
+
 onMounted(async () => {
   try {
     await adminStore.loadDashboard()

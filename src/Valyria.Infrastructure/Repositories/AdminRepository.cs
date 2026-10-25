@@ -17,159 +17,127 @@ public class AdminRepository : IAdminRepository
 
     public AdminRepository(string connectionString) => _connectionString = connectionString;
 
-    public async Task<GeneralProgramSummary> GetGeneralProgramSummaryAsync()
+    // The CN date the deal procedures use
+    private const string CnToday = "DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'))";
+
+    public async Task<ProgramSummary> GetProgramSummaryAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
 select
-	(select count(1) from account where va <> 'H') as TotalAccounts,
-    (select count(1) from deal where status = 'active') as ActiveDeals";
+    (select count(1) from account where va <> 'H') as TotalAccounts,
+    (select count(1) from deal where status = 'active') as ActiveDeals,
+    (select count(1) from deal_flag where resolved_on is null) as OpenFlags,
+    (select count(distinct deal_flag.flagged_account_id)
+        from deal_flag
+        join account on deal_flag.flagged_account_id = account.id
+        where deal_flag.resolved_on is null and account.va <> 'H') as FlaggedAccounts;";
 
-        return await sqlConnection.QuerySingleAsync<GeneralProgramSummary>(query);
+        return await sqlConnection.QuerySingleAsync<ProgramSummary>(query);
     }
 
-    public async Task<AidRatioSummary> GetAidRatioSummaryAsync()
+    public async Task<List<SlotConfigSummary>> GetSlotConfigsAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
+        // Open slots on flagged accounts are counted apart, since populate_wait_queue leaves those accounts out
         const string query = @"
 select
-    coalesce(sum(slot.cash_received_cycles > 0), 0) as TotalIncomingCashSlots,
-    coalesce(sum(slot.cash_sent_cycles > 0), 0) as TotalOutgoingCashSlots,
-    coalesce(sum(slot.tech_received_cycles > 0), 0) as TotalIncomingTechSlots,
-    coalesce(sum(slot.tech_sent_cycles > 0), 0) as TotalOutgoingTechSlots
-from slot
-join account on slot.account_id = account.id
-where account.va <> 'H';";
-
-        return await sqlConnection.QuerySingleAsync<AidRatioSummary>(query);
-    }
-
-    public async Task<DealHealthSummary> GetDealHealthSummaryAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select
-    (select count(1) from wait_queue) as AccountsWaiting,
-    (select coalesce(sum(slots_needed), 0) from wait_queue) as SlotsWaiting,
-    (select count(1) from deal_flag where resolved_on is null) as OpenFlags;";
-
-        return await sqlConnection.QuerySingleAsync<DealHealthSummary>(query);
-    }
-
-    public async Task<SlotUsageSummary> GetSlotUsageSummaryAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select coalesce(sum(slots_total), 0) as MaxCapacity, coalesce(sum(slots_used), 0) as CurrentSlotsUsed
-from account_deal_summary
-where role <> 'H';";
-
-        return await sqlConnection.QuerySingleAsync<SlotUsageSummary>(query);
-    }
-
-    public async Task<List<DealAidCountByDay>> GetDealAidPerDayAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select activity_date as Day, count(1) as AidCount
-from deal_activity
-where activity_date > curdate() - interval 5 day
-group by activity_date
-order by activity_date;";
-
-        return (await sqlConnection.QueryAsync<DealAidCountByDay>(query)).ToList();
-    }
-
-    public async Task<List<TotalSlotGroupsByAlliance>> GetTotalSlotsPerAllianceAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select
-    alliance.name as AllianceName,
-    coalesce(sum(slot.cash_received_cycles > 0), 0) as TotalIncomingCashSlots,
-    coalesce(sum(slot.cash_sent_cycles > 0), 0) as TotalOutgoingCashSlots,
-    coalesce(sum(slot.tech_received_cycles > 0), 0) as TotalIncomingTechSlots,
-    coalesce(sum(slot.tech_sent_cycles > 0), 0) as TotalOutgoingTechSlots
+    slot.tech_sent_cycles as TechSentCycles,
+    slot.tech_received_cycles as TechReceivedCycles,
+    slot.cash_sent_cycles as CashSentCycles,
+    slot.cash_received_cycles as CashReceivedCycles,
+    count(distinct slot.account_id) as Accounts,
+    count(1) as TotalSlots,
+    coalesce(sum(in_deal.slot_id is not null), 0) as SlotsInDeals,
+    coalesce(sum(in_deal.slot_id is null and flagged.account_id is null), 0) as OpenSlots,
+    count(distinct case when in_deal.slot_id is null and flagged.account_id is null then slot.account_id end) as OpenAccounts,
+    coalesce(sum(in_deal.slot_id is null and flagged.account_id is not null), 0) as FlaggedOpenSlots
 from slot
 join account on slot.account_id = account.id and account.va <> 'H'
-join cybernations_db.nation on account.nation_id = nation.id
-join cybernations_db.alliance on nation.alliance_id = alliance.id
-group by alliance.name;";
+left join (
+    select slot_1_id as slot_id from deal where status = 'active'
+    union
+    select slot_2_id from deal where status = 'active'
+) in_deal on in_deal.slot_id = slot.id
+left join (
+    select distinct flagged_account_id as account_id from deal_flag where resolved_on is null
+) flagged on flagged.account_id = slot.account_id
+group by slot.tech_sent_cycles, slot.tech_received_cycles, slot.cash_sent_cycles, slot.cash_received_cycles
+order by TotalSlots desc, TechSentCycles, TechReceivedCycles, CashSentCycles, CashReceivedCycles;";
 
-        var results = new List<TotalSlotGroupsByAlliance>
-        {
-            new() { SlotGroupName = "Incoming Cash", TotalSlotGroups = [] },
-            new() { SlotGroupName = "Outgoing Cash", TotalSlotGroups = [] },
-            new() { SlotGroupName = "Incoming Tech", TotalSlotGroups = [] },
-            new() { SlotGroupName = "Outgoing Tech", TotalSlotGroups = [] },
-        };
-
-        var rawData = await sqlConnection.QueryAsync<SlotGroupsRawData>(query);
-        foreach (var alliance in rawData)
-        {
-            AddAllianceSlotsIfNotZero(results[0], alliance.AllianceName, alliance.TotalIncomingCashSlots);
-            AddAllianceSlotsIfNotZero(results[1], alliance.AllianceName, alliance.TotalOutgoingCashSlots);
-            AddAllianceSlotsIfNotZero(results[2], alliance.AllianceName, alliance.TotalIncomingTechSlots);
-            AddAllianceSlotsIfNotZero(results[3], alliance.AllianceName, alliance.TotalOutgoingTechSlots);
-        }
-
-        return results;
-
-        static void AddAllianceSlotsIfNotZero(TotalSlotGroupsByAlliance grouping, string allianceName, int slotCount)
-        {
-            if (slotCount > 0)
-                grouping.TotalSlotGroups.Add(new() { AllianceName = allianceName, TotalSlots = slotCount });
-        }
+        return (await sqlConnection.QueryAsync<SlotConfigSummary>(query)).ToList();
     }
 
-    private class SlotGroupsRawData
+    public async Task<List<DealHealthByPairing>> GetDealHealthAsync()
     {
-        public string AllianceName { get; set; }
-        public int TotalIncomingCashSlots { get; set; }
-        public int TotalOutgoingCashSlots { get; set; }
-        public int TotalIncomingTechSlots { get; set; }
-        public int TotalOutgoingTechSlots { get; set; }
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        // Health values mirror DealHealth. Deals without a deal_state row yet were created since the last
+        // update_deal_state run. The 5 days mirror the replacement threshold in check_deal_inactivity
+        const string query = @"
+select
+    s1.tech_sent_cycles as Slot1TechSentCycles,
+    s1.tech_received_cycles as Slot1TechReceivedCycles,
+    s1.cash_sent_cycles as Slot1CashSentCycles,
+    s1.cash_received_cycles as Slot1CashReceivedCycles,
+    s2.tech_sent_cycles as Slot2TechSentCycles,
+    s2.tech_received_cycles as Slot2TechReceivedCycles,
+    s2.cash_sent_cycles as Slot2CashSentCycles,
+    s2.cash_received_cycles as Slot2CashReceivedCycles,
+    case
+        when ds.deal_id is null then 1
+        when ds.state = 'pending_start' then if(datediff(" + CnToday + @", ds.state_since) >= 5, 2, 1)
+        when ds.state = 'blocked' or datediff(" + CnToday + @", ds.responsible_since) >= 1 then 3
+        else 0
+    end as Health,
+    count(1) as Deals
+from deal d
+join slot s1 on d.slot_1_id = s1.id
+join slot s2 on d.slot_2_id = s2.id
+left join deal_state ds on ds.deal_id = d.id
+where d.status = 'active'
+group by Slot1TechSentCycles, Slot1TechReceivedCycles, Slot1CashSentCycles, Slot1CashReceivedCycles,
+    Slot2TechSentCycles, Slot2TechReceivedCycles, Slot2CashSentCycles, Slot2CashReceivedCycles, Health
+order by Deals desc;";
+
+        return (await sqlConnection.QueryAsync<DealHealthByPairing>(query)).ToList();
     }
 
-    public async Task<List<AccountCountByRole>> GetAccountsPerRoleAsync()
+    public async Task<List<DailyDealActivity>> GetDealActivityAsync(int days)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        // One row per CN day, ending today, including days with no activity
+        const string query = @"
+with recursive cn_day as (
+    select " + CnToday + @" - interval (@Days - 1) day as cn_date
+    union all
+    select cn_date + interval 1 day from cn_day where cn_date < " + CnToday + @"
+)
+select
+    cn_day.cn_date as Day,
+    (select count(1) from deal_activity where activity_date = cn_day.cn_date) as LegsSent,
+    (select count(1) from deal_activity where failed_on = cn_day.cn_date) as LegsFailed,
+    (select count(1) from deal where date(convert_tz(created_on, '+00:00', '-05:00')) = cn_day.cn_date) as DealsCreated,
+    (select count(1) from deal where date(convert_tz(cancelled_on, '+00:00', '-05:00')) = cn_day.cn_date) as DealsCancelled
+from cn_day
+order by cn_day.cn_date;";
+
+        return (await sqlConnection.QueryAsync<DailyDealActivity>(query, new { Days = days })).ToList();
+    }
+
+    public async Task<List<CancellationReasonCount>> GetCancellationReasonsAsync(int days)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
         const string query = @"
-select va as Role, count(1) as TotalAccounts
-from account
-join cybernations_db.nation on account.nation_id = nation.id
-where va <> 'H'
-group by va;";
+select
+    if(cancelled_by = 'system', coalesce(cancellation_reason, 'No reason given'), 'Cancelled by an admin') as Reason,
+    count(1) as Deals
+from deal
+where status = 'cancelled'
+    and date(convert_tz(cancelled_on, '+00:00', '-05:00')) > " + CnToday + @" - interval @Days day
+group by Reason
+order by Deals desc, Reason;";
 
-        return (await sqlConnection.QueryAsync<AccountCountByRole>(query)).ToList();
-    }
-
-    public async Task<List<OpenSlotCountByRole>> GetOpenSlotsPerRoleAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select role as Role, sum(slots_available) as OpenSlots
-from account_deal_summary
-where role <> 'H'
-group by role
-order by role;";
-
-        return (await sqlConnection.QueryAsync<OpenSlotCountByRole>(query)).ToList();
-    }
-
-    public async Task<List<AccountCountByAlliance>> GetAccountsPerAllianceAsync()
-    {
-        using var sqlConnection = new MySqlConnection(_connectionString);
-        const string query = @"
-select alliance.name as AllianceName, count(1) as TotalAccounts
-from account
-join cybernations_db.nation on account.nation_id = nation.id
-join cybernations_db.alliance on nation.alliance_id = alliance.id
-where account.va <> 'H'
-group by alliance.name
-order by count(1) desc;";
-
-        return (await sqlConnection.QueryAsync<AccountCountByAlliance>(query)).ToList();
+        return (await sqlConnection.QueryAsync<CancellationReasonCount>(query, new { Days = days })).ToList();
     }
 
     public async Task<List<AdminAccessSetting>> GetAdminAccessSettingsAsync()

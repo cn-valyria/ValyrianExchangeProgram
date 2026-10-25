@@ -59,33 +59,51 @@ describe('admin dashboard page', () => {
     const store = useAdminStore()
     vi.spyOn(store, 'loadDashboard').mockImplementation(async () => {
       store.dashboard = {
-        generalProgramSummary: { totalAccounts: 120, activeDeals: 230 },
-        aidRatioSummary: {
-          totalIncomingCashSlots: 1,
-          totalOutgoingCashSlots: 1,
-          totalIncomingTechSlots: 1,
-          totalOutgoingTechSlots: 1,
-        },
-        dealHealthSummary: {
-          accountsWaiting: 3,
-          slotsWaiting: 7,
+        summary: {
+          totalAccounts: 120,
+          activeDeals: 230,
           openFlags: 0,
+          flaggedAccounts: 0,
         },
-        slotUsageSummary: { maxCapacity: 400, currentSlotsUsed: 300 },
-        dealAidPerDay: [],
-        accountsPerRole: [],
-        totalSlotsPerAlliance: [],
-        openSlotsPerRole: [],
-        accountsPerAlliance: [{ allianceName: 'Fark', totalAccounts: 9 }],
+        slotConfigs: [
+          {
+            techSentCycles: 0,
+            techReceivedCycles: 1,
+            cashSentCycles: 1,
+            cashReceivedCycles: 0,
+            accounts: 60,
+            totalSlots: 240,
+            slotsInDeals: 230,
+            openSlots: 10,
+            openAccounts: 4,
+            flaggedOpenSlots: 0,
+          },
+          {
+            techSentCycles: 1,
+            techReceivedCycles: 0,
+            cashSentCycles: 0,
+            cashReceivedCycles: 1,
+            accounts: 60,
+            totalSlots: 230,
+            slotsInDeals: 230,
+            openSlots: 0,
+            openAccounts: 0,
+            flaggedOpenSlots: 0,
+          },
+        ],
+        dealHealth: [],
+        activity: [],
+        cancellationReasons: [{ reason: 'Nation deleted', deals: 2 }],
       }
     })
 
     await mountInApp(DashboardPage, {}, { route: '/admin' })
 
     expect(bodyText()).toContain('VEP Dashboard')
-    expect(bodyText()).toContain('230')
-    expect(bodyText()).toContain('75.00%')
-    expect(bodyText()).toContain('Fark')
+    expect(bodyText()).toContain('230 active')
+    expect(bodyText()).toContain('98%')
+    expect(bodyText()).toContain('Room for 10 Seller slots')
+    expect(bodyText()).toContain('Nation deleted')
     expect(document.querySelector('.animate-spin')).toBeNull()
   })
 
