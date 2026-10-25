@@ -122,6 +122,7 @@ public class ApiPipelineTests : IDisposable
         { "GET", "/api/accounts/prospect?nationId=1", null, Manage },
         { "GET", "/api/admin/dashboard/summary", null, View },
         { "GET", "/api/admin/dashboard/activity?days=14", null, View },
+        { "GET", "/api/admin/dashboard/alliance-slot-configs", null, View },
         { "GET", "/api/admin/settings/access", null, Manage },
         { "POST", "/api/admin/settings/access", "{\"accountId\":1,\"adminRoleId\":2}", Manage },
         { "DELETE", "/api/admin/settings/access", "{\"accountId\":1,\"adminRoleId\":2}", Manage },

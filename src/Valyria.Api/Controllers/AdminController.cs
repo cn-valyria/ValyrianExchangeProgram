@@ -85,6 +85,48 @@ public class AdminController : ControllerBase
         }
     }
 
+    [HttpGet("dashboard/alliance-slot-configs")]
+    public async Task<IActionResult> GetAllianceSlotConfigs()
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(GetAllianceSlotConfigs)} method...");
+
+        try
+        {
+            var results = await _adminRepository.GetAllianceSlotConfigsAsync();
+
+            _logger.LogInformation("GetAllianceSlotConfigs execution complete");
+
+            return Ok(results);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAllianceSlotConfigs)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    [HttpGet("dashboard/alliance-deal-health")]
+    public async Task<IActionResult> GetAllianceDealHealth()
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(GetAllianceDealHealth)} method...");
+
+        try
+        {
+            var results = await _adminRepository.GetAllianceDealHealthAsync();
+
+            _logger.LogInformation("GetAllianceDealHealth execution complete");
+
+            return Ok(results);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAllianceDealHealth)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
     [HttpGet("dashboard/activity")]
     public async Task<IActionResult> GetDealActivity([FromQuery] int days = 14)
     {

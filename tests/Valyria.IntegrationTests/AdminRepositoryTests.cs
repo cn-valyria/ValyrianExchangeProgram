@@ -108,6 +108,63 @@ public class AdminRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
                 .Order());
     }
 
+    /// <summary>
+    /// Buyer Bob and seller Sue in Valyria, seller Rex in Rogues, buyer Nia in no alliance, and an on-hold
+    /// account in Rogues. Bob has a deal with Rex (no deal_state yet) and an in-flight deal with Sue
+    /// </summary>
+    private async Task SeedAlliancesAsync()
+    {
+        await Data.AllianceAsync(1, "Valyria");
+        await Data.AllianceAsync(2, "Rogues");
+        var bob = await Data.MemberAsync(100, "Bob", 'B', allianceId: 1);
+        var sue = await Data.MemberAsync(200, "Sue", 'S', allianceId: 1);
+        var rex = await Data.MemberAsync(300, "Rex", 'S', allianceId: 2);
+        await Data.MemberAsync(400, "Nia", 'B');
+        await Data.MemberAsync(500, "Hal", 'H', allianceId: 2);
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        await Data.DealAsync(bobSlots[0], (await Data.SlotIdsAsync(rex))[0]);
+        var withinValyria = await Data.DealAsync(bobSlots[1], (await Data.SlotIdsAsync(sue))[0]);
+        await Data.DealStateAsync(withinValyria, "in_flight", sue, bob);
+    }
+
+    [Fact]
+    public async Task AllianceSlotConfigs_GroupSlotConfigsByAlliance()
+    {
+        await SeedAlliancesAsync();
+        var sue = await Data.ScalarAsync<int>("select id from vep_db.account where nation_id = 200");
+        await Data.ExecuteAsync("update vep_db.slot set tech_sent_cycles = 2 where account_id = @sue and slot_number = 4", new { sue });
+
+        var configs = await Repository.GetAllianceSlotConfigsAsync();
+
+        // (alliance, alliance accounts, tech sent, cash sent): total, in deals, open. Sue's slots are in two configs
+        Assert.Equal(
+            [
+                ("No alliance", 1, 0, 1, (4, 0, 4)),
+                ("Rogues", 1, 1, 0, (4, 1, 3)),
+                ("Valyria", 2, 0, 1, (4, 2, 2)),
+                ("Valyria", 2, 1, 0, (3, 1, 2)),
+                ("Valyria", 2, 2, 0, (1, 0, 1)),
+            ],
+            configs.Select(c => (c.AllianceName, c.AllianceAccounts, c.TechSentCycles, c.CashSentCycles,
+                (c.TotalSlots, c.SlotsInDeals, c.OpenSlots))));
+    }
+
+    [Fact]
+    public async Task AllianceDealHealth_CountsEachDealOncePerAllianceInvolved()
+    {
+        await SeedAlliancesAsync();
+
+        var health = await Repository.GetAllianceDealHealthAsync();
+
+        Assert.Equal(
+            [
+                ("Rogues", false, DealHealth.Starting, 1),
+                ("Valyria", false, DealHealth.Starting, 1),
+                ("Valyria", true, DealHealth.OnTrack, 1),
+            ],
+            health.Select(h => (h.AllianceName, h.WithinAlliance, h.Health, h.Deals)).Order());
+    }
+
     [Fact]
     public async Task DealActivity_CountsEachCnDay_IncludingQuietDays()
     {

@@ -1,6 +1,8 @@
 import { describeAid } from './deals'
 import {
   DealHealth,
+  type AllianceDealHealth,
+  type AllianceSlotConfigSummary,
   type DealHealthByPairing,
   type SlotConfigSummary,
   type SlotCycles,
@@ -79,6 +81,14 @@ export const DEAL_HEALTH_INFO: Record<
     detail:
       'Blocked, or held up by one side for a day or more. Cancelled after 5 days',
   },
+}
+
+// Status colors, always shown with the bucket's label
+export const DEAL_HEALTH_COLORS: Record<DealHealth, string> = {
+  [DealHealth.OnTrack]: 'bg-green-500',
+  [DealHealth.Starting]: 'bg-gray-400 dark:bg-gray-500',
+  [DealHealth.Stalled]: 'bg-amber-500',
+  [DealHealth.AtRisk]: 'bg-red-500',
 }
 
 const emptyHealth = (): Record<DealHealth, number> => ({
@@ -182,6 +192,14 @@ const pairingCycles = (row: DealHealthByPairing): [SlotCycles, SlotCycles] => [
   },
 ]
 
+// The market a deal's pairing belongs to, or null for a manual deal between slots that aren't exact inverses
+const pairingMarketKey = (row: DealHealthByPairing): string | null => {
+  const [slot1, slot2] = pairingCycles(row)
+  return configKey(inverseCycles(slot1)) === configKey(slot2)
+    ? marketKey(slot1)
+    : null
+}
+
 // Groups slot configs into markets (a config and its inverse), largest first, unmatchable ones last
 export function buildSlotMarkets(
   configs: SlotConfigSummary[] | undefined,
@@ -241,11 +259,8 @@ export function buildSlotMarkets(
 
   const otherDeals = emptyHealth()
   for (const row of dealHealth ?? []) {
-    const [slot1, slot2] = pairingCycles(row)
-    const market =
-      configKey(inverseCycles(slot1)) === configKey(slot2)
-        ? markets.get(marketKey(slot1))
-        : undefined
+    const key = pairingMarketKey(row)
+    const market = key === null ? undefined : markets.get(key)
     if (market) {
       market.health[row.health] += row.deals
       market.activeDeals += row.deals
@@ -262,6 +277,131 @@ export function buildSlotMarkets(
     ),
     otherDeals,
   }
+}
+
+// One market as an alliance uses it: its own slots on each side, and the health of its deals there
+export interface AllianceMarket {
+  key: string
+  label: string
+  terms: string
+  sides: SlotMarketSide[]
+  health: Record<DealHealth, number>
+  activeDeals: number
+}
+
+export interface AllianceSummary {
+  allianceName: string
+  accounts: number
+  totalSlots: number
+  slotsInDeals: number
+  openSlots: number
+  flaggedOpenSlots: number
+  // Each deal once, even when both accounts are in this alliance
+  activeDeals: number
+  withinAllianceDeals: number
+  health: Record<DealHealth, number>
+  // Largest first. Manual deals between mismatched slots are grouped under OTHER_PAIRINGS_KEY
+  markets: AllianceMarket[]
+}
+
+export const OTHER_PAIRINGS_KEY = 'other'
+
+// What a market is called, e.g. "Buyer ↔ Seller"
+export const marketLabel = (market: SlotMarket): string =>
+  market.second
+    ? `${market.first.name} ↔ ${market.second.name}`
+    : market.first.name
+
+// Splits slots and deals by alliance, naming each market the way the program-wide markets do
+export function buildAllianceSummaries(
+  configs: AllianceSlotConfigSummary[] | undefined,
+  dealHealth: AllianceDealHealth[] | undefined,
+  programMarkets: SlotMarket[],
+): AllianceSummary[] {
+  const programByKey = new Map(programMarkets.map((m) => [m.key, m]))
+  const alliances = new Map<string, AllianceSummary>()
+
+  const allianceFor = (name: string, accounts = 0): AllianceSummary => {
+    let alliance = alliances.get(name)
+    if (!alliance) {
+      alliance = {
+        allianceName: name,
+        accounts,
+        totalSlots: 0,
+        slotsInDeals: 0,
+        openSlots: 0,
+        flaggedOpenSlots: 0,
+        activeDeals: 0,
+        withinAllianceDeals: 0,
+        health: emptyHealth(),
+        markets: [],
+      }
+      alliances.set(name, alliance)
+    }
+    return alliance
+  }
+
+  const marketFor = (
+    alliance: AllianceSummary,
+    key: string,
+  ): AllianceMarket => {
+    let market = alliance.markets.find((m) => m.key === key)
+    if (!market) {
+      const program = programByKey.get(key)
+      market = {
+        key,
+        label: program ? marketLabel(program) : 'Other pairings',
+        terms: program
+          ? program.first.terms
+          : "Manual deals between slots that aren't exact opposites",
+        sides: [],
+        health: emptyHealth(),
+        activeDeals: 0,
+      }
+      alliance.markets.push(market)
+    }
+    return market
+  }
+
+  for (const config of configs ?? []) {
+    const alliance = allianceFor(config.allianceName, config.allianceAccounts)
+    alliance.totalSlots += config.totalSlots
+    alliance.slotsInDeals += config.slotsInDeals
+    alliance.openSlots += config.openSlots
+    alliance.flaggedOpenSlots += config.flaggedOpenSlots
+    const market = marketFor(alliance, marketKey(config))
+    market.sides.push(side(config))
+    // The side that sends first stays first, as in the program-wide markets
+    market.sides.sort((a, b) => leadOrder(b.summary) - leadOrder(a.summary))
+  }
+
+  for (const row of dealHealth ?? []) {
+    const alliance = allianceFor(row.allianceName)
+    const market = marketFor(
+      alliance,
+      pairingMarketKey(row) ?? OTHER_PAIRINGS_KEY,
+    )
+    for (const target of [alliance, market]) {
+      target.health[row.health] += row.deals
+      target.activeDeals += row.deals
+    }
+    if (row.withinAlliance) alliance.withinAllianceDeals += row.deals
+  }
+
+  const marketSlots = (m: AllianceMarket): number =>
+    m.sides.reduce((sum, s) => sum + s.summary.totalSlots, 0)
+  for (const alliance of alliances.values()) {
+    alliance.markets.sort(
+      (a, b) =>
+        marketSlots(b) - marketSlots(a) || b.activeDeals - a.activeDeals,
+    )
+  }
+
+  return [...alliances.values()].sort(
+    (a, b) =>
+      b.totalSlots - a.totalSlots ||
+      a.allianceName.localeCompare(b.allianceName),
+  )
 }
 
 export function getOpenSlotBreakdown(

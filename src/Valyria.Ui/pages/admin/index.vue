@@ -32,6 +32,10 @@
         <AdminDashboardSlotMarkets :markets="markets.markets" />
       </UCard>
 
+      <UCard>
+        <AdminDashboardAllianceUsage :alliances="alliances" />
+      </UCard>
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UCard>
           <AdminDashboardOpenSlotBreakdown :breakdown="breakdown" />
@@ -66,6 +70,7 @@
 import { storeToRefs } from 'pinia'
 import { ACTIVITY_DAYS, CANCELLATION_DAYS, useAdminStore } from '~/stores/admin'
 import {
+  buildAllianceSummaries,
   buildSlotMarkets,
   getOpenSlotBreakdown,
 } from '~/infrastructure/dashboard'
@@ -80,6 +85,14 @@ const loading = ref(true)
 
 const markets = computed(() =>
   buildSlotMarkets(dashboard.value.slotConfigs, dashboard.value.dealHealth),
+)
+
+const alliances = computed(() =>
+  buildAllianceSummaries(
+    dashboard.value.allianceSlotConfigs,
+    dashboard.value.allianceDealHealth,
+    markets.value.markets,
+  ),
 )
 
 const breakdown = computed(() =>

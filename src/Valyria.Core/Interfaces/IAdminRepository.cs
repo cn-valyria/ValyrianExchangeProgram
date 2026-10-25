@@ -9,6 +9,8 @@ public interface IAdminRepository
     Task<ProgramSummary> GetProgramSummaryAsync();
     Task<List<SlotConfigSummary>> GetSlotConfigsAsync();
     Task<List<DealHealthByPairing>> GetDealHealthAsync();
+    Task<List<AllianceSlotConfigSummary>> GetAllianceSlotConfigsAsync();
+    Task<List<AllianceDealHealth>> GetAllianceDealHealthAsync();
     Task<List<DailyDealActivity>> GetDealActivityAsync(int days);
     Task<List<CancellationReasonCount>> GetCancellationReasonsAsync(int days);
     Task<List<AdminAccessSetting>> GetAdminAccessSettingsAsync();

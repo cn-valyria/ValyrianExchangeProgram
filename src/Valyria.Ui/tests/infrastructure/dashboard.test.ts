@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAllianceSummaries,
   buildSlotMarkets,
   getMarketVerdict,
   getOpenSlotBreakdown,
@@ -8,6 +9,8 @@ import {
 } from '~/infrastructure/dashboard'
 import {
   DealHealth,
+  type AllianceDealHealth,
+  type AllianceSlotConfigSummary,
   type DealHealthByPairing,
   type SlotConfigSummary,
   type SlotCycles,
@@ -207,5 +210,113 @@ describe('getOpenSlotBreakdown', () => {
       total: 17,
       waitQueue: 13,
     })
+  })
+})
+
+describe('buildAllianceSummaries', () => {
+  const allianceConfig = (
+    allianceName: string,
+    allianceAccounts: number,
+    c: Cycles,
+    counts: Partial<SlotConfigSummary>,
+  ): AllianceSlotConfigSummary => ({
+    ...config(c, counts),
+    allianceName,
+    allianceAccounts,
+  })
+
+  const allianceDeals = (
+    allianceName: string,
+    slot1: Cycles,
+    slot2: Cycles,
+    health: DealHealth,
+    deals: number,
+    withinAlliance = false,
+  ): AllianceDealHealth => ({
+    ...pairing(slot1, slot2, health, deals),
+    allianceName,
+    withinAlliance,
+  })
+
+  const configs = [
+    allianceConfig('Fark', 3, SELLER, {
+      totalSlots: 8,
+      slotsInDeals: 6,
+      openSlots: 1,
+      flaggedOpenSlots: 1,
+    }),
+    allianceConfig('Fark', 3, BUYER_2, {
+      totalSlots: 4,
+      slotsInDeals: 1,
+      openSlots: 3,
+    }),
+    allianceConfig('Fark', 3, BUYER, { totalSlots: 2, slotsInDeals: 2 }),
+    allianceConfig('IRON', 1, SELLER_2, {
+      totalSlots: 4,
+      slotsInDeals: 1,
+      openSlots: 3,
+    }),
+  ]
+  const program = buildSlotMarkets(
+    [
+      config(SELLER, { totalSlots: 8 }),
+      config(BUYER, { totalSlots: 2 }),
+      config(BUYER_2, { totalSlots: 4 }),
+      config(SELLER_2, { totalSlots: 4 }),
+    ],
+    [],
+  ).markets
+
+  it('totals each alliance and splits it into the program’s markets', () => {
+    const alliances = buildAllianceSummaries(
+      configs,
+      [
+        allianceDeals('Fark', SELLER, BUYER, DealHealth.OnTrack, 2, true),
+        allianceDeals('Fark', SELLER, BUYER, DealHealth.AtRisk, 2),
+        allianceDeals('Fark', BUYER_2, SELLER_2, DealHealth.Starting, 1),
+        allianceDeals('Fark', BUYER, DONOR, DealHealth.Stalled, 1),
+        allianceDeals('IRON', BUYER_2, SELLER_2, DealHealth.Starting, 1),
+      ],
+      program,
+    )
+
+    expect(alliances.map((a) => a.allianceName)).toEqual(['Fark', 'IRON'])
+    const [fark, iron] = alliances
+    expect(fark).toMatchObject({
+      accounts: 3,
+      totalSlots: 14,
+      slotsInDeals: 9,
+      openSlots: 4,
+      flaggedOpenSlots: 1,
+      activeDeals: 6,
+      withinAllianceDeals: 2,
+    })
+    expect(fark.health[DealHealth.AtRisk]).toBe(2)
+    expect(
+      fark.markets.map((m) => [
+        m.label,
+        m.sides.map((s) => [s.name, s.summary.totalSlots]),
+        m.activeDeals,
+      ]),
+    ).toEqual([
+      [
+        'Buyer ↔ Seller',
+        [
+          ['Buyer', 2],
+          ['Seller', 8],
+        ],
+        4,
+      ],
+      ['Buyer ↔ Seller', [['Buyer', 4]], 1],
+      ['Other pairings', [], 1],
+    ])
+    expect(fark.markets[1].terms).toBe('Sends $9M, gets 200 tech')
+    expect(iron.markets.map((m) => m.sides.map((s) => s.terms))).toEqual([
+      ['Sends 200 tech, gets $9M'],
+    ])
+  })
+
+  it('is empty before the dashboard loads', () => {
+    expect(buildAllianceSummaries(undefined, undefined, [])).toEqual([])
   })
 })

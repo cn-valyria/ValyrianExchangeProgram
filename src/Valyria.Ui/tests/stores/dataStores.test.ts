@@ -116,6 +116,8 @@ describe('admin dashboard store', () => {
     summary: { totalAccounts: 10, activeDeals: 4 },
     'slot-configs': [{ cashSentCycles: 1, totalSlots: 4 }],
     'deal-health': [{ health: 0, deals: 4 }],
+    'alliance-slot-configs': [{ allianceName: 'Fark', totalSlots: 4 }],
+    'alliance-deal-health': [{ allianceName: 'Fark', deals: 2 }],
     'activity?days=14': [{ day: '2026-10-09', legsSent: 3 }],
     'cancellation-reasons?days=30': [{ reason: 'Nation deleted', deals: 1 }],
   }
@@ -128,11 +130,13 @@ describe('admin dashboard store', () => {
 
     await store.loadDashboard()
 
-    expect(apiFetch).toHaveBeenCalledTimes(5)
+    expect(apiFetch).toHaveBeenCalledTimes(7)
     expect(store.dashboard).toEqual({
       summary: endpoints.summary,
       slotConfigs: endpoints['slot-configs'],
       dealHealth: endpoints['deal-health'],
+      allianceSlotConfigs: endpoints['alliance-slot-configs'],
+      allianceDealHealth: endpoints['alliance-deal-health'],
       activity: endpoints['activity?days=14'],
       cancellationReasons: endpoints['cancellation-reasons?days=30'],
     })

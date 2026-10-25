@@ -39,9 +39,25 @@ select
     public async Task<List<SlotConfigSummary>> GetSlotConfigsAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
+        return (await sqlConnection.QueryAsync<SlotConfigSummary>(SlotConfigsQuery(byAlliance: false))).ToList();
+    }
+
+    public async Task<List<AllianceSlotConfigSummary>> GetAllianceSlotConfigsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        return (await sqlConnection.QueryAsync<AllianceSlotConfigSummary>(SlotConfigsQuery(byAlliance: true))).ToList();
+    }
+
+    // Accounts whose nation has no alliance are grouped as NoAlliance
+    private const string NoAlliance = "No alliance";
+
+    private static string SlotConfigsQuery(bool byAlliance)
+    {
+        var alliance = byAlliance ? $"coalesce(alliance.name, '{NoAlliance}')" : null;
         // Open slots on flagged accounts are counted apart, since populate_wait_queue leaves those accounts out
-        const string query = @"
+        return $@"
 select
+    {(byAlliance ? $"{alliance} as AllianceName, alliance_accounts.accounts as AllianceAccounts," : "")}
     slot.tech_sent_cycles as TechSentCycles,
     slot.tech_received_cycles as TechReceivedCycles,
     slot.cash_sent_cycles as CashSentCycles,
@@ -54,6 +70,16 @@ select
     coalesce(sum(in_deal.slot_id is null and flagged.account_id is not null), 0) as FlaggedOpenSlots
 from slot
 join account on slot.account_id = account.id and account.va <> 'H'
+{(byAlliance ? $@"left join cybernations_db.nation on account.nation_id = nation.id
+left join cybernations_db.alliance on nation.alliance_id = alliance.id
+join (
+    select coalesce(alliance.name, '{NoAlliance}') as alliance_name, count(1) as accounts
+    from account
+    left join cybernations_db.nation on account.nation_id = nation.id
+    left join cybernations_db.alliance on nation.alliance_id = alliance.id
+    where account.va <> 'H'
+    group by alliance_name
+) alliance_accounts on alliance_accounts.alliance_name = {alliance}" : "")}
 left join (
     select slot_1_id as slot_id from deal where status = 'active'
     union
@@ -62,19 +88,43 @@ left join (
 left join (
     select distinct flagged_account_id as account_id from deal_flag where resolved_on is null
 ) flagged on flagged.account_id = slot.account_id
-group by slot.tech_sent_cycles, slot.tech_received_cycles, slot.cash_sent_cycles, slot.cash_received_cycles
-order by TotalSlots desc, TechSentCycles, TechReceivedCycles, CashSentCycles, CashReceivedCycles;";
-
-        return (await sqlConnection.QueryAsync<SlotConfigSummary>(query)).ToList();
+group by {(byAlliance ? "AllianceName, AllianceAccounts, " : "")}slot.tech_sent_cycles, slot.tech_received_cycles, slot.cash_sent_cycles, slot.cash_received_cycles
+order by {(byAlliance ? "AllianceName, " : "")}TotalSlots desc, TechSentCycles, TechReceivedCycles, CashSentCycles, CashReceivedCycles;";
     }
 
     public async Task<List<DealHealthByPairing>> GetDealHealthAsync()
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
+        return (await sqlConnection.QueryAsync<DealHealthByPairing>(DealHealthQuery(byAlliance: false))).ToList();
+    }
+
+    public async Task<List<AllianceDealHealth>> GetAllianceDealHealthAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        return (await sqlConnection.QueryAsync<AllianceDealHealth>(DealHealthQuery(byAlliance: true))).ToList();
+    }
+
+    private static string DealHealthQuery(bool byAlliance)
+    {
+        // Each deal counts once for each alliance it involves: once for a deal between two of an alliance's
+        // own accounts (WithinAlliance), and once for each side of a deal between two alliances
+        const string dealAlliances = $@"
+join (
+    select d.id as deal_id, coalesce(alliance.name, '{NoAlliance}') as alliance_name, count(1) = 2 as within_alliance
+    from deal d
+    join slot on slot.id in (d.slot_1_id, d.slot_2_id)
+    join account on slot.account_id = account.id
+    left join cybernations_db.nation on account.nation_id = nation.id
+    left join cybernations_db.alliance on nation.alliance_id = alliance.id
+    where d.status = 'active'
+    group by d.id, alliance_name
+) deal_alliance on deal_alliance.deal_id = d.id";
+
         // Health values mirror DealHealth. Deals without a deal_state row yet were created since the last
         // update_deal_state run. The 5 days mirror the replacement threshold in check_deal_inactivity
-        const string query = @"
+        return $@"
 select
+    {(byAlliance ? "deal_alliance.alliance_name as AllianceName, deal_alliance.within_alliance as WithinAlliance," : "")}
     s1.tech_sent_cycles as Slot1TechSentCycles,
     s1.tech_received_cycles as Slot1TechReceivedCycles,
     s1.cash_sent_cycles as Slot1CashSentCycles,
@@ -85,8 +135,8 @@ select
     s2.cash_received_cycles as Slot2CashReceivedCycles,
     case
         when ds.deal_id is null then 1
-        when ds.state = 'pending_start' then if(datediff(" + CnToday + @", ds.state_since) >= 5, 2, 1)
-        when ds.state = 'blocked' or datediff(" + CnToday + @", ds.responsible_since) >= 1 then 3
+        when ds.state = 'pending_start' then if(datediff({CnToday}, ds.state_since) >= 5, 2, 1)
+        when ds.state = 'blocked' or datediff({CnToday}, ds.responsible_since) >= 1 then 3
         else 0
     end as Health,
     count(1) as Deals
@@ -94,12 +144,11 @@ from deal d
 join slot s1 on d.slot_1_id = s1.id
 join slot s2 on d.slot_2_id = s2.id
 left join deal_state ds on ds.deal_id = d.id
+{(byAlliance ? dealAlliances : "")}
 where d.status = 'active'
-group by Slot1TechSentCycles, Slot1TechReceivedCycles, Slot1CashSentCycles, Slot1CashReceivedCycles,
+group by {(byAlliance ? "AllianceName, WithinAlliance, " : "")}Slot1TechSentCycles, Slot1TechReceivedCycles, Slot1CashSentCycles, Slot1CashReceivedCycles,
     Slot2TechSentCycles, Slot2TechReceivedCycles, Slot2CashSentCycles, Slot2CashReceivedCycles, Health
-order by Deals desc;";
-
-        return (await sqlConnection.QueryAsync<DealHealthByPairing>(query)).ToList();
+order by {(byAlliance ? "AllianceName, " : "")}Deals desc;";
     }
 
     public async Task<List<DailyDealActivity>> GetDealActivityAsync(int days)

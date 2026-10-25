@@ -92,6 +92,23 @@ describe('admin dashboard page', () => {
           },
         ],
         dealHealth: [],
+        allianceSlotConfigs: [
+          {
+            allianceName: 'Fark',
+            allianceAccounts: 60,
+            techSentCycles: 0,
+            techReceivedCycles: 1,
+            cashSentCycles: 1,
+            cashReceivedCycles: 0,
+            accounts: 60,
+            totalSlots: 240,
+            slotsInDeals: 230,
+            openSlots: 10,
+            openAccounts: 4,
+            flaggedOpenSlots: 0,
+          },
+        ],
+        allianceDealHealth: [],
         activity: [],
         cancellationReasons: [{ reason: 'Nation deleted', deals: 2 }],
       }
@@ -104,6 +121,7 @@ describe('admin dashboard page', () => {
     expect(bodyText()).toContain('98%')
     expect(bodyText()).toContain('Room for 10 Seller slots')
     expect(bodyText()).toContain('Nation deleted')
+    expect(bodyText()).toContain('60 accounts')
     expect(document.querySelector('.animate-spin')).toBeNull()
   })
 

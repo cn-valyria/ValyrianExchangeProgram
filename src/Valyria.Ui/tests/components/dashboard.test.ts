@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import AllianceUsage from '~/components/admin/dashboard/AllianceUsage.vue'
 import CancellationReasons from '~/components/admin/dashboard/CancellationReasons.vue'
 import DealActivity from '~/components/admin/dashboard/DealActivity.vue'
 import DealHealthByPairing from '~/components/admin/dashboard/DealHealthByPairing.vue'
@@ -6,11 +7,12 @@ import OpenSlotBreakdown from '~/components/admin/dashboard/OpenSlotBreakdown.vu
 import SlotMarkets from '~/components/admin/dashboard/SlotMarkets.vue'
 import SummaryCards from '~/components/admin/dashboard/SummaryCards.vue'
 import {
+  buildAllianceSummaries,
   buildSlotMarkets,
   getOpenSlotBreakdown,
 } from '~/infrastructure/dashboard'
 import { DealHealth, type SlotConfigSummary } from '~/stores/admin'
-import { mountInApp } from '../helpers/dom'
+import { click, mountInApp } from '../helpers/dom'
 
 // happy-dom has no canvas, so charts are stubbed to expose the data they're given
 vi.mock('vue-chartjs', () => import('../helpers/chartStub'))
@@ -262,5 +264,61 @@ describe('CancellationReasons', () => {
     })
 
     expect(wrapper.text()).toContain('No deals were cancelled.')
+  })
+})
+
+describe('AllianceUsage', () => {
+  const alliances = buildAllianceSummaries(
+    [
+      { ...configs[0], allianceName: 'Fark', allianceAccounts: 10 },
+      { ...configs[1], allianceName: 'Fark', allianceAccounts: 10 },
+    ],
+    dealHealth.map((row) => ({
+      ...row,
+      allianceName: 'Fark',
+      withinAlliance: row.health === DealHealth.OnTrack,
+    })),
+    markets.markets,
+  )
+
+  it('summarizes each alliance, with its pairings when opened', async () => {
+    const wrapper = await mountInApp(AllianceUsage, { alliances })
+
+    const row = wrapper.find('[data-alliance]')
+    expect(row.text()).toContain('Fark')
+    expect(row.text()).toContain('10 accounts')
+    expect(row.text()).toContain('88% in deals')
+    expect(row.text()).toContain('72 of 82 slots')
+    expect(row.text()).toContain('8 open')
+    expect(row.text()).toContain('plus 2 on flagged accounts')
+    expect(row.text()).toContain('36 deals')
+    expect(row.text()).toContain('83% on track')
+    expect(row.text()).toContain('30 on track · 6 at risk')
+    expect(wrapper.find('[data-alliance-detail]').exists()).toBe(false)
+
+    await click(row.find('button').element as HTMLElement)
+
+    const detail = wrapper.find('[data-alliance-detail]')
+    expect(detail.text()).toContain(
+      '36 active deals: 6 with other alliances, 30 within Fark.',
+    )
+    const pairings = wrapper.findAll('[data-alliance-market]')
+    expect(pairings).toHaveLength(1)
+    expect(pairings[0].text()).toContain('Buyer ↔ Seller')
+    expect(pairings[0].text()).toContain(
+      'Buyer slots: 40 · 36 in deals · 2 open · 2 on flagged accounts',
+    )
+    expect(pairings[0].text()).toContain(
+      'Seller slots: 42 · 36 in deals · 6 open',
+    )
+
+    await click(row.find('button').element as HTMLElement)
+    expect(wrapper.find('[data-alliance-detail]').exists()).toBe(false)
+  })
+
+  it('says so when there are no alliances', async () => {
+    const wrapper = await mountInApp(AllianceUsage, { alliances: [] })
+
+    expect(wrapper.text()).toContain('No alliances yet.')
   })
 })

@@ -34,6 +34,16 @@ public class SlotConfigSummary
 }
 
 /// <summary>
+/// <see cref="SlotConfigSummary"/> for one alliance's accounts
+/// </summary>
+public class AllianceSlotConfigSummary : SlotConfigSummary
+{
+    public string AllianceName { get; set; }
+    /// <summary>All of the alliance's accounts, whatever their slots. Accounts can have slots in several configs</summary>
+    public int AllianceAccounts { get; set; }
+}
+
+/// <summary>
 /// How an active deal is doing, from deal_state
 /// </summary>
 public enum DealHealth
@@ -63,6 +73,17 @@ public class DealHealthByPairing
     public int Slot2CashReceivedCycles { get; set; }
     public DealHealth Health { get; set; }
     public int Deals { get; set; }
+}
+
+/// <summary>
+/// <see cref="DealHealthByPairing"/> for deals involving one alliance's accounts. A deal between two
+/// alliances counts for both of them
+/// </summary>
+public class AllianceDealHealth : DealHealthByPairing
+{
+    public string AllianceName { get; set; }
+    /// <summary>Both accounts in these deals are in this alliance</summary>
+    public bool WithinAlliance { get; set; }
 }
 
 /// <summary>
