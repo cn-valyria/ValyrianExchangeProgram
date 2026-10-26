@@ -261,6 +261,57 @@ describe('admin accounts page', () => {
     expect(bodyText()).toContain("Sue's Account")
   })
 
+  it('opens the account linked from another page', async () => {
+    signIn('Super Admin')
+    stubAccounts()
+    vi.spyOn(useAdminAccountsStore(), 'loadAccountSlots').mockResolvedValue([])
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=2' })
+
+    expect(bodyText()).toContain("Sue's Account")
+  })
+
+  it('looks in on-hold accounts for a linked account', async () => {
+    signIn('Super Admin')
+    const store = useAdminAccountsStore()
+    const load = vi
+      .spyOn(store, 'loadAllAccounts')
+      .mockImplementation(async (includeOnHold) => {
+        store.accounts = includeOnHold
+          ? accounts.map((a) => ({ ...a }))
+          : [{ ...accounts[0] }]
+      })
+    vi.spyOn(store, 'loadAccountSlots').mockResolvedValue([])
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=2' })
+
+    expect(load).toHaveBeenLastCalledWith(true)
+    expect(bodyText()).toContain("Sue's Account")
+  })
+
+  it('warns when the linked account is missing', async () => {
+    signIn('Super Admin')
+    stubAccounts()
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=99' })
+
+    expect(toasts().at(-1)).toMatchObject({
+      color: 'warning',
+      title: 'Account not found',
+    })
+  })
+
+  it('narrows the table to a linked account for read-only admins', async () => {
+    signIn('Admin (Read-only)')
+    stubAccounts()
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=2' })
+
+    expect(bodyText()).not.toContain("Sue's Account")
+    expect(tableRows()).toHaveLength(1)
+    expect(tableRows()[0]).toContain('Sue')
+  })
+
   it('deletes an account', async () => {
     signIn('Super Admin')
     stubAccounts()
@@ -783,9 +834,20 @@ describe('admin flags page', () => {
     expect(bodyText()).toContain('Cancelled Deals (3)')
     expect(cardIds()).toEqual([5, 7, 8, 6])
 
+    // Collapsed rows just summarize each flag
+    const row = card(5).textContent
+    expect(row).toContain('1-Day Warning')
+    expect(row).toContain('Ruler1')
+    expect(row).toContain('Ruler2')
+    expect(row).toContain('#10')
+    expect(row).toContain('Active, still held up')
+    expect(row).toContain('Deal cancelled')
+    expect(row).not.toContain('What happened')
+    expect(buttons('Resolve...')).toHaveLength(4)
+
+    await click(button('Expand all'))
+
     const warning = card(5).textContent
-    expect(warning).toContain('1-Day Warning')
-    expect(warning).toContain('Active, still held up')
     expect(warning).toContain(
       "It was Ruler1's turn to send $9M to Ruler2, and both nations had a free aid slot.",
     )
@@ -882,6 +944,9 @@ describe('admin flags page', () => {
       })
     await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
 
+    await click(
+      card(5).querySelector<HTMLElement>('[aria-label="Show details"]')!,
+    )
     await click(button('Show aid details', card(5)))
 
     expect(loadEvidence).toHaveBeenCalledWith(5)
@@ -896,6 +961,64 @@ describe('admin flags page', () => {
     expect(text).toContain('$3M')
     expect(text).toContain('Outside VEP')
     expect(text).toContain('"War aid"')
+  })
+
+  it('links each party to its admin account and its CN nation', async () => {
+    signIn('Super Admin')
+    stubFlags()
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    await click(
+      card(5).querySelector<HTMLElement>('[aria-label="Show details"]')!,
+    )
+
+    const hrefs = Array.from(card(5).querySelectorAll('a')).map((a) =>
+      a.getAttribute('href'),
+    )
+    // Ruler1 is account 1, nation 101
+    expect(hrefs).toContain('/admin/accounts?account=1')
+    expect(hrefs).toContain(
+      'https://www.cybernations.net/nation_drill_display.asp?Nation_ID=101',
+    )
+  })
+
+  it('expands one row at a time, or all of them, remembering the choice', async () => {
+    signIn('Super Admin')
+    stubFlags()
+    localStorage.removeItem('vep.adminFlags.expandAll')
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+    const expanded = () =>
+      cardIds().filter((id) => card(id).textContent?.includes('What happened'))
+    const toggle = (id: number, label: string) =>
+      click(card(id).querySelector<HTMLElement>(`[aria-label="${label}"]`)!)
+
+    // Clicking anywhere on a row opens it; the chevron closes it again
+    await click(card(6).firstElementChild as HTMLElement)
+    expect(expanded()).toEqual([6])
+    await toggle(6, 'Hide details')
+    expect(expanded()).toEqual([])
+
+    await click(button('Expand all'))
+    expect(expanded()).toEqual([5, 7, 8, 6])
+    expect(localStorage.getItem('vep.adminFlags.expandAll')).toBe('true')
+    await toggle(7, 'Hide details')
+    expect(expanded()).toEqual([5, 8, 6])
+
+    await click(button('Collapse all'))
+    expect(expanded()).toEqual([])
+    expect(localStorage.getItem('vep.adminFlags.expandAll')).toBe('false')
+  })
+
+  it('opens every row when the admin last chose to expand them all', async () => {
+    signIn('Super Admin')
+    stubFlags()
+    localStorage.setItem('vep.adminFlags.expandAll', 'true')
+
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    expect(card(6).textContent).toContain('What happened')
+    expect(hasButton('Collapse all')).toBe(true)
+    localStorage.removeItem('vep.adminFlags.expandAll')
   })
 
   it('clears a warning, then reloads the flags', async () => {

@@ -43,6 +43,10 @@ export interface LabelInfo {
   color: BadgeColor
 }
 
+// Column layout of a flag row from md up, shared by the rows and their header on the flags page
+export const FLAG_ROW_GRID =
+  'md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_6rem] md:gap-x-4'
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 const formatDate = (date: string | null): string =>
