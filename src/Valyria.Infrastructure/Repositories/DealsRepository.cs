@@ -40,6 +40,16 @@ public class DealsRepository : IDealsRepository
                 END AS ExtensionKind,
                 dd.extended_by AS ExtendedBy,";
 
+    // Team bonus columns for a slot alias, read from team_bonus_slot joined as {slot}tb (see
+    // TeamBonusJoin). The view only lists bonus slots in effect, so the dates are null once a bonus ends
+    private static string TeamBonusColumns(string slot) => $@"
+                {slot}.is_team_bonus AS IsTeamBonus,
+                {slot}tb.ends_on AS TeamBonusEndsOn,
+                {slot}tb.last_match_on AS TeamBonusMatchableUntil,";
+
+    private static string TeamBonusJoin(string slot) => $@"
+            LEFT JOIN team_bonus_slot {slot}tb ON {slot}tb.slot_id = {slot}.id";
+
     public DealsRepository(string connectionString) => _connectionString = connectionString;
 
     public async Task<AccountDealsSummary> GetAccountDealsAsync(int accountId)
@@ -91,7 +101,7 @@ public class DealsRepository : IDealsRepository
                 ms.tech_received_cycles AS TechReceivedCycles,
                 ms.cash_sent_cycles AS CashSentCycles,
                 ms.cash_received_cycles AS CashReceivedCycles,
-                TRUE AS HasActiveDeal,
+                TRUE AS HasActiveDeal," + TeamBonusColumns("ms") + @"
                 -- My account
                 ma.id AS AccountId,
                 mn.id AS NationId,
@@ -105,7 +115,7 @@ public class DealsRepository : IDealsRepository
                 ps.tech_received_cycles AS TechReceivedCycles,
                 ps.cash_sent_cycles AS CashSentCycles,
                 ps.cash_received_cycles AS CashReceivedCycles,
-                TRUE AS HasActiveDeal,
+                TRUE AS HasActiveDeal," + TeamBonusColumns("ps") + @"
                 -- Partner account
                 pa.id AS AccountId,
                 pn.id AS NationId,
@@ -116,7 +126,7 @@ public class DealsRepository : IDealsRepository
             JOIN slot ms ON ms.id IN (d.slot_1_id, d.slot_2_id) AND ms.account_id = @accountId
             JOIN slot ps ON ps.id = IF(d.slot_1_id = ms.id, d.slot_2_id, d.slot_1_id)
             JOIN account ma ON ms.account_id = ma.id
-            JOIN account pa ON ps.account_id = pa.id
+            JOIN account pa ON ps.account_id = pa.id" + TeamBonusJoin("ms") + TeamBonusJoin("ps") + @"
             LEFT JOIN cybernations_db.nation mn ON ma.nation_id = mn.id
             LEFT JOIN cybernations_db.nation pn ON pa.nation_id = pn.id
             LEFT JOIN cybernations_db.alliance mal ON mn.alliance_id = mal.id
@@ -154,6 +164,16 @@ public class DealsRepository : IDealsRepository
             splitOn: "Id,AccountId,Id,AccountId");
 
         summary.ActiveDeals = deals.ToList();
+
+        summary.TeamEvent = await connection.QueryFirstOrDefaultAsync<AccountTeamEvent>(@"
+            SELECT
+                team AS Team,
+                approved_on AS ApprovedOn,
+                ends_on AS EndsOn,
+                last_match_on AS BonusSlotMatchableUntil
+            FROM team_bonus_slot
+            WHERE account_id = @accountId",
+            new { accountId });
 
         // Notifications for deals that were cancelled over a flag. Warnings on active deals show
         // on the deals themselves. Flagged accounts hear about it until an admin resolves the flag;
@@ -363,7 +383,7 @@ public class DealsRepository : IDealsRepository
                 EXISTS (
                     SELECT 1 FROM deal ad
                     WHERE s1.id IN (ad.slot_1_id, ad.slot_2_id) AND ad.status = 'active'
-                ) AS HasActiveDeal,
+                ) AS HasActiveDeal," + TeamBonusColumns("s1") + @"
                 -- Slot 1 account
                 a1.id AS AccountId,
                 n1.id AS NationId,
@@ -380,7 +400,7 @@ public class DealsRepository : IDealsRepository
                 EXISTS (
                     SELECT 1 FROM deal ad
                     WHERE s2.id IN (ad.slot_1_id, ad.slot_2_id) AND ad.status = 'active'
-                ) AS HasActiveDeal,
+                ) AS HasActiveDeal," + TeamBonusColumns("s2") + @"
                 -- Slot 2 account
                 a2.id AS AccountId,
                 n2.id AS NationId,
@@ -395,7 +415,7 @@ public class DealsRepository : IDealsRepository
             JOIN cybernations_db.nation n1 ON a1.nation_id = n1.id
             JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
             LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
-            LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
+            LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id" + TeamBonusJoin("s1") + TeamBonusJoin("s2") + @"
             WHERE d.id = @dealId",
             (deal, slot1, account1, slot2, account2) =>
             {
@@ -483,12 +503,12 @@ public class DealsRepository : IDealsRepository
     {
         using var connection = new MySqlConnection(_connectionString);
 
-        const string fromClause = @"
+        var fromClause = @"
             FROM deal d
             JOIN slot s1 ON d.slot_1_id = s1.id
             JOIN slot s2 ON d.slot_2_id = s2.id
             JOIN account a1 ON s1.account_id = a1.id
-            JOIN account a2 ON s2.account_id = a2.id
+            JOIN account a2 ON s2.account_id = a2.id" + TeamBonusJoin("s1") + TeamBonusJoin("s2") + @"
             LEFT JOIN cybernations_db.nation n1 ON a1.nation_id = n1.id
             LEFT JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
             LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
@@ -534,7 +554,7 @@ public class DealsRepository : IDealsRepository
                 s1.tech_received_cycles AS TechReceivedCycles,
                 s1.cash_sent_cycles AS CashSentCycles,
                 s1.cash_received_cycles AS CashReceivedCycles,
-                TRUE AS HasActiveDeal,
+                TRUE AS HasActiveDeal," + TeamBonusColumns("s1") + @"
                 -- Slot 1 account
                 a1.id AS AccountId,
                 n1.id AS NationId,
@@ -548,7 +568,7 @@ public class DealsRepository : IDealsRepository
                 s2.tech_received_cycles AS TechReceivedCycles,
                 s2.cash_sent_cycles AS CashSentCycles,
                 s2.cash_received_cycles AS CashReceivedCycles,
-                TRUE AS HasActiveDeal,
+                TRUE AS HasActiveDeal," + TeamBonusColumns("s2") + @"
                 -- Slot 2 account
                 a2.id AS AccountId,
                 n2.id AS NationId,
@@ -751,7 +771,7 @@ public class DealsRepository : IDealsRepository
                 fs.tech_received_cycles AS TechReceivedCycles,
                 fs.cash_sent_cycles AS CashSentCycles,
                 fs.cash_received_cycles AS CashReceivedCycles,
-                d.status = 'active' AS HasActiveDeal,
+                d.status = 'active' AS HasActiveDeal," + TeamBonusColumns("fs") + @"
                 -- Flagged account. Its nation may have been deleted since
                 fa.id AS AccountId,
                 fa.nation_id AS NationId,
@@ -765,7 +785,7 @@ public class DealsRepository : IDealsRepository
                 ps.tech_received_cycles AS TechReceivedCycles,
                 ps.cash_sent_cycles AS CashSentCycles,
                 ps.cash_received_cycles AS CashReceivedCycles,
-                d.status = 'active' AS HasActiveDeal,
+                d.status = 'active' AS HasActiveDeal," + TeamBonusColumns("ps") + @"
                 -- Innocent account
                 ia.id AS AccountId,
                 ia.nation_id AS NationId,
@@ -777,7 +797,7 @@ public class DealsRepository : IDealsRepository
             JOIN account fa ON df.flagged_account_id = fa.id
             JOIN account ia ON df.innocent_account_id = ia.id
             JOIN slot fs ON fs.id IN (d.slot_1_id, d.slot_2_id) AND fs.account_id = fa.id
-            JOIN slot ps ON ps.id IN (d.slot_1_id, d.slot_2_id) AND ps.id <> fs.id
+            JOIN slot ps ON ps.id IN (d.slot_1_id, d.slot_2_id) AND ps.id <> fs.id" + TeamBonusJoin("fs") + TeamBonusJoin("ps") + @"
             LEFT JOIN cybernations_db.nation fn ON fa.nation_id = fn.id
             LEFT JOIN cybernations_db.nation pn ON ia.nation_id = pn.id
             LEFT JOIN cybernations_db.alliance fal ON fn.alliance_id = fal.id
@@ -824,13 +844,15 @@ public class DealsRepository : IDealsRepository
                 d.created_on AS DealCreatedOn,
                 df.flagged_on AS FlaggedOn,
                 fa.nation_id AS FlaggedNationId,
-                4 + IF(fa.fm = 1, 1, 0) + IF(fa.dra = 1, 1, 0) AS FlaggedSlotsTotal,
+                fst.slots_total AS FlaggedSlotsTotal,
                 IF(d.status = 'active',
                     DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')),
                     DATE(CONVERT_TZ(df.flagged_on, '+00:00', '-05:00'))) AS SlotsAsOf
             FROM deal_flag df
             JOIN deal d ON d.id = df.deal_id
             JOIN account fa ON fa.id = df.flagged_account_id
+            -- Today's total, team bonus included: the flagged account's team as of the flag isn't kept
+            JOIN account_slot_total fst ON fst.account_id = fa.id
             WHERE df.id = @flagId",
             new { flagId });
 
@@ -1135,9 +1157,11 @@ public class DealsRepository : IDealsRepository
                     EXISTS (
                         SELECT 1 FROM deal d
                         WHERE s.id IN (d.slot_1_id, d.slot_2_id) AND d.status = 'active'
-                    ) AS HasActiveDeal
-                FROM slot s
+                    ) AS HasActiveDeal," + TeamBonusColumns("s").TrimEnd(',') + @"
+                FROM slot s" + TeamBonusJoin("s") + @"
+                -- A bonus slot whose event has ended is kept only for its deal history
                 WHERE s.account_id = @accountId
+                    AND (NOT s.is_team_bonus OR stb.slot_id IS NOT NULL)
             ) slots
             WHERE @availableOnly = FALSE OR HasActiveDeal = FALSE
             ORDER BY SlotNumber",

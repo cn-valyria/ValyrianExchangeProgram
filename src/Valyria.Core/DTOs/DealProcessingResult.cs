@@ -5,7 +5,8 @@ namespace Valyria.Core.DTOs;
 /// </summary>
 /// <param name="ActivityTracked">Aid records newly linked to deals</param>
 /// <param name="AccountsHeld">Accounts put on hold because their nation was deleted</param>
-public record DealStateResult(int ActivityTracked, int AccountsHeld);
+/// <param name="TeamBonusDealsCancelled">Deals cancelled because the team bonus slot they used ended</param>
+public record DealStateResult(int ActivityTracked, int AccountsHeld, int TeamBonusDealsCancelled);
 
 /// <summary>
 /// Outcome of the data loader's deal matching run

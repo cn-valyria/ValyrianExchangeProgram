@@ -212,7 +212,19 @@ public class DataLoaderRepository : IDataLoaderRepository
             commandType: CommandType.StoredProcedure,
             commandTimeout: DealProcedureTimeoutSeconds);
 
-        return new DealStateResult(activityTracked, holdParameters.Get<int>("p_accounts_held"));
+        // Add and remove team bonus slots as events start and end and nations change teams, cancelling deals
+        // on bonus slots that have ended. Runs after the hold so deleted nations' deals keep that reason
+        var teamEventParameters = new DynamicParameters();
+        teamEventParameters.Add("p_deals_cancelled", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+        await sqlConnection.ExecuteAsync(
+            "sync_team_event_slots",
+            teamEventParameters,
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: DealProcedureTimeoutSeconds);
+
+        return new DealStateResult(activityTracked, holdParameters.Get<int>("p_accounts_held"),
+            teamEventParameters.Get<int>("p_deals_cancelled"));
     }
 
     public async Task<DealMatchingResult> MatchDealsAsync()

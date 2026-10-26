@@ -35,6 +35,10 @@ public class AdminDealItem
     public bool HasOpenFlag { get; set; }
     public SlotDetail Slot1 { get; set; }
     public SlotDetail Slot2 { get; set; }
+    /// <summary>
+    /// Last CN date of the team event behind either side's bonus slot. The deal is cancelled once it ends
+    /// </summary>
+    public DateTime? TeamBonusEndsOn => SlotDetailDates.EarliestTeamBonusEnd(Slot1, Slot2);
 }
 
 public class AdminDealPage

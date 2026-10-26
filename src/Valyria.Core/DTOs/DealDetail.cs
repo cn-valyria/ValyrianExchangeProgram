@@ -61,6 +61,22 @@ public class DealDetail
     /// When the requesting account was warned for holding up this deal, if the warning is still open
     /// </summary>
     public DateTime? FlaggedOn { get; set; }
+    /// <summary>
+    /// Last CN date of the team event behind either side's bonus slot. The deal is cancelled once it ends
+    /// </summary>
+    public DateTime? TeamBonusEndsOn => SlotDetailDates.EarliestTeamBonusEnd(MySlot, PartnerSlot);
+}
+
+internal static class SlotDetailDates
+{
+    public static DateTime? EarliestTeamBonusEnd(SlotDetail a, SlotDetail b)
+    {
+        var aEnds = a?.TeamBonusEndsOn;
+        var bEnds = b?.TeamBonusEndsOn;
+        if (aEnds == null) return bEnds;
+        if (bEnds == null) return aEnds;
+        return aEnds < bEnds ? aEnds : bEnds;
+    }
 }
 
 public class DealHistoryItem

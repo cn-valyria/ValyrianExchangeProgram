@@ -145,6 +145,15 @@ Admins can restore a deal cancelled by a `5_day_replacement` or `aid_failed` fla
 
 Resolving a 1-day warning doesn't move the cancellation, so admins grant an extension instead (`deal_extension`, new): `five_days` moves the deadline 5 days past its current date, and `until_next_leg` stops warnings and cancellation altogether. An extension only applies while the same account is holding up the deal and no new leg has been recorded. `deal_deadline` (new view) gives each deal's clock with any extension applied; `check_deal_inactivity()` (rewritten), the mass messages and the deal pages all use it, and the check ends extensions that no longer apply.
 
+### [V17__team_event_bonus_slots.sql](migrations/V17__team_event_bonus_slots.sql)
+**VEP 3.0: Extra aid slot during a team's +1 aid slot event**
+
+Admins record a team's event (`team_event`, new) once a majority of its senators approve it. It's in effect from the approval date through 30 days later. Every account currently on that team, and not on hold, gets a bonus slot (`slot.is_team_bonus`, always slot 7). The bonus follows the nation's current team on every run.
+- `account_slot_total` (new view) is now the only place slot totals are worked out: 4 + fm + dra + team bonus. `account_deal_summary`, `deal_sequence` (so `update_deal_state`) and the flag evidence use it
+- `team_bonus_slot` (new view) lists the bonus slots in effect, each with `last_match_on`. That's the end date minus 10 days for each leg after the first, so day 30 for one-way slots, day 20 for 1:1 and day 10 for 1:2. `match_deals_run` (rewritten) only matches a bonus slot until that date
+- `sync_team_event_slots()` (new, run by the data loader after `hold_deleted_nation_accounts`, and by the admin API whenever an event is added or deleted) adds bonus slots and cancels deals on ones that have ended (event ended, nation left the team, or event deleted). It also deletes ended bonus slots that never had a deal
+- `regenerate_slots_for_account()` (rewritten) leaves the bonus slot alone when fm/dra change
+
 ## Database Architecture
 
 ### Two-Database Design

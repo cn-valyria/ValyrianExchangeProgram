@@ -4,6 +4,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Valyria.Api.Controllers;
 using Valyria.Core.DTOs;
+using Valyria.Core.DTOs.CN;
 using Valyria.Core.Interfaces;
 using static Valyria.UnitTests.TestHelpers;
 
@@ -66,6 +67,8 @@ public class AdminControllerTests
             r => r.GetCancellationReasonsAsync(30), [new() { Reason = "Nation deleted", Deals = 1 }], c => c.GetCancellationReasons(30)),
         new ReadEndpoint<List<AdminAccessSetting>>(nameof(AdminController.GetAdminAccessSettings),
             r => r.GetAdminAccessSettingsAsync(), [new() { AccountId = 1, AdminRoleName = "Admin" }], c => c.GetAdminAccessSettings()),
+        new ReadEndpoint<List<TeamEvent>>(nameof(AdminController.GetTeamEvents),
+            r => r.GetTeamEventsAsync(), [new() { Id = 1, Team = Team.Aqua, IsActive = true }], c => c.GetTeamEvents()),
     };
 
     [Theory]
@@ -135,5 +138,45 @@ public class AdminControllerTests
         _repository.DeleteAdminAccessAsync(1, 2).ThrowsAsync(new Exception("boom"));
 
         AssertServerError(await _controller.DeleteAdminAccess(new AdminAccessDeleteRequest { AccountId = 1, AdminRoleId = 2 }), "boom");
+    }
+
+    [Theory]
+    [InlineData(TeamEventCreateResult.Created, typeof(OkObjectResult))]
+    [InlineData(TeamEventCreateResult.InvalidTeam, typeof(BadRequestObjectResult))]
+    [InlineData(TeamEventCreateResult.ApprovedInFuture, typeof(BadRequestObjectResult))]
+    [InlineData(TeamEventCreateResult.Overlaps, typeof(ConflictObjectResult))]
+    public async Task CreateTeamEvent_MapsTheResult_AndAuditsTheSignedInUser(TeamEventCreateResult result, Type expected)
+    {
+        var request = new TeamEventCreateRequest { Team = Team.Red, ApprovedOn = new DateTime(2026, 10, 6) };
+        _repository.CreateTeamEventAsync(request, Arg.Any<string>()).Returns(result);
+
+        Assert.IsType(expected, await _controller.CreateTeamEvent(request));
+        await _repository.Received(1).CreateTeamEventAsync(request, Arg.Is<string>(name => !string.IsNullOrEmpty(name)));
+    }
+
+    [Fact]
+    public async Task CreateTeamEvent_Returns500_OnError()
+    {
+        _repository.CreateTeamEventAsync(Arg.Any<TeamEventCreateRequest>(), Arg.Any<string>()).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await _controller.CreateTeamEvent(new TeamEventCreateRequest()), "boom");
+    }
+
+    [Theory]
+    [InlineData(true, typeof(NoContentResult))]
+    [InlineData(false, typeof(NotFoundObjectResult))]
+    public async Task DeleteTeamEvent_ReturnsNoContent_OrNotFound(bool deleted, Type expected)
+    {
+        _repository.DeleteTeamEventAsync(5, Arg.Any<string>()).Returns(deleted);
+
+        Assert.IsType(expected, await _controller.DeleteTeamEvent(5));
+    }
+
+    [Fact]
+    public async Task DeleteTeamEvent_Returns500_OnError()
+    {
+        _repository.DeleteTeamEventAsync(5, Arg.Any<string>()).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await _controller.DeleteTeamEvent(5), "boom");
     }
 }

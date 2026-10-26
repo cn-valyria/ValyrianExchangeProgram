@@ -37,15 +37,19 @@ public sealed class TestData(string connectionString)
             aircraft, navy, anarchy)
         values (@id, @name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)", new { id, name });
 
-    public Task NationAsync(int id, string nationName, string rulerName, int? allianceId = null, double strength = 1000) => ExecuteAsync(@"
+    /// <summary>
+    /// Inserts a nation. Team 1 is Aqua (see the CN Team enum)
+    /// </summary>
+    public Task NationAsync(int id, string nationName, string rulerName, int? allianceId = null, double strength = 1000,
+        int team = 1) => ExecuteAsync(@"
         insert into cybernations_db.nation (id, nation_name, ruler_name, alliance_id, alliance_date, alliance_status,
             government_type, religion, team, created, technology, infrastructure, base_land, war_status, votes, strength,
             defcon, base_soldiers, tanks, cruise_missiles, nukes, recent_activity, connected_resource_1,
             connected_resource_2, connected_resource_3, connected_resource_4, connected_resource_5, connected_resource_6,
             connected_resource_7, connected_resource_8, connected_resource_9, connected_resource_10, resource_1, resource_2)
-        values (@id, @nationName, @rulerName, @allianceId, now(), 'Member', 4, 1, 1, now(), 100, 200, 300, 2, 0, @strength,
+        values (@id, @nationName, @rulerName, @allianceId, now(), 'Member', 4, 1, @team, now(), 100, 200, 300, 2, 0, @strength,
             5, 0, 0, 0, 0, 1, '', '', '', '', '', '', '', '', '', '', '', '')",
-        new { id, nationName, rulerName, allianceId, strength });
+        new { id, nationName, rulerName, allianceId, strength, team });
 
     /// <summary>
     /// Inserts an account. The account insert trigger generates its slots (4, plus 1 each for FM and DRA).
@@ -61,10 +65,31 @@ public sealed class TestData(string connectionString)
     /// Inserts a nation (in the given alliance) and an account for it. The nation is named "{ruler}land".
     /// </summary>
     public async Task<int> MemberAsync(int nationId, string rulerName, char role = 'B', int? allianceId = null,
-        string? discord = null, long discordId = 0, bool fm = false, bool dra = false, string psw = "ABCDE")
+        string? discord = null, long discordId = 0, bool fm = false, bool dra = false, string psw = "ABCDE", int team = 1)
     {
-        await NationAsync(nationId, $"{rulerName}land", rulerName, allianceId);
+        await NationAsync(nationId, $"{rulerName}land", rulerName, allianceId, team: team);
         return await AccountAsync(nationId, role, psw, discord ?? rulerName.ToLowerInvariant(), discordId, fm, dra: dra);
+    }
+
+    /// <summary>
+    /// Inserts a +1 aid slot team event. Bonus slots aren't added until sync_team_event_slots runs
+    /// </summary>
+    public Task<int> TeamEventAsync(int team, DateTime approvedOn, string createdBy = "admin") => ScalarAsync<int>(@"
+        insert into vep_db.team_event (team, approved_on, created_by)
+        values (@team, @approvedOn, @createdBy);
+        select last_insert_id();",
+        new { team, approvedOn = approvedOn.Date, createdBy });
+
+    /// <summary>
+    /// Runs sync_team_event_slots, returning the number of bonus deals it cancelled
+    /// </summary>
+    public async Task<int> SyncTeamEventSlotsAsync()
+    {
+        using var connection = new MySqlConnection(connectionString);
+        var parameters = new DynamicParameters();
+        parameters.Add("p_deals_cancelled", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Output);
+        await connection.ExecuteAsync("vep_db.sync_team_event_slots", parameters, commandType: System.Data.CommandType.StoredProcedure);
+        return parameters.Get<int>("p_deals_cancelled");
     }
 
     public async Task<int[]> SlotIdsAsync(int accountId) =>
