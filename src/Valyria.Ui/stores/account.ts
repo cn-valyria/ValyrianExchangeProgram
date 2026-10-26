@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { NationalWarStatus, RecentActivity } from './shared/enums'
 import type { NationSimplified } from './shared/nationSimplified'
+import type { Team } from '~/infrastructure/teamEvents'
 
 export interface Account {
   id: number
@@ -35,6 +36,13 @@ export interface SlotDetail {
   cashReceivedCycles: number
   account: AccountSimplified
   hasActiveDeal: boolean
+  // The extra slot an account has while its team's +1 aid slot event is in effect (always slot 7)
+  isTeamBonus: boolean
+  // Last CN date the bonus slot is in effect. Null if it isn't a bonus slot, or the bonus has ended
+  teamBonusEndsOn: string | null
+  // Last CN date VEP matches a new deal into the bonus slot
+  teamBonusMatchableUntil: string | null
+  isInactiveTeamBonus: boolean
 }
 
 // Mirrors Valyria.Core.Entities.DealActivityState, which is serialized as a number
@@ -89,6 +97,8 @@ export interface DealDetail {
   blockedUntil: string | null
   // Set while this account has an open warning for holding up the deal
   flaggedOn: string | null
+  // Set when either side's slot is a team bonus slot: the deal is cancelled after this CN date
+  teamBonusEndsOn: string | null
 }
 
 export interface DealNotification {
@@ -97,11 +107,21 @@ export interface DealNotification {
   dealId: number | null
 }
 
+export interface AccountTeamEvent {
+  team: Team
+  approvedOn: string
+  endsOn: string
+  // Before endsOn when the bonus slot's deals need more than one aid offer, so every offer fits in the event
+  bonusSlotMatchableUntil: string
+}
+
 export interface AccountDealsSummary {
   slotsUsed: number
   slotsTotal: number
   slotsAvailable: number
   slotsFull: boolean
+  // The team event giving the account a bonus slot, if one is in effect
+  teamEvent: AccountTeamEvent | null
   activeDeals: DealDetail[]
   notifications: DealNotification[]
 }
@@ -148,6 +168,7 @@ export const useAccountStore = defineStore('account', {
       slotsTotal: 0,
       slotsAvailable: 0,
       slotsFull: false,
+      teamEvent: null,
       activeDeals: [],
       notifications: [],
     } as AccountDealsSummary,

@@ -1,120 +1,157 @@
 <template>
   <UModal :close="{ onClick: () => emit('close', false) }">
     <template #header>
-      <h3 class="text-lg font-semibold">
-        {{ props.editingTeamEvent.id ? 'Edit' : 'Add' }} Team Event
-      </h3>
+      <h3 class="text-lg font-semibold">Add +1 Aid Slot Team Event</h3>
     </template>
 
     <template #body>
-      <UForm
-        :schema="schema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-      >
-        <UFormField label="Team">
+      <div class="space-y-4">
+        <UAlert
+          color="warning"
+          icon="i-heroicons-exclamation-triangle"
+          title="Only add the event once it has passed"
+          description="Wait until a majority of the team's senators have approved the proposal in-game. VEP gives every nation on the team an extra aid slot from the approval date, and takes it away 30 days later, so it should match exactly when the event is in effect in CN."
+        />
+
+        <UFormField label="Team" required>
           <USelect
-            v-model="state.team"
+            v-model="team"
             :items="teamOptions"
             placeholder="Select team"
+            class="w-full"
           />
         </UFormField>
 
-        <UFormField label="Event Type">
-          <USelect
-            v-model="state.eventType"
-            :items="eventTypeOptions"
-            placeholder="Select event type"
-          />
+        <UFormField
+          label="Approval Date"
+          help='The date CN shows on the team&apos;s page, e.g. "Proposal passed on 10/6/2026"'
+          required
+        >
+          <UPopover>
+            <UButton color="neutral" variant="subtle" icon="i-lucide-calendar">
+              {{ approvedOn ? formatCnDate(approvedOn) : 'Pick a date' }}
+            </UButton>
+
+            <template #content>
+              <UCalendar
+                v-model="approvedOnDate"
+                :max-value="maxDate"
+                class="p-2"
+              />
+            </template>
+          </UPopover>
         </UFormField>
 
-        <UFormField label="Event Name (optional)">
-          <UTextarea
-            v-model="state.eventName"
-            placeholder="Event name or description"
-          />
-        </UFormField>
-
-        <!-- Hidden submit button for form submission -->
-        <button ref="submitButton" type="submit" class="hidden"></button>
-      </UForm>
+        <div
+          v-if="approvedOn"
+          class="text-sm text-gray-600 dark:text-gray-400 space-y-1"
+        >
+          <p>
+            The bonus slot is in effect through
+            <span class="font-semibold">{{ formatCnDate(endsOn) }}</span
+            >, and deals on it are cancelled after that.
+          </p>
+          <p>
+            To leave time for every aid offer, VEP stops matching new deals into
+            the bonus slot early: after
+            {{ formatCnDate(addDays(approvedOn, 10)) }} for 1:2 slots and
+            {{ formatCnDate(addDays(approvedOn, 20)) }} for 1:1 slots. One-way
+            slots are matched until the event ends.
+          </p>
+        </div>
+      </div>
     </template>
 
     <template #footer>
       <div class="flex justify-end gap-2">
         <UButton label="Cancel" color="neutral" @click="handleClose" />
-        <UButton color="primary" @click="submitForm()"> Save </UButton>
+        <UButton
+          color="primary"
+          :loading="saving"
+          :disabled="!team || !approvedOn"
+          @click="save()"
+        >
+          Add Event
+        </UButton>
       </div>
     </template>
   </UModal>
 </template>
 
 <script setup lang="ts">
-import z from 'zod'
-import type { TeamEvent } from '~/stores/shared/teamEvent'
+import { CalendarDate } from '@internationalized/date'
+import type { ApiError } from '~/composables/useApiClient'
+import { ERROR_MESSAGES } from '~/infrastructure/constants'
+import {
+  addDays,
+  cnToday,
+  EVENT_TEAMS,
+  formatCnDate,
+  TEAM_EVENT_DAYS,
+  type Team,
+} from '~/infrastructure/teamEvents'
 
 const toast = useToast()
-
-interface Props {
-  editingTeamEvent?: TeamEvent
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  editingTeamEvent: () => ({}),
-})
+const teamEventsStore = useAdminTeamEventsStore()
 
 const emit = defineEmits<{ close: [boolean] }>()
-const submitButton = ref<HTMLButtonElement>()
 
-// Define the form state
-const state = reactive<TeamEvent>(props.editingTeamEvent)
+const toCalendarDate = (date: string) => {
+  const [year, month, day] = date.split('-').map(Number)
+  return new CalendarDate(year, month, day)
+}
 
-// Define the Zod schema
-const schema = z.object({
-  team: z.string().nullable(),
-  eventType: z.string().nullable(),
-  eventName: z.string().nullable().optional(),
-})
+const team = ref<Team>()
+// shallowRef so the CalendarDate isn't unwrapped into a plain object
+const approvedOnDate = shallowRef<CalendarDate>()
+// Events can't be approved after today's CN date
+const maxDate = toCalendarDate(cnToday())
+const saving = ref(false)
 
-// Team options
-const teamOptions = [
-  { label: 'Aqua', value: 'Aqua' },
-  { label: 'White', value: 'White' },
-  { label: 'Red', value: 'Red' },
-  { label: 'Green', value: 'Green' },
-  { label: 'Brown', value: 'Brown' },
-  { label: 'Blue', value: 'Blue' },
-  { label: 'Purple', value: 'Purple' },
-  { label: 'Orange', value: 'Orange' },
-  { label: 'Maroon', value: 'Maroon' },
-  { label: 'Black', value: 'Black' },
-  { label: 'Yellow', value: 'Yellow' },
-  { label: 'Pink', value: 'Pink' },
-  { label: 'None (Grey)', value: 'None (Grey)' },
-]
+const approvedOn = computed(() => approvedOnDate.value?.toString())
+const endsOn = computed(() =>
+  approvedOn.value ? addDays(approvedOn.value, TEAM_EVENT_DAYS) : '',
+)
 
-// Event type options
-const eventTypeOptions = [
-  { label: '+1 Aid Slot', value: '+1 Aid Slot' },
-  { label: '-1 Aid Slot', value: '-1 Aid Slot' },
-]
+const teamOptions = EVENT_TEAMS.map((t) => ({ label: t.name, value: t.team }))
+
+const saveErrors: Record<number, string> = {
+  400: "That team or approval date isn't allowed. Events can't be approved in the future.",
+  409: 'This team already has a +1 aid slot event during those 30 days.',
+}
 
 const handleClose = () => {
   emit('close', false)
 }
 
-const submitForm = () => {
-  submitButton.value?.click()
-}
+const save = async () => {
+  if (!team.value || !approvedOn.value) return
 
-const onSubmit = async () => {
+  saving.value = true
+  try {
+    await teamEventsStore.createTeamEvent({
+      team: team.value,
+      approvedOn: approvedOn.value,
+    })
+  } catch (e) {
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description:
+        saveErrors[(e as ApiError)?.statusCode] ?? ERROR_MESSAGES.default,
+      duration: 5000,
+    })
+    return
+  } finally {
+    saving.value = false
+  }
+
   toast.add({
     color: 'success',
     title: 'Success',
-    description: 'Team event saved successfully!',
+    description: 'Team event added. Its nations now have a bonus aid slot.',
     duration: 3000,
   })
-  handleClose()
+  emit('close', true)
 }
 </script>

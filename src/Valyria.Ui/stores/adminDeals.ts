@@ -31,6 +31,8 @@ export interface AdminDeal {
   hasOpenFlag: boolean
   slot1: SlotDetail
   slot2: SlotDetail
+  // Set when either side's slot is a team bonus slot: the deal is cancelled after this CN date
+  teamBonusEndsOn: string | null
 }
 
 export interface AdminDealPage {

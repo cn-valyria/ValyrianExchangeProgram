@@ -10,7 +10,9 @@ import {
   dealFlag,
   massMessage,
   slot,
+  teamEvent,
 } from '../helpers/fixtures'
+import { Team } from '~/infrastructure/teamEvents'
 
 // The stores are thin wrappers around the API, so these check each one calls the right endpoint,
 // keeps what comes back, and throws (or reports) failures
@@ -48,6 +50,7 @@ describe('account store', () => {
       slotsTotal: 4,
       slotsAvailable: 3,
       slotsFull: false,
+      teamEvent: null,
       activeDeals: [],
       notifications: [],
     }
@@ -502,6 +505,54 @@ describe('admin access store', () => {
       await callAction(store, action, [{ accountId: 1, adminRoleId: 1 }]),
     ).toBe(false)
     expect(store.error).toBe(message)
+  })
+})
+
+describe('admin team events store', () => {
+  it('loads team events, flagging loading meanwhile', async () => {
+    const store = useAdminTeamEventsStore()
+    apiFetch.mockImplementation(async () => {
+      expect(store.loading).toBe(true)
+      return apiOk([teamEvent()])
+    })
+
+    await store.loadTeamEvents()
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/admin/settings/team-events')
+    expect(store.teamEvents).toEqual([teamEvent()])
+    expect(store.loading).toBe(false)
+  })
+
+  it('creates and deletes events, then reloads the list', async () => {
+    apiFetch.mockImplementation(
+      async (_url: string, options?: { method: string }) =>
+        apiOk(options ? null : [teamEvent()]),
+    )
+    const store = useAdminTeamEventsStore()
+
+    await store.createTeamEvent({ team: Team.Red, approvedOn: '2026-10-06' })
+    expect(apiFetch).toHaveBeenCalledWith('/api/admin/settings/team-events', {
+      method: 'POST',
+      body: { team: Team.Red, approvedOn: '2026-10-06' },
+    })
+    await store.deleteTeamEvent(4)
+    expect(apiFetch).toHaveBeenCalledWith('/api/admin/settings/team-events/4', {
+      method: 'DELETE',
+    })
+    expect(store.teamEvents).toEqual([teamEvent()])
+  })
+
+  it.each([
+    ['loadTeamEvents', []],
+    ['createTeamEvent', [{ team: Team.Red, approvedOn: '2026-10-06' }]],
+    ['deleteTeamEvent', [4]],
+  ])('%s throws the API error', async (action, args) => {
+    const conflict = { statusCode: 409, message: 'Conflict' }
+    apiFetch.mockResolvedValue(apiError(conflict))
+
+    await expect(
+      callAction(useAdminTeamEventsStore(), action, args),
+    ).rejects.toEqual(conflict)
   })
 })
 

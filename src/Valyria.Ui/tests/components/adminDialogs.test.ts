@@ -21,6 +21,7 @@ import DealSlotPicker from '~/components/admin/DealSlotPicker.vue'
 import ResolveFlagDialog from '~/components/admin/ResolveFlagDialog.vue'
 import { DealExtensionKind } from '~/stores/account'
 import { DealFlagType } from '~/stores/adminDeals'
+import { cnToday, Team } from '~/infrastructure/teamEvents'
 import {
   accountSimplified,
   adminAccount,
@@ -903,49 +904,95 @@ describe('AdminAccessSettingsDialog', () => {
 })
 
 describe('AdminTeamEventDialog', () => {
-  it('saves a team event', async () => {
-    const { wrapper, onClose } = await openDialog(AdminTeamEventDialog, {
-      editingTeamEvent: {},
-    })
-
-    expect(bodyText()).toContain('Add Team Event')
-    const [team, eventType] = wrapper.findAllComponents(USelect)
-    expect(
-      (team.props('items') as { value: string }[]).map((item) => item.value),
-    ).toContain('Aqua')
-    expect(
-      (eventType.props('items') as { value: string }[]).map(
-        (item) => item.value,
-      ),
-    ).toEqual(['+1 Aid Slot', '-1 Aid Slot'])
-    wrapper.findAllComponents(USelect)[0].vm.$emit('update:modelValue', 'Aqua')
+  const pickTeamAndDate = async (
+    wrapper: Awaited<ReturnType<typeof openDialog>>['wrapper'],
+  ) => {
+    wrapper.findComponent(USelect).vm.$emit('update:modelValue', Team.Aqua)
+    await click(button('Pick a date'))
     wrapper
-      .findAllComponents(USelect)[1]
-      .vm.$emit('update:modelValue', '+1 Aid Slot')
+      .findComponent(UCalendar)
+      .vm.$emit('update:modelValue', new CalendarDate(2026, 10, 6))
     await flushPromises()
-    await click(button('Save'))
+  }
 
-    expect(toasts()[0]).toMatchObject({
-      color: 'success',
-      description: 'Team event saved successfully!',
-    })
-    expect(onClose).toHaveBeenCalledWith(false)
+  it('explains when to add an event, and offers only teams with a senate', async () => {
+    const { wrapper } = await openDialog(AdminTeamEventDialog)
+
+    expect(bodyText()).toContain(
+      "Wait until a majority of the team's senators have approved the proposal",
+    )
+    const teams = wrapper.findComponent(USelect).props('items') as {
+      value: Team
+    }[]
+    expect(teams).toHaveLength(12)
+    expect(teams.map((t) => t.value)).not.toContain(Team.None)
+    expect(button('Add Event').disabled).toBe(true)
   })
 
-  it('edits an existing team event', async () => {
-    const { onClose } = await openDialog(AdminTeamEventDialog, {
-      editingTeamEvent: {
-        id: 1,
-        team: 'Red',
-        eventType: '-1 Aid Slot',
-        eventName: 'Penalty',
-      },
-    })
+  it("doesn't allow approval dates after today's CN date", async () => {
+    const { wrapper } = await openDialog(AdminTeamEventDialog)
 
-    expect(bodyText()).toContain('Edit Team Event')
+    await click(button('Pick a date'))
+
+    expect(String(wrapper.findComponent(UCalendar).props('maxValue'))).toBe(
+      cnToday(),
+    )
+  })
+
+  it('previews when the bonus slot ends and stops being matched, then adds the event', async () => {
+    const createTeamEvent = vi
+      .spyOn(useAdminTeamEventsStore(), 'createTeamEvent')
+      .mockResolvedValue()
+    const { wrapper, onClose } = await openDialog(AdminTeamEventDialog)
+
+    await pickTeamAndDate(wrapper)
+
+    expect(bodyText()).toContain('in effect through 11/5/2026')
+    expect(bodyText()).toContain(
+      'after 10/16/2026 for 1:2 slots and 10/26/2026 for 1:1 slots',
+    )
+    await click(button('Add Event'))
+
+    expect(createTeamEvent).toHaveBeenCalledWith({
+      team: Team.Aqua,
+      approvedOn: '2026-10-06',
+    })
+    expect(toasts()[0]).toMatchObject({ color: 'success' })
+    expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it.each([
+    [409, 'This team already has a +1 aid slot event during those 30 days.'],
+    [500, 'VEP encountered an error while saving'],
+  ])(
+    'stays open with an explanation when the API returns %i',
+    async (statusCode, message) => {
+      vi.spyOn(useAdminTeamEventsStore(), 'createTeamEvent').mockRejectedValue({
+        statusCode,
+        message: 'nope',
+      })
+      const { wrapper, onClose } = await openDialog(AdminTeamEventDialog)
+
+      await pickTeamAndDate(wrapper)
+      await click(button('Add Event'))
+
+      expect(toasts()[0].color).toBe('error')
+      expect(toasts()[0].description).toContain(message)
+      expect(onClose).not.toHaveBeenCalled()
+    },
+  )
+
+  it('closes without saving from Cancel', async () => {
+    const createTeamEvent = vi.spyOn(
+      useAdminTeamEventsStore(),
+      'createTeamEvent',
+    )
+    const { onClose } = await openDialog(AdminTeamEventDialog)
+
     await click(button('Cancel'))
 
     expect(onClose).toHaveBeenCalledWith(false)
+    expect(createTeamEvent).not.toHaveBeenCalled()
   })
 })
 

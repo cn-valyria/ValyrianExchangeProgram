@@ -73,6 +73,14 @@
           description="You and each partner take turns: whoever sends cash goes first, then the other side sends, and so on. Each aid offer fills an aid slot on both nations for 10 days, so a deal only needs you when it's your turn and you both have a free slot. Accept offers before they expire, and keep your slots free of aid outside VEP. Click a partner you send aid to and you'll go straight to the aid form."
         />
 
+        <UAlert
+          v-if="temporaryDeals.length > 0"
+          color="warning"
+          icon="i-heroicons-clock"
+          :title="temporaryDealsTitle"
+          :description="temporaryDealsDescription"
+        />
+
         <UTable :data="data" :columns="columns" />
       </template>
     </div>
@@ -90,6 +98,10 @@ import {
   getNationLink,
   type DealStatusInfo,
 } from '~/infrastructure/deals'
+import {
+  describeTemporaryDeal,
+  formatCnDate,
+} from '~/infrastructure/teamEvents'
 import type { Account, DealDetail, DealNotification } from '~/stores/account'
 import type { NationSimplified } from '~/stores/shared/nationSimplified'
 
@@ -101,6 +113,9 @@ interface Props {
 
 interface ActiveDealRow {
   slotNumber: number
+  isTeamBonusSlot: boolean
+  // Set when the deal uses a team bonus slot on either side
+  teamBonusEndsOn: string | null
   partner: NationSimplified
   alliance: string
   discord: string
@@ -127,6 +142,8 @@ const data = computed<ActiveDealRow[]>(() =>
   props.deals
     .map((deal) => ({
       slotNumber: deal.mySlot.slotNumber,
+      isTeamBonusSlot: deal.mySlot.isTeamBonus,
+      teamBonusEndsOn: deal.teamBonusEndsOn,
       partner: deal.partnerSlot.account,
       alliance: deal.partnerSlot.account.allianceName,
       discord: deal.partnerDiscord || '',
@@ -149,11 +166,51 @@ const data = computed<ActiveDealRow[]>(() =>
     .sort((a, b) => a.slotNumber - b.slotNumber),
 )
 
+// Deals on a team event's bonus slot, mine or the partner's, end with the event
+const temporaryDeals = computed(() =>
+  props.deals.filter((deal) => deal.teamBonusEndsOn),
+)
+
+const temporaryDealsTitle = computed(() =>
+  temporaryDeals.value.length === 1
+    ? '1 of your deals is temporary'
+    : `${temporaryDeals.value.length} of your deals are temporary`,
+)
+
+const temporaryDealsDescription = computed(() =>
+  temporaryDeals.value
+    .map((deal) => {
+      const partner = deal.partnerSlot.account.nationName
+      const whose = deal.mySlot.isTeamBonus
+        ? "your team's bonus aid slot"
+        : `${partner}'s team bonus aid slot`
+      return `Your deal with ${partner} uses ${whose}, so VEP cancels it once the team event ends after ${formatCnDate(deal.teamBonusEndsOn!)}.`
+    })
+    .join(' '),
+)
+
 const columns: TableColumn<ActiveDealRow>[] = [
   {
     accessorKey: 'slotNumber',
     header: 'Slot',
-    cell: ({ row }) => `#${row.original.slotNumber}`,
+    cell: ({ row }) => {
+      const deal = row.original
+      if (!deal.teamBonusEndsOn) return `#${deal.slotNumber}`
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h('span', `#${deal.slotNumber}`),
+        h(
+          resolveComponent('UTooltip'),
+          { text: describeTemporaryDeal(deal.teamBonusEndsOn) },
+          () =>
+            h(
+              resolveComponent('UBadge'),
+              { color: 'warning', variant: 'subtle', size: 'sm' },
+              () =>
+                `${deal.isTeamBonusSlot ? 'Team bonus' : 'Temporary'}, ends ${formatCnDate(deal.teamBonusEndsOn!)}`,
+            ),
+        ),
+      ])
+    },
   },
   {
     accessorKey: 'partner',

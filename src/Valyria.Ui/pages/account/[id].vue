@@ -37,6 +37,10 @@
                 :slots-used="dealsSummary.slotsUsed"
                 :slots-total="dealsSummary.slotsTotal"
                 :role="account.role"
+                :team-event="dealsSummary.teamEvent"
+                :bonus-slot-in-deal="
+                  dealsSummary.activeDeals.some((d) => d.mySlot.isTeamBonus)
+                "
               />
             </div>
 

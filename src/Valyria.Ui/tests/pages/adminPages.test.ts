@@ -13,6 +13,12 @@ import type { AidActivityItem } from '~/stores/adminAidActivity'
 import { DealFlagReason, DealFlagType } from '~/stores/adminDeals'
 import { MassMessageCode } from '~/stores/adminMassMessages'
 import {
+  addDays,
+  cnToday,
+  formatCnDate,
+  Team,
+} from '~/infrastructure/teamEvents'
+import {
   accountSimplified,
   adminAccount,
   adminDeal,
@@ -20,6 +26,8 @@ import {
   dealFlag,
   massMessage,
   recipient,
+  teamBonusSlot,
+  teamEvent,
 } from '../helpers/fixtures'
 import {
   bodyText,
@@ -615,6 +623,31 @@ describe('admin deals page', () => {
     expect(rows[0]).toContain('Flagged')
     expect(rows[1]).toContain('Starting')
     expect(bodyText()).toContain('Showing 1 to 25 of 40 results')
+  })
+
+  it('marks deals on a team bonus slot as temporary', async () => {
+    signIn('Super Admin')
+    const store = useAdminDealsStore()
+    vi.spyOn(store, 'loadActiveDeals').mockImplementation(async () => {
+      store.activeDeals = {
+        totalCount: 2,
+        results: [
+          adminDeal({
+            id: 10,
+            slot2: teamBonusSlot(2, '2026-11-05T00:00:00', { tech: 1 }),
+            teamBonusEndsOn: '2026-11-05T00:00:00',
+          }),
+          adminDeal({ id: 11 }),
+        ],
+      }
+    })
+    vi.spyOn(store, 'loadWaitQueue').mockResolvedValue()
+
+    await mountInApp(DealsPage, {}, { route: '/admin/deals' })
+
+    expect(tableRows()[0]).toContain('Slot #7 (team bonus)')
+    expect(tableRows()[0]).toContain('Temporary, ends 11/5/2026')
+    expect(tableRows()[1]).not.toContain('Temporary')
   })
 
   it('links a flagged deal to its flags, and the page to the flags page', async () => {
@@ -1388,7 +1421,34 @@ describe('admin settings page', () => {
     },
   ]
 
+  const today = cnToday()
+  const teamEvents = [
+    teamEvent({
+      id: 1,
+      team: Team.Red,
+      approvedOn: addDays(today, -40),
+      endsOn: addDays(today, -10),
+      isActive: false,
+      accountsWithBonusSlot: 0,
+      activeBonusDeals: 0,
+    }),
+    teamEvent({
+      id: 2,
+      team: Team.Aqua,
+      approvedOn: addDays(today, -26),
+      endsOn: addDays(today, 4),
+    }),
+  ]
+
+  const stubTeamEvents = (events = teamEvents) => {
+    const store = useAdminTeamEventsStore()
+    return vi.spyOn(store, 'loadTeamEvents').mockImplementation(async () => {
+      store.teamEvents = events
+    })
+  }
+
   const stubAdmins = () => {
+    stubTeamEvents()
     const store = useAdminAccessStore()
     return vi
       .spyOn(store, 'loadAdminAccessSettings')
@@ -1461,6 +1521,7 @@ describe('admin settings page', () => {
 
   it("shows an error when admins can't be loaded", async () => {
     signIn('Super Admin')
+    stubTeamEvents()
     vi.spyOn(
       useAdminAccessStore(),
       'loadAdminAccessSettings',
@@ -1474,36 +1535,86 @@ describe('admin settings page', () => {
     })
   })
 
-  describe('team events (placeholder data until the API exists)', () => {
-    it('lists, filters and deletes team events', async () => {
+  describe('team events', () => {
+    it('lists events in effect first, with when they end and who has the bonus', async () => {
       signIn('Super Admin')
       stubAdmins()
       await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
 
-      expect(teamRows()).toHaveLength(3)
-      expect(teamRows()[0]).toContain('+1 Aid Slot')
+      expect(teamRows()).toHaveLength(2)
+      expect(teamRows()[0]).toContain('Aqua')
+      expect(teamRows()[0]).toContain(formatCnDate(addDays(today, 4)))
+      expect(teamRows()[0]).toContain('Active, 5 days left')
+      expect(teamRows()[0]).toContain('12 accounts, 3 in deals')
+      expect(teamRows()[0]).toContain('lilweirdward')
+      expect(teamRows()[1]).toContain('Red')
+      expect(teamRows()[1]).toContain('Expired')
+
       await type(inputByPlaceholder('Search by team name...'), 'red')
       expect(teamRows()).toHaveLength(1)
-      await type(inputByPlaceholder('Search by team name...'), '')
+      expect(teamRows()[0]).toContain('Red')
+    })
+
+    it('deletes an event only once the deletion is confirmed', async () => {
+      signIn('Super Admin')
+      stubAdmins()
+      const deleteTeamEvent = vi
+        .spyOn(useAdminTeamEventsStore(), 'deleteTeamEvent')
+        .mockResolvedValue()
+      await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
 
       await click(buttons('Delete')[0])
-      expect(teamRows()).toHaveLength(2)
+      expect(teamRows()[0]).toContain('Cancels 3 deals.')
+      await click(button('Keep'))
+      expect(deleteTeamEvent).not.toHaveBeenCalled()
+
+      await click(buttons('Delete')[0])
+      await click(button('Confirm Delete'))
+
+      expect(deleteTeamEvent).toHaveBeenCalledWith(2)
       expect(toasts()[0]).toMatchObject({
-        description: 'Team event deleted successfully.',
+        color: 'success',
+        description: 'Team event deleted, and its bonus deals cancelled.',
       })
     })
 
-    it('opens the dialog to add or edit a team event', async () => {
+    it('shows an error when deleting fails', async () => {
+      signIn('Super Admin')
+      stubAdmins()
+      vi.spyOn(useAdminTeamEventsStore(), 'deleteTeamEvent').mockRejectedValue(
+        new Error('down'),
+      )
+      await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
+
+      await click(buttons('Delete')[1])
+      await click(button('Confirm Delete'))
+
+      expect(toasts()[0]).toMatchObject({ color: 'error' })
+    })
+
+    it('opens the dialog to add an event', async () => {
       signIn('Super Admin')
       stubAdmins()
       await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
 
       await click(button('Add Team Event'))
-      expect(bodyText()).toContain('Add Team Event')
-      await click(button('Cancel', document.querySelector('[role="dialog"]')!))
 
-      await click(buttons('Edit')[0])
-      expect(bodyText()).toContain('Edit Team Event')
+      expect(bodyText()).toContain('Add +1 Aid Slot Team Event')
+    })
+
+    it("shows an error when events can't be loaded", async () => {
+      signIn('Super Admin')
+      stubAdmins()
+      vi.spyOn(useAdminTeamEventsStore(), 'loadTeamEvents').mockRejectedValue(
+        new Error('down'),
+      )
+
+      await mountInApp(SettingsPage, {}, { route: '/admin/settings' })
+
+      expect(toasts()[0]).toMatchObject({
+        color: 'error',
+        description: 'Failed to load team events.',
+      })
     })
   })
 })

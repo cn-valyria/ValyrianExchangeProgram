@@ -101,6 +101,10 @@ import {
   describeAid,
   getAdminDealStatus,
 } from '~/infrastructure/deals'
+import {
+  describeTemporaryDeal,
+  formatCnDate,
+} from '~/infrastructure/teamEvents'
 import type { SlotDetail } from '~/stores/account'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
 import {
@@ -172,7 +176,7 @@ const renderParty = (slot: SlotDetail) =>
       h(
         'div',
         { class: 'text-sm text-gray-500 dark:text-gray-400' },
-        `${slot.account.nationName} · Slot #${slot.slotNumber}`,
+        `${slot.account.nationName} · Slot #${slot.slotNumber}${slot.isTeamBonus ? ' (team bonus)' : ''}`,
       ),
     ]),
   ])
@@ -271,9 +275,30 @@ const dealColumns: TableColumn<AdminDeal>[] = [
               ),
           )
         : null
-      return h(resolveComponent('UTooltip'), { text: status.detail }, () =>
-        h('div', { class: 'flex gap-1' }, [badge, flag]),
-      )
+      // Deals on a team event's bonus slot are cancelled once the event ends
+      const endsOn = row.original.teamBonusEndsOn
+      const temporary = endsOn
+        ? h(
+            resolveComponent('UTooltip'),
+            { text: describeTemporaryDeal(endsOn) },
+            () =>
+              h(
+                resolveComponent('UBadge'),
+                {
+                  color: 'warning',
+                  variant: 'subtle',
+                  icon: 'i-heroicons-clock',
+                },
+                () => `Temporary, ends ${formatCnDate(endsOn)}`,
+              ),
+          )
+        : null
+      return h('div', { class: 'flex flex-wrap gap-1' }, [
+        h(resolveComponent('UTooltip'), { text: status.detail }, () =>
+          h('div', { class: 'flex gap-1' }, [badge, flag]),
+        ),
+        temporary,
+      ])
     },
   },
   {

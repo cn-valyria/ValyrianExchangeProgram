@@ -13,7 +13,18 @@ import {
   DealStatus,
   type DealHistoryItem,
 } from '~/stores/account'
-import { account, accountSimplified, dealDetail } from '../helpers/fixtures'
+import {
+  account,
+  accountSimplified,
+  dealDetail,
+  teamBonusSlot,
+} from '../helpers/fixtures'
+import {
+  addDays,
+  cnToday,
+  formatCnDate,
+  Team,
+} from '~/infrastructure/teamEvents'
 import { button, click, mountInApp, toasts } from '../helpers/dom'
 
 beforeEach(() => {
@@ -75,6 +86,67 @@ describe('SlotUsage', () => {
     expect(wrapper.text()).toContain('--')
     expect(wrapper.text()).toContain('Hold')
     expect(wrapper.text()).toContain('Your account is on hold')
+  })
+})
+
+describe('SlotUsage team bonus', () => {
+  const event = (matchableUntil: string) => ({
+    team: Team.Aqua,
+    approvedOn: '2026-10-06T00:00:00',
+    endsOn: addDays(cnToday(), 10),
+    bonusSlotMatchableUntil: matchableUntil,
+  })
+
+  it('says where the bonus slot comes from and until when it can be matched', async () => {
+    const until = addDays(cnToday(), 3)
+    const wrapper = await mountInApp(SlotUsage, {
+      slotsUsed: 4,
+      slotsTotal: 5,
+      role: 'B',
+      teamEvent: event(until),
+    })
+
+    expect(wrapper.text()).toContain(
+      `Includes 1 bonus slot from the Aqua team's event, in effect through ${formatCnDate(addDays(cnToday(), 10))}.`,
+    )
+    expect(wrapper.text()).toContain(
+      `VEP can match it into a temporary deal until ${formatCnDate(until)}.`,
+    )
+  })
+
+  it("says when it's too late to start a deal in the bonus slot", async () => {
+    const wrapper = await mountInApp(SlotUsage, {
+      slotsUsed: 4,
+      slotsTotal: 5,
+      role: 'B',
+      teamEvent: event(addDays(cnToday(), -1)),
+    })
+
+    expect(wrapper.text()).toContain('too close to the end of the event')
+  })
+
+  it('says the deal in the bonus slot is temporary', async () => {
+    const wrapper = await mountInApp(SlotUsage, {
+      slotsUsed: 5,
+      slotsTotal: 5,
+      role: 'B',
+      teamEvent: event(addDays(cnToday(), 3)),
+      bonusSlotInDeal: true,
+    })
+
+    expect(wrapper.text()).toContain(
+      'The deal using it is temporary and ends with the event.',
+    )
+  })
+
+  it('says nothing without a team event', async () => {
+    const wrapper = await mountInApp(SlotUsage, {
+      slotsUsed: 3,
+      slotsTotal: 4,
+      role: 'B',
+    })
+
+    expect(wrapper.text()).not.toContain('bonus slot')
   })
 })
 
@@ -344,6 +416,64 @@ describe('ActiveDeals', () => {
     )
     expect(wrapper.find('tbody tr').text()).toContain('Nothing')
     expect(wrapper.find('tbody tr').text()).toContain('100 tech')
+  })
+})
+
+describe('ActiveDeals temporary deals', () => {
+  it('explains which deals end with a team event, whichever side has the bonus slot', async () => {
+    const partner = accountSimplified(3, { nationName: 'Techland' })
+    const other = accountSimplified(4, { nationName: 'Otherland' })
+    const deals = [
+      dealDetail({
+        id: 1,
+        mySlot: teamBonusSlot(1, '2026-11-05T00:00:00', { cash: 1 }),
+        partnerSlot: { ...dealDetail().partnerSlot, account: partner },
+        teamBonusEndsOn: '2026-11-05T00:00:00',
+      }),
+      dealDetail({
+        id: 2,
+        mySlot: { ...dealDetail().mySlot, slotNumber: 2 },
+        partnerSlot: teamBonusSlot(
+          4,
+          '2026-11-20T00:00:00',
+          { tech: 1 },
+          {
+            account: other,
+          },
+        ),
+        teamBonusEndsOn: '2026-11-20T00:00:00',
+      }),
+      dealDetail({ id: 3, mySlot: { ...dealDetail().mySlot, slotNumber: 3 } }),
+    ]
+    const wrapper = await mountInApp(ActiveDeals, {
+      account: account(),
+      deals,
+      notifications: [],
+    })
+
+    expect(wrapper.text()).toContain('2 of your deals are temporary')
+    expect(wrapper.text()).toContain(
+      "Your deal with Techland uses your team's bonus aid slot, so VEP cancels it once the team event ends after 11/5/2026.",
+    )
+    expect(wrapper.text()).toContain(
+      "Your deal with Otherland uses Otherland's team bonus aid slot, so VEP cancels it once the team event ends after 11/20/2026.",
+    )
+    const rows = wrapper.findAll('tbody tr').map((row) => row.text())
+    expect(rows[0]).toContain('#2')
+    expect(rows[0]).toContain('Temporary, ends 11/20/2026')
+    expect(rows[1]).not.toContain(', ends ')
+    expect(rows[2]).toContain('#7')
+    expect(rows[2]).toContain('Team bonus, ends 11/5/2026')
+  })
+
+  it('has no temporary deal notice without team bonus deals', async () => {
+    const wrapper = await mountInApp(ActiveDeals, {
+      account: account(),
+      deals: [dealDetail()],
+      notifications: [],
+    })
+
+    expect(wrapper.text()).not.toContain('temporary')
   })
 })
 
