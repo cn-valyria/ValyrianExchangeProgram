@@ -3,6 +3,7 @@ import type {
   AccountSimplified,
   DealActivityState,
   DealBlockedReason,
+  DealExtensionKind,
   DealLegOutcome,
   DealStatus,
   SlotDetail,
@@ -21,7 +22,11 @@ export interface AdminDeal {
   nextSenderAccountId: number | null
   responsibleAccountId: number | null
   daysResponsible: number | null
+  // Extensions included. Null when nobody is holding up the deal, or an extension removed the deadline
   cancelsOn: string | null
+  // Extra time an admin gave the account holding up the deal, while it still applies
+  extensionKind: DealExtensionKind | null
+  extendedBy: string | null
   inFlightUntil: string | null
   hasOpenFlag: boolean
   slot1: SlotDetail
@@ -90,7 +95,11 @@ export interface DealFlag {
   nextSenderAccountId: number | null
   responsibleAccountId: number | null
   daysResponsible: number | null
+  // Extensions included
   cancelsOn: string | null
+  // Extra time an admin already gave this account on the deal, while it still applies
+  extensionKind: DealExtensionKind | null
+  extendedBy: string | null
   inFlightUntil: string | null
   blockedUntil: string | null
   // Legs that haven't failed, including any in flight
@@ -270,6 +279,30 @@ export const useAdminDealsStore = defineStore('adminDeals', {
 
       if (error.value) {
         console.error('Failed to resolve flag:', error.value)
+        throw error.value
+      }
+
+      this.flags = this.flags.filter((flag) => flag.id !== flagId)
+    },
+
+    // Extending resolves the warning, so it leaves the list
+    async extendFlaggedDeal(
+      flagId: number,
+      kind: DealExtensionKind,
+      adminNotes: string,
+    ) {
+      const { apiFetch } = useApiClient()
+
+      const { error } = await apiFetch<null>(
+        `/api/deals/admin/flags/${flagId}/extend`,
+        {
+          method: 'PUT',
+          body: { kind, adminNotes },
+        },
+      )
+
+      if (error.value) {
+        console.error('Failed to extend deal:', error.value)
         throw error.value
       }
 

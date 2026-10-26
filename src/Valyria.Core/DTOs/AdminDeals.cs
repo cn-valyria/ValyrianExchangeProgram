@@ -22,7 +22,15 @@ public class AdminDealItem
     /// </summary>
     public int? ResponsibleAccountId { get; set; }
     public int? DaysResponsible { get; set; }
+    /// <summary>
+    /// When the deal is cancelled if it's still held up, extensions included. Null when there's no deadline
+    /// </summary>
     public DateTime? CancelsOn { get; set; }
+    /// <summary>
+    /// Extra time an admin gave the account holding up the deal, while it still applies
+    /// </summary>
+    public DealExtensionKind? ExtensionKind { get; set; }
+    public string? ExtendedBy { get; set; }
     public DateTime? InFlightUntil { get; set; }
     public bool HasOpenFlag { get; set; }
     public SlotDetail Slot1 { get; set; }

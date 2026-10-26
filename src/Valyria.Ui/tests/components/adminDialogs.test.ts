@@ -19,6 +19,7 @@ import CancelDealDialog from '~/components/admin/CancelDealDialog.vue'
 import CreateDealDialog from '~/components/admin/CreateDealDialog.vue'
 import DealSlotPicker from '~/components/admin/DealSlotPicker.vue'
 import ResolveFlagDialog from '~/components/admin/ResolveFlagDialog.vue'
+import { DealExtensionKind } from '~/stores/account'
 import { DealFlagType } from '~/stores/adminDeals'
 import {
   accountSimplified,
@@ -120,7 +121,7 @@ describe('ResolveFlagDialog', () => {
       document.querySelectorAll<HTMLElement>('[role="dialog"] [role="radio"]'),
     )
 
-  it('clears the flag with the notes by default', async () => {
+  it('makes the admin pick an option, then clears the flag with the notes', async () => {
     const resolveFlag = vi
       .spyOn(useAdminDealsStore(), 'resolveFlag')
       .mockResolvedValue()
@@ -133,6 +134,8 @@ describe('ResolveFlagDialog', () => {
       '1-Day Warning against Ruler1 · Active, still held up',
     )
     expect(bodyText()).toContain("This doesn't stop the clock")
+    expect(button('Resolve').disabled).toBe(true)
+    await click(radios()[2])
     await type(
       inputByPlaceholder('Optional notes on how this was resolved'),
       ' Partner was on vacation ',
@@ -155,7 +158,7 @@ describe('ResolveFlagDialog', () => {
       flag: dealFlag({ id: 5, dealId: 10 }),
     })
 
-    await click(radios()[1])
+    await click(radios()[3])
     expect(button('Cancel Deal').disabled).toBe(true)
     await type(
       inputByPlaceholder('Why is this deal being cancelled?'),
@@ -167,6 +170,42 @@ describe('ResolveFlagDialog', () => {
     expect(resolveFlag).toHaveBeenCalledWith(5, 'Inactive for a week')
     expect(onClose).toHaveBeenCalledWith(true)
   })
+
+  it.each([
+    [
+      0,
+      DealExtensionKind.FiveDays,
+      'Give 5 More Days',
+      'Ruler1 now has until 2026-10-18 on deal #10.',
+    ],
+    [
+      1,
+      DealExtensionKind.UntilNextLeg,
+      'Hold Off Until Next Aid',
+      "Deal #10 won't be cancelled before its next aid is recorded.",
+    ],
+  ])(
+    'gives a held-up deal more time (option %i)',
+    async (index, kind, confirm, message) => {
+      const extend = vi
+        .spyOn(useAdminDealsStore(), 'extendFlaggedDeal')
+        .mockResolvedValue()
+      const { onClose } = await openDialog(ResolveFlagDialog, {
+        flag: dealFlag({ id: 5, dealId: 10 }),
+      })
+
+      await click(radios()[index])
+      await type(
+        inputByPlaceholder('Optional notes on how this was resolved'),
+        'On vacation',
+      )
+      await click(button(confirm))
+
+      expect(extend).toHaveBeenCalledWith(5, kind, 'On vacation')
+      expect(toasts()[0]).toMatchObject({ description: message })
+      expect(onClose).toHaveBeenCalledWith(true)
+    },
+  )
 
   it('restores a deal cancelled by its flag', async () => {
     const restore = vi
@@ -228,6 +267,7 @@ describe('ResolveFlagDialog', () => {
       flag: dealFlag(),
     })
 
+    await click(radios()[2])
     await click(button('Clear Flag'))
 
     expect(toasts()[0]).toMatchObject({ color: 'error' })
@@ -249,7 +289,7 @@ describe('ResolveFlagDialog', () => {
     expect(toasts()[0]).toMatchObject({
       color: 'error',
       description:
-        "This deal can't be restored any more. Reload the page to see why.",
+        "This deal has changed since the page loaded, so that can't be done any more. Reload the page to see why.",
     })
     expect(onClose).not.toHaveBeenCalled()
   })

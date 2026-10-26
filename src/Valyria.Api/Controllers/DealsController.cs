@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Valyria.Api.Auth;
 using Valyria.Core.Interfaces;
 using Valyria.Core.DTOs;
+using Valyria.Core.Entities;
 
 namespace Valyria.Api.Controllers;
 
@@ -338,6 +339,42 @@ public class DealsController : ControllerBase
     }
 
     /// <summary>
+    /// Give the account a warning is against more time before its deal is cancelled, resolving the warning (admin only)
+    /// </summary>
+    [HttpPut("admin/flags/{flagId}/extend")]
+    [Authorize(Policy = Policies.ManageProgram)]
+    public async Task<IActionResult> ExtendFlaggedDeal(int flagId, [FromBody] ExtendFlagRequest request)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName} with flagId={FlagId}, kind={Kind}",
+            nameof(ExtendFlaggedDeal), flagId, request.Kind);
+
+        try
+        {
+            var result = await _dealsRepository.ExtendFlaggedDealAsync(flagId, request.Kind, User.GetAuditName(), request.AdminNotes);
+
+            switch (result)
+            {
+                case DealExtendResult.FlagNotFound:
+                    _logger.LogWarning("Open flag with id={FlagId} not found", flagId);
+                    return NotFound(new { error = $"Open flag with id {flagId} not found" });
+                case DealExtendResult.NotExtendable:
+                    _logger.LogWarning("Deal for flag with id={FlagId} can't be extended", flagId);
+                    return Conflict(new { error = "This flag's deal can't be extended. It may have ended, or its account may no longer be holding it up." });
+            }
+
+            _logger.LogInformation("{MethodName} execution complete for flagId={FlagId}", nameof(ExtendFlaggedDeal), flagId);
+
+            return NoContent();
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(ExtendFlaggedDeal)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
     /// Restore the deal a flag cancelled, resolving the deal's open flags (admin only)
     /// </summary>
     [HttpPut("admin/flags/{flagId}/restore")]
@@ -405,5 +442,11 @@ public class CancelDealRequest
 
 public class ResolveFlagRequest
 {
+    public string? AdminNotes { get; set; }
+}
+
+public class ExtendFlagRequest
+{
+    public DealExtensionKind Kind { get; set; }
     public string? AdminNotes { get; set; }
 }

@@ -53,7 +53,7 @@ public class MassMessageRecipient
     /// </summary>
     public int FlaggedCount { get; set; }
     /// <summary>
-    /// Longest any flagged deal has been held up by this account, or null if none are flagged
+    /// Furthest any flagged deal is into its 5-day clock (which an extension pushes back), or null if none are flagged
     /// </summary>
     public int? DaysOverdue { get; set; }
     /// <summary>

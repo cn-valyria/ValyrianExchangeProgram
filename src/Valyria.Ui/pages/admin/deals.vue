@@ -96,7 +96,11 @@
 import type { TableColumn } from '@nuxt/ui'
 import { storeToRefs } from 'pinia'
 import { watchDebounced } from '@vueuse/core'
-import { describeAid, getAdminDealStatus } from '~/infrastructure/deals'
+import {
+  describeAdminDeadline,
+  describeAid,
+  getAdminDealStatus,
+} from '~/infrastructure/deals'
 import type { SlotDetail } from '~/stores/account'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
 import {
@@ -234,7 +238,7 @@ const dealColumns: TableColumn<AdminDeal>[] = [
         h(
           'div',
           { class: 'text-sm text-gray-500 dark:text-gray-400' },
-          `${deal.daysResponsible ?? 0}d · cancels ${formatDate(deal.cancelsOn)}`,
+          `${deal.daysResponsible ?? 0}d · ${describeAdminDeadline(deal)}`,
         ),
       ])
     },

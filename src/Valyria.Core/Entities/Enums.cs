@@ -107,6 +107,17 @@ public enum MassMessageCode
 }
 
 /// <summary>
+/// Extra time an admin gave the account holding up a deal (deal_extension.kind)
+/// </summary>
+public enum DealExtensionKind
+{
+    /// <summary>The cancellation moves 5 days past its current date</summary>
+    FiveDays,
+    /// <summary>No warnings or cancellation until the next leg is recorded</summary>
+    UntilNextLeg
+}
+
+/// <summary>
 /// What happened to an aid offer counted as a deal leg
 /// </summary>
 public enum DealLegOutcome

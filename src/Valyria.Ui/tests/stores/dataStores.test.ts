@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { DealExtensionKind } from '~/stores/account'
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import {
   account,
@@ -369,6 +370,20 @@ describe('admin deals store', () => {
     expect(store.flagEvidence).toEqual({})
   })
 
+  it('gives a held-up deal more time, dropping the cleared warning', async () => {
+    apiFetch.mockResolvedValue(apiOk(null))
+    const store = useAdminDealsStore()
+    store.flags = [dealFlag({ id: 5 }), dealFlag({ id: 6 })]
+
+    await store.extendFlaggedDeal(5, DealExtensionKind.UntilNextLeg, 'stuck')
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/deals/admin/flags/5/extend', {
+      method: 'PUT',
+      body: { kind: DealExtensionKind.UntilNextLeg, adminNotes: 'stuck' },
+    })
+    expect(store.flags.map((f) => f.id)).toEqual([6])
+  })
+
   it("restores a flag's deal, dropping every flag on that deal", async () => {
     apiFetch.mockResolvedValue(apiOk(null))
     const store = useAdminDealsStore()
@@ -406,6 +421,7 @@ describe('admin deals store', () => {
     ['createDeal', [1, 2]],
     ['resolveFlag', [5, '']],
     ['restoreFlaggedDeal', [5, '']],
+    ['extendFlaggedDeal', [5, 0, '']],
     ['loadFlagEvidence', [5]],
     ['loadAvailableSlots', [1]],
   ])('%s throws on failure', async (action, args) => {

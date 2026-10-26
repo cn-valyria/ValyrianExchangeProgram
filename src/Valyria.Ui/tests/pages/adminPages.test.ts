@@ -909,6 +909,8 @@ describe('admin flags page', () => {
 
     await click(button('Resolve...', card(5)))
     expect(dialog().textContent).toContain('Cancel the deal now')
+    expect(dialog().textContent).toContain('Give Ruler1 5 more days')
+    await click(dialog().querySelectorAll<HTMLElement>('[role="radio"]')[2])
     await click(button('Clear Flag', dialog()))
 
     expect(resolveFlag).toHaveBeenCalledWith(5, '')

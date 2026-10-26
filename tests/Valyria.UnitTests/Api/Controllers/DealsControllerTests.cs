@@ -343,6 +343,52 @@ public class DealsControllerTests
         AssertServerError(await CreateController().RestoreFlaggedDeal(9, new ResolveFlagRequest()), "boom");
     }
 
+    [Theory]
+    [InlineData(DealExtendResult.Extended, typeof(NoContentResult))]
+    [InlineData(DealExtendResult.FlagNotFound, typeof(NotFoundObjectResult))]
+    [InlineData(DealExtendResult.NotExtendable, typeof(ConflictObjectResult))]
+    public async Task ExtendFlaggedDeal_ExtendsAsTheSignedInRulerName(DealExtendResult result, Type expected)
+    {
+        _repository.ExtendFlaggedDealAsync(9, DealExtensionKind.UntilNextLeg, "Bob", "ok").Returns(result);
+
+        Assert.IsType(expected, await CreateController("Bob").ExtendFlaggedDeal(9,
+            new ExtendFlagRequest { Kind = DealExtensionKind.UntilNextLeg, AdminNotes = "ok" }));
+
+        await _repository.Received(1).ExtendFlaggedDealAsync(9, DealExtensionKind.UntilNextLeg, "Bob", "ok");
+    }
+
+    [Fact]
+    public async Task ExtendFlaggedDeal_Returns500_OnError()
+    {
+        _repository.ExtendFlaggedDealAsync(9, Arg.Any<DealExtensionKind>(), Arg.Any<string>(), Arg.Any<string?>())
+            .ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await CreateController().ExtendFlaggedDeal(9, new ExtendFlagRequest()), "boom");
+    }
+
+    [Fact]
+    public void DealFlagDetail_CanOnlyExtendWarningsOnDealsTheirAccountIsStillHoldingUp()
+    {
+        static DealFlagDetail Flag(Action<DealFlagDetail>? change = null)
+        {
+            var flag = new DealFlagDetail
+            {
+                FlagType = DealFlagType.OneDayInactive,
+                DealStatus = DealStatus.Active,
+                FlaggedAccount = new AccountSimplified { AccountId = 7 },
+                ResponsibleAccountId = 7
+            };
+            change?.Invoke(flag);
+            return flag;
+        }
+
+        Assert.True(Flag().CanExtendDeal);
+        Assert.False(Flag(f => f.ResponsibleAccountId = 8).CanExtendDeal);
+        Assert.False(Flag(f => f.ResponsibleAccountId = null).CanExtendDeal);
+        Assert.False(Flag(f => f.DealStatus = DealStatus.Cancelled).CanExtendDeal);
+        Assert.False(Flag(f => f.FlagType = DealFlagType.FiveDayReplacement).CanExtendDeal);
+    }
+
     [Fact]
     public void DealFlagDetail_CanOnlyRestoreDealsItsFlagCancelled_WhileTheirSlotsAndAccountsAreFree()
     {

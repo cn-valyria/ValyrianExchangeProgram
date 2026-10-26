@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addDays,
   describeAidContents,
   describeExpectation,
   describeWhatHappened,
@@ -16,7 +17,11 @@ import {
   matchesFlagView,
   sortFlags,
 } from '~/infrastructure/flags'
-import { DealBlockedReason, DealLegOutcome } from '~/stores/account'
+import {
+  DealBlockedReason,
+  DealExtensionKind,
+  DealLegOutcome,
+} from '~/stores/account'
 import {
   DealFlagReason,
   DealFlagType,
@@ -61,6 +66,12 @@ const leg = (overrides: Partial<FlagDealLeg> = {}): FlagDealLeg => ({
   outcome: DealLegOutcome.Accepted,
   failureExcused: false,
   ...overrides,
+})
+
+describe('addDays', () => {
+  it('adds days to a CN date, across months', () => {
+    expect(addDays('2026-10-29T00:00:00', 5)).toBe('2026-11-03')
+  })
 })
 
 describe('getCnToday', () => {
@@ -166,6 +177,18 @@ describe('getFlagOutlook', () => {
     expect(outlook.detail).toBe(
       "If Ruler1 is still holding up the deal at the daily check on 2026-10-13, VEP cancels it, raises a 5-day flag against Ruler1, and matches Ruler2's slot with a new partner. It clears itself once Ruler1 sends the aid. Ruler1 isn't matched with new partners until it's resolved.",
     )
+  })
+
+  it('mentions time an admin already gave the account', () => {
+    expect(
+      getFlagOutlook(
+        dealFlag({
+          extensionKind: DealExtensionKind.FiveDays,
+          extendedBy: 'Bob',
+        }),
+        TODAY,
+      ).detail,
+    ).toMatch(/^Bob already gave Ruler1 more time on this deal\. If Ruler1/)
   })
 
   it("warns on the last day, and counts the account's other flags", () => {
@@ -286,11 +309,51 @@ describe('getResolutionOptions', () => {
 
   it("offers clearing or cancelling a held-up deal, and says clearing doesn't stop the clock", () => {
     const options = getResolutionOptions(dealFlag())
-    expect(values(options)).toEqual(['clear', 'cancelDeal'])
-    expect(options[0].description).toContain(
-      'VEP warns them again, and still cancels the deal on 2026-10-13',
+    expect(values(options)).toEqual([
+      'extendFiveDays',
+      'extendUntilNextLeg',
+      'clear',
+      'cancelDeal',
+    ])
+    expect(options[2].description).toContain(
+      'VEP warns them again, and still cancels the deal on 2026-10-13. To give them more time, extend the deadline instead.',
     )
-    expect(options[1].description).toContain('No 5-day flag is raised')
+    expect(options[3].description).toContain('No 5-day flag is raised')
+  })
+
+  it('offers 5 more days from the current deadline, or holding off until the next aid', () => {
+    const [fiveDays, untilNextLeg] = getResolutionOptions(dealFlag())
+    expect(fiveDays.label).toBe('Give Ruler1 5 more days')
+    expect(fiveDays.description).toBe(
+      'Moves the cancellation from 2026-10-13 to 2026-10-18 and clears this warning, so Ruler1 can be matched with new partners meanwhile. The usual rules then run against the new date: warned again from 2026-10-14, and cancelled on 2026-10-18 if still held up. The extension ends once the next aid in the deal is recorded.',
+    )
+    expect(untilNextLeg.description).toContain(
+      "If Ruler2 becomes the one holding it up first (say, once it's their turn to send), the extension ends and Ruler2 gets the usual 5 days.",
+    )
+    expect(untilNextLeg.description).toContain(
+      "There's no deadline, so if Ruler1 never sends, the deal stays stuck until an admin steps in.",
+    )
+  })
+
+  it('points out-of-turn aid that outlasts 5 more days toward holding off', () => {
+    const [fiveDays, untilNextLeg] = getResolutionOptions(
+      dealFlag({
+        flagReason: DealFlagReason.OutOfSequenceAid,
+        blockedUntil: '2026-10-19T00:00:00',
+      }),
+    )
+    expect(fiveDays.description).toContain(
+      "That isn't enough here: the out-of-turn aid doesn't clear until 2026-10-19.",
+    )
+    expect(untilNextLeg.description).toContain(
+      "Suits out-of-turn aid that won't clear before the deadline, like this aid, which clears on 2026-10-19.",
+    )
+  })
+
+  it("doesn't offer more time once the account stops holding up the deal", () => {
+    expect(
+      values(getResolutionOptions(dealFlag({ responsibleAccountId: 2 }))),
+    ).toEqual(['clear', 'cancelDeal'])
   })
 
   it('offers clearing early once the account stops holding up the deal, or the deal ends', () => {

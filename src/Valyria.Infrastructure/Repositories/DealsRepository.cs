@@ -15,9 +15,9 @@ public class DealsRepository : IDealsRepository
 {
     private readonly string _connectionString;
 
-    // deal_state columns shared by the account and admin deal queries (alias ds). The DB enum
-    // values ('awaiting_send') aren't valid C# enum names, so they're mapped to the enums' numbers.
-    // CancelsOn mirrors the 5 day replacement threshold in check_deal_inactivity
+    // deal_state columns shared by the account and admin deal queries (aliases ds, and dd for
+    // deal_deadline). The DB enum values ('awaiting_send') aren't valid C# enum names, so they're mapped
+    // to the enums' numbers. CancelsOn is the deadline check_deal_inactivity cancels on, extensions included
     private const string DealStateColumns = @"
                 CASE ds.state
                     WHEN 'pending_start' THEN 0
@@ -33,7 +33,12 @@ public class DealsRepository : IDealsRepository
                 ds.state_since AS StateSince,
                 ds.in_flight_until AS InFlightUntil,
                 DATEDIFF(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')), ds.responsible_since) AS DaysResponsible,
-                ds.responsible_since + INTERVAL 5 DAY AS CancelsOn,";
+                dd.cancels_on AS CancelsOn,
+                CASE dd.extension_kind
+                    WHEN 'five_days' THEN 0
+                    WHEN 'until_next_leg' THEN 1
+                END AS ExtensionKind,
+                dd.extended_by AS ExtendedBy,";
 
     public DealsRepository(string connectionString) => _connectionString = connectionString;
 
@@ -122,6 +127,7 @@ public class DealsRepository : IDealsRepository
                 GROUP BY deal_id
             ) da ON d.id = da.deal_id
             LEFT JOIN deal_state ds ON ds.deal_id = d.id
+            LEFT JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
             -- The leg currently active between the pair, and any out-of-sequence aid blocking it
             LEFT JOIN deal_activity fl ON fl.aid_id = ds.in_flight_aid_id
             LEFT JOIN cybernations_db.aid ba ON ba.id = ds.blocking_aid_id
@@ -488,6 +494,7 @@ public class DealsRepository : IDealsRepository
             LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
             LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
             LEFT JOIN deal_state ds ON ds.deal_id = d.id
+            LEFT JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
             WHERE d.status = 'active'
                 AND (
                     @search IS NULL
@@ -777,6 +784,7 @@ public class DealsRepository : IDealsRepository
             LEFT JOIN cybernations_db.alliance pal ON pn.alliance_id = pal.id
             -- A cancelled deal keeps its deal_state row until the next update_deal_state run
             LEFT JOIN deal_state ds ON ds.deal_id = d.id AND d.status = 'active'
+            LEFT JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
             LEFT JOIN cybernations_db.aid ba ON ba.id = ds.blocking_aid_id
             WHERE df.resolved_on IS NULL AND (" + condition + @")
             ORDER BY df.flagged_on DESC, df.id DESC",
@@ -899,6 +907,87 @@ public class DealsRepository : IDealsRepository
         };
     }
 
+    private class ExtensionBase
+    {
+        public int LegsCounted { get; set; }
+        public DateTime Deadline { get; set; }
+    }
+
+    public async Task<DealExtendResult> ExtendFlaggedDealAsync(int flagId, DealExtensionKind kind, string grantedBy, string? adminNotes)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+        using var transaction = await connection.BeginTransactionAsync();
+
+        var flag = (await QueryOpenFlagsAsync(connection, "df.id = @flagId", new { flagId }, transaction)).FirstOrDefault();
+        if (flag == null)
+        {
+            return DealExtendResult.FlagNotFound;
+        }
+
+        if (!flag.CanExtendDeal)
+        {
+            return DealExtendResult.NotExtendable;
+        }
+
+        // Hold the deal's state still while the extension is worked out from it
+        await connection.ExecuteAsync(
+            "SELECT 1 FROM deal_state WHERE deal_id = @dealId FOR UPDATE",
+            new { dealId = flag.DealId },
+            transaction);
+
+        // Five more days runs from the current deadline, which may already be extended. A deal with no
+        // deadline (held off until the next leg) gets five days from today
+        var current = await connection.QuerySingleAsync<ExtensionBase>(@"
+            SELECT
+                ds.legs_counted AS LegsCounted,
+                COALESCE(dd.cancels_on, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'))) AS Deadline
+            FROM deal_state ds
+            JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
+            WHERE ds.deal_id = @dealId",
+            new { dealId = flag.DealId },
+            transaction);
+
+        DateTime? extendedUntil = kind == DealExtensionKind.FiveDays ? current.Deadline.AddDays(5) : null;
+        var granted = kind == DealExtensionKind.FiveDays
+            ? $"Given 5 more days, until {extendedUntil:yyyy-MM-dd}"
+            : "Given until the next aid is recorded";
+        var notes = string.IsNullOrWhiteSpace(adminNotes) ? granted : $"{granted}: {adminNotes.Trim()}";
+
+        await connection.ExecuteAsync(@"
+            UPDATE deal_extension
+            SET ended_on = CURRENT_TIMESTAMP,
+                end_reason = 'superseded'
+            WHERE deal_id = @dealId AND ended_on IS NULL;
+
+            INSERT INTO deal_extension (deal_id, flag_id, account_id, kind, extended_until, legs_counted_at_grant,
+                granted_by, admin_notes)
+            VALUES (@dealId, @flagId, @accountId, @kind, @extendedUntil, @legsCounted, @grantedBy, @adminNotes);
+
+            UPDATE deal_flag
+            SET resolved_on = CURRENT_TIMESTAMP,
+                resolved_by = @grantedBy,
+                admin_notes = @notes
+            WHERE id = @flagId;",
+            new
+            {
+                dealId = flag.DealId,
+                flagId,
+                accountId = flag.FlaggedAccount.AccountId,
+                kind = kind == DealExtensionKind.FiveDays ? "five_days" : "until_next_leg",
+                extendedUntil,
+                legsCounted = current.LegsCounted,
+                grantedBy,
+                adminNotes = string.IsNullOrWhiteSpace(adminNotes) ? null : adminNotes.Trim(),
+                notes
+            },
+            transaction);
+
+        await transaction.CommitAsync();
+
+        return DealExtendResult.Extended;
+    }
+
     public async Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes)
     {
         using var connection = new MySqlConnection(_connectionString);
@@ -930,6 +1019,11 @@ public class DealsRepository : IDealsRepository
             WHERE id = @dealId;
 
             DELETE FROM deal_state WHERE deal_id = @dealId;
+
+            UPDATE deal_extension
+            SET ended_on = CURRENT_TIMESTAMP,
+                end_reason = 'deal_ended'
+            WHERE deal_id = @dealId AND ended_on IS NULL;
 
             UPDATE deal_activity
             SET failure_excused = TRUE

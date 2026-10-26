@@ -126,4 +126,23 @@ public class MassMessagesRepositoryTests(MySqlFixture fixture) : RepositoryTestB
         Assert.Null(unsent.SentOn);
         Assert.Null(unsent.SentBy);
     }
+
+    [Fact]
+    public async Task GetMassMessages_CountsOverdueDaysFromAnExtendedDeadline()
+    {
+        var cnToday = await Data.CnTodayAsync();
+        // Gus would get a final warning, but an admin gave him 5 more days, and he's been warned again since
+        var (gus, hank, deal) = await PairAsync(700, "Gus", 800, "Hank");
+        await Data.DealStateAsync(deal, "awaiting_send", gus, hank, responsible: gus, responsibleSince: cnToday.AddDays(-6));
+        await Data.ExecuteAsync(@"
+            insert into deal_extension (deal_id, account_id, kind, extended_until, legs_counted_at_grant, granted_by)
+            values (@deal, @gus, 'five_days', @until, 0, 'admin')", new { deal, gus, until = cnToday.AddDays(3) });
+        await Data.DealFlagAsync(deal, "1_day_inactive", gus, hank, "awaiting_send");
+
+        var summary = await Repository.GetMassMessagesAsync();
+
+        var overdue = summary.Messages.Single(m => m.Code == MassMessageCode.Overdue).Recipients.Single();
+        Assert.Equal((gus, 2, cnToday.AddDays(3)), (overdue.AccountId, overdue.DaysOverdue!.Value, overdue.CancelsOn!.Value));
+        Assert.Empty(summary.Messages.Single(m => m.Code == MassMessageCode.FinalWarning).Recipients);
+    }
 }

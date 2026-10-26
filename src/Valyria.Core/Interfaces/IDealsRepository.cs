@@ -70,6 +70,11 @@ public interface IDealsRepository
     Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes);
 
     /// <summary>
+    /// Give the account this warning is against more time before its deal is cancelled, and resolve the warning (admin action)
+    /// </summary>
+    Task<DealExtendResult> ExtendFlaggedDealAsync(int flagId, DealExtensionKind kind, string grantedBy, string? adminNotes);
+
+    /// <summary>
     /// Put a deal cancelled by this flag back into effect with a fresh state, and resolve the deal's open flags (admin action)
     /// </summary>
     Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes);
@@ -141,7 +146,15 @@ public class DealFlagDetail
     public int? NextSenderAccountId { get; set; }
     public int? ResponsibleAccountId { get; set; }
     public int? DaysResponsible { get; set; }
+    /// <summary>
+    /// When the deal is cancelled if it's still held up, extensions included. Null when there's no deadline
+    /// </summary>
     public System.DateTime? CancelsOn { get; set; }
+    /// <summary>
+    /// Extra time an admin gave the account holding up the deal, while it still applies
+    /// </summary>
+    public DealExtensionKind? ExtensionKind { get; set; }
+    public string? ExtendedBy { get; set; }
     public System.DateTime? InFlightUntil { get; set; }
     /// <summary>
     /// When out-of-sequence aid blocking the deal leaves the pair's slots
@@ -178,6 +191,15 @@ public class DealFlagDetail
         && FlaggedSlot.CashReceivedCycles == InnocentSlot.CashSentCycles;
 
     /// <summary>
+    /// Whether this is a warning on a running deal that its account is still holding up, so it can be given more time
+    /// </summary>
+    public bool CanExtendDeal =>
+        DealStatus == DealStatus.Active
+        && FlagType == DealFlagType.OneDayInactive
+        && FlaggedAccount != null
+        && ResponsibleAccountId == FlaggedAccount.AccountId;
+
+    /// <summary>
     /// Whether this flag cancelled its deal, and the deal can be put back into effect
     /// </summary>
     public bool CanRestoreDeal =>
@@ -190,6 +212,15 @@ public class DealFlagDetail
         && !FlaggedAccountOnHold
         && !InnocentAccountOnHold
         && SlotsStillMatch;
+}
+
+public enum DealExtendResult
+{
+    Extended,
+    /// <summary>The flag doesn't exist or is already resolved</summary>
+    FlagNotFound,
+    /// <summary>The flag's deal has ended, or its account is no longer holding it up</summary>
+    NotExtendable
 }
 
 public enum DealRestoreResult

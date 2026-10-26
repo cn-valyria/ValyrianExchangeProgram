@@ -16,7 +16,13 @@ import {
 // How the flags page groups flags: the deal is still running, or the flag already ended it
 export type FlagDealView = 'all' | 'active' | 'cancelled'
 
-export type FlagResolution = 'clear' | 'clearBoth' | 'restore' | 'cancelDeal'
+export type FlagResolution =
+  | 'extendFiveDays'
+  | 'extendUntilNextLeg'
+  | 'clear'
+  | 'clearBoth'
+  | 'restore'
+  | 'cancelDeal'
 
 export interface FlagResolutionOption {
   value: FlagResolution
@@ -55,6 +61,13 @@ function daysBetween(from: string, to: string): number {
   return Math.round(
     (Date.parse(formatDate(to)) - Date.parse(formatDate(from))) / MS_PER_DAY,
   )
+}
+
+// A CN date some days later, e.g. addDays('2026-10-13', 5) is '2026-10-18'
+export function addDays(date: string, days: number): string {
+  return new Date(Date.parse(formatDate(date)) + days * MS_PER_DAY)
+    .toISOString()
+    .slice(0, 10)
 }
 
 // An account's ruler, or a placeholder once its nation has been deleted
@@ -241,9 +254,13 @@ export function getFlagOutlook(
         : daysLeft <= 0
           ? "at today's daily check"
           : `on ${formatDate(flag.cancelsOn)} (in ${plural(daysLeft, 'day')})`
+    const extended =
+      flag.extensionKind !== null
+        ? `${flag.extendedBy ?? 'An admin'} already gave ${flagged} more time on this deal. `
+        : ''
     return {
       title: `Deal cancelled ${when}`,
-      detail: `If ${flagged} is still holding up the deal at the daily check on ${formatDate(flag.cancelsOn)}, VEP cancels it, raises a 5-day flag against ${flagged}, and matches ${partner}'s slot with a new partner. ${describeFix(flag)} ${describeMatchingHold(flag)}`,
+      detail: `${extended}If ${flagged} is still holding up the deal at the daily check on ${formatDate(flag.cancelsOn)}, VEP cancels it, raises a 5-day flag against ${flagged}, and matches ${partner}'s slot with a new partner. ${describeFix(flag)} ${describeMatchingHold(flag)}`,
       color: daysLeft !== null && daysLeft <= 1 ? 'error' : 'warning',
     }
   }
@@ -292,6 +309,40 @@ export function getRestoreBlocker(flag: DealFlag): string | null {
   return null
 }
 
+// More time for an account still holding up a running deal
+function getExtensionOptions(flag: DealFlag): FlagResolutionOption[] {
+  const flagged = getAccountName(flag.flaggedAccount)
+  const partner = getAccountName(flag.innocentAccount)
+  const deadline = formatDate(flag.cancelsOn ?? getCnToday())
+  const newDeadline = addDays(deadline, 5)
+  const outOfTurn = flag.flagReason === DealFlagReason.OutOfSequenceAid
+  const aidClears =
+    flag.blockedUntil !== null ? formatDate(flag.blockedUntil) : null
+
+  const fiveDaysShort =
+    outOfTurn && aidClears !== null && daysBetween(newDeadline, aidClears) >= 0
+      ? ` That isn't enough here: the out-of-turn aid doesn't clear until ${aidClears}.`
+      : ''
+  const untilNextLegFit = outOfTurn
+    ? ` Suits out-of-turn aid that won't clear before the deadline${aidClears !== null ? `, like this aid, which clears on ${aidClears}` : ''}.`
+    : ` There's no deadline, so if ${flagged} never sends, the deal stays stuck until an admin steps in.`
+
+  return [
+    {
+      value: 'extendFiveDays',
+      label: `Give ${flagged} 5 more days`,
+      description: `Moves the cancellation from ${deadline} to ${newDeadline} and clears this warning, so ${flagged} can be matched with new partners meanwhile. The usual rules then run against the new date: warned again from ${addDays(deadline, 1)}, and cancelled on ${newDeadline} if still held up. The extension ends once the next aid in the deal is recorded.${fiveDaysShort}`,
+      disabledReason: null,
+    },
+    {
+      value: 'extendUntilNextLeg',
+      label: 'Hold off until the next aid is recorded',
+      description: `Stops the clock and clears this warning: VEP won't warn ${flagged} again or cancel the deal until the next aid in it is recorded. If ${partner} becomes the one holding it up first (say, once it's their turn to send), the extension ends and ${partner} gets the usual 5 days.${untilNextLegFit}`,
+      disabledReason: null,
+    },
+  ]
+}
+
 // The ways an admin can resolve a flag, given whether its deal is still running
 export function getResolutionOptions(
   flag: DealFlag,
@@ -310,7 +361,7 @@ export function getResolutionOptions(
       ? {
           value: 'clear',
           label: 'Clear the warning, keep the deal',
-          description: `${matchedAgain} This doesn't stop the clock: if ${flagged} is still holding up the deal at the next daily check, VEP warns them again, and still cancels the deal on ${formatDate(flag.cancelsOn)}.`,
+          description: `${matchedAgain} This doesn't stop the clock: if ${flagged} is still holding up the deal at the next daily check, VEP warns them again, and still cancels the deal on ${formatDate(flag.cancelsOn)}. To give them more time, extend the deadline instead.`,
           disabledReason: null,
         }
       : {
@@ -320,6 +371,7 @@ export function getResolutionOptions(
           disabledReason: null,
         }
     return [
+      ...(isStillHoldingUpDeal(flag) ? getExtensionOptions(flag) : []),
       clear,
       {
         value: 'cancelDeal',
