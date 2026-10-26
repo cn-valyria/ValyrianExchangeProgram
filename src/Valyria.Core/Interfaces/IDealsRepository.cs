@@ -59,9 +59,20 @@ public interface IDealsRepository
     Task<List<DealFlagDetail>> GetFlaggedDealsAsync();
 
     /// <summary>
+    /// The aid behind a flag: every leg of its deal, and what was in the flagged nation's aid slots (admin view).
+    /// Returns null if the flag does not exist.
+    /// </summary>
+    Task<DealFlagEvidence> GetDealFlagEvidenceAsync(int flagId);
+
+    /// <summary>
     /// Resolve a deal flag (admin action)
     /// </summary>
     Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes);
+
+    /// <summary>
+    /// Put a deal cancelled by this flag back into effect with a fresh state, and resolve the deal's open flags (admin action)
+    /// </summary>
+    Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes);
 
     /// <summary>
     /// Get all slots for a specific account (admin view)
@@ -102,4 +113,90 @@ public class DealFlagDetail
     public System.DateTime? ResolvedOn { get; set; }
     public string ResolvedBy { get; set; }
     public string AdminNotes { get; set; }
+
+    public string FlaggedAccountRole { get; set; }
+    public string InnocentAccountRole { get; set; }
+    /// <summary>
+    /// Open flags against the flagged account, this one included. It isn't matched until they're all resolved
+    /// </summary>
+    public int FlaggedAccountOpenFlagCount { get; set; }
+    /// <summary>
+    /// Each side's slot in the deal, with its account
+    /// </summary>
+    public SlotDetail FlaggedSlot { get; set; }
+    public SlotDetail InnocentSlot { get; set; }
+
+    public DealStatus DealStatus { get; set; }
+    public System.DateTime DealCreatedOn { get; set; }
+    public System.DateTime? DealCancelledOn { get; set; }
+    public string? DealCancelledBy { get; set; }
+    public string? CancellationReason { get; set; }
+
+    /// <summary>
+    /// The deal's current state. Null once the deal is cancelled, or until the data loader picks up a restored deal
+    /// </summary>
+    public DealActivityState? State { get; set; }
+    public DealBlockedReason? BlockedReason { get; set; }
+    public System.DateTime? StateSince { get; set; }
+    public int? NextSenderAccountId { get; set; }
+    public int? ResponsibleAccountId { get; set; }
+    public int? DaysResponsible { get; set; }
+    public System.DateTime? CancelsOn { get; set; }
+    public System.DateTime? InFlightUntil { get; set; }
+    /// <summary>
+    /// When out-of-sequence aid blocking the deal leaves the pair's slots
+    /// </summary>
+    public System.DateTime? BlockedUntil { get; set; }
+
+    /// <summary>
+    /// Legs that haven't failed, including any in flight
+    /// </summary>
+    public int LegsCompleted { get; set; }
+    /// <summary>
+    /// When the flagged account last sent a leg that hasn't failed
+    /// </summary>
+    public System.DateTime? FlaggedLastSentOn { get; set; }
+
+    /// <summary>
+    /// Other active deals holding either slot, or between the same two accounts. Any of these, or either
+    /// account being on hold, stops the deal being restored
+    /// </summary>
+    public int? FlaggedSlotOtherDealId { get; set; }
+    public int? InnocentSlotOtherDealId { get; set; }
+    public int? PairOtherDealId { get; set; }
+    public bool FlaggedAccountOnHold { get; set; }
+    public bool InnocentAccountOnHold { get; set; }
+
+    /// <summary>
+    /// Whether the two slots' cycles are still exact inverses. A role change since the deal was cancelled resets them
+    /// </summary>
+    public bool SlotsStillMatch =>
+        FlaggedSlot != null && InnocentSlot != null
+        && FlaggedSlot.TechSentCycles == InnocentSlot.TechReceivedCycles
+        && FlaggedSlot.TechReceivedCycles == InnocentSlot.TechSentCycles
+        && FlaggedSlot.CashSentCycles == InnocentSlot.CashReceivedCycles
+        && FlaggedSlot.CashReceivedCycles == InnocentSlot.CashSentCycles;
+
+    /// <summary>
+    /// Whether this flag cancelled its deal, and the deal can be put back into effect
+    /// </summary>
+    public bool CanRestoreDeal =>
+        DealStatus == DealStatus.Cancelled
+        && FlagType != DealFlagType.OneDayInactive
+        && DealCancelledBy == "system"
+        && FlaggedSlotOtherDealId == null
+        && InnocentSlotOtherDealId == null
+        && PairOtherDealId == null
+        && !FlaggedAccountOnHold
+        && !InnocentAccountOnHold
+        && SlotsStillMatch;
+}
+
+public enum DealRestoreResult
+{
+    Restored,
+    /// <summary>The flag doesn't exist or is already resolved</summary>
+    FlagNotFound,
+    /// <summary>The flag didn't cancel its deal, or the deal's slots or accounts are no longer free</summary>
+    NotRestorable
 }

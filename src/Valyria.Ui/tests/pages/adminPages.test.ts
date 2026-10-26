@@ -4,10 +4,11 @@ import { UPagination, USwitch, UTabs } from '#components'
 import AccountsPage from '~/pages/admin/accounts.vue'
 import AidActivityPage from '~/pages/admin/aid-activity.vue'
 import DealsPage from '~/pages/admin/deals.vue'
+import FlagsPage from '~/pages/admin/flags.vue'
 import DashboardPage from '~/pages/admin/index.vue'
 import MessagesPage from '~/pages/admin/messages.vue'
 import SettingsPage from '~/pages/admin/settings.vue'
-import { DealActivityState } from '~/stores/account'
+import { DealActivityState, DealLegOutcome } from '~/stores/account'
 import type { AidActivityItem } from '~/stores/adminAidActivity'
 import { DealFlagReason, DealFlagType } from '~/stores/adminDeals'
 import { MassMessageCode } from '~/stores/adminMassMessages'
@@ -15,6 +16,7 @@ import {
   accountSimplified,
   adminAccount,
   adminDeal,
+  cancelledDealFlag,
   dealFlag,
   massMessage,
   recipient,
@@ -531,21 +533,6 @@ describe('admin deals page', () => {
           },
         ]
       }),
-      flags: vi.spyOn(store, 'loadFlags').mockImplementation(async () => {
-        store.flags = [
-          dealFlag({ id: 5 }),
-          dealFlag({
-            id: 6,
-            flagType: DealFlagType.FiveDayReplacement,
-            flagReason: DealFlagReason.OutOfSequenceAid,
-          }),
-          dealFlag({
-            id: 7,
-            flagType: DealFlagType.AidFailed,
-            flagReason: null,
-          }),
-        ]
-      }),
     }
   }
 
@@ -557,7 +544,7 @@ describe('admin deals page', () => {
     await flushPromises()
   }
 
-  it('loads active deals, the wait queue and flags', async () => {
+  it('loads active deals and the wait queue', async () => {
     signIn('Super Admin')
     const loads = stubDeals()
 
@@ -565,10 +552,9 @@ describe('admin deals page', () => {
 
     expect(loads.deals).toHaveBeenCalledWith('', 25, 0)
     expect(loads.queue).toHaveBeenCalled()
-    expect(loads.flags).toHaveBeenCalled()
     expect(bodyText()).toContain('Active Deals (40)')
     expect(bodyText()).toContain('Wait Queue (1)')
-    expect(bodyText()).toContain('Flags (3)')
+    expect(bodyText()).not.toContain('Flags (')
     const rows = tableRows()
     expect(rows[0]).toContain('#10')
     expect(rows[0]).toContain('A sends $9M')
@@ -580,7 +566,19 @@ describe('admin deals page', () => {
     expect(bodyText()).toContain('Showing 1 to 25 of 40 results')
   })
 
-  it('shows the wait queue and flags on their tabs', async () => {
+  it('links a flagged deal to its flags, and the page to the flags page', async () => {
+    signIn('Super Admin')
+    stubDeals()
+    await mountInApp(DealsPage, {}, { route: '/admin/deals' })
+
+    const links = Array.from(document.querySelectorAll('a')).map((a) =>
+      a.getAttribute('href'),
+    )
+    expect(links).toContain('/admin/flags?search=%2310')
+    expect(links).toContain('/admin/flags')
+  })
+
+  it('shows the wait queue on its tab', async () => {
     signIn('Super Admin')
     stubDeals()
     const wrapper = await mountInApp(DealsPage, {}, { route: '/admin/deals' })
@@ -588,15 +586,6 @@ describe('admin deals page', () => {
     await showTab(wrapper, 'queue')
     expect(tableRows()[0]).toContain('Ruler3')
     expect(tableRows()[0]).toContain('9.50')
-
-    await showTab(wrapper, 'flags')
-    const rows = tableRows()
-    expect(rows[0]).toContain('1-Day Inactive')
-    expect(rows[0]).toContain("Didn't send on their turn")
-    expect(rows[1]).toContain('5-Day Replacement')
-    expect(rows[1]).toContain('Sent aid out of turn')
-    expect(rows[2]).toContain('Aid Failed')
-    expect(rows[2]).toContain('—')
   })
 
   it('pages through active deals', async () => {
@@ -656,7 +645,6 @@ describe('admin deals page', () => {
 
     expect(loads.deals).toHaveBeenCalledWith('', 25, 0)
     expect(loads.queue).toHaveBeenCalled()
-    expect(loads.flags).toHaveBeenCalled()
   })
 
   it("doesn't reload when a cancel is abandoned", async () => {
@@ -713,36 +701,18 @@ describe('admin deals page', () => {
     expect(bodyText()).not.toContain('Pair an open slot from one account')
   })
 
-  it('resolves a flag', async () => {
-    signIn('Super Admin')
-    stubDeals()
-    const resolveFlag = vi
-      .spyOn(useAdminDealsStore(), 'resolveFlag')
-      .mockResolvedValue()
-    const wrapper = await mountInApp(DealsPage, {}, { route: '/admin/deals' })
-    await showTab(wrapper, 'flags')
-
-    await click(buttons('Resolve')[0])
-    await click(button('Resolve', document.querySelector('[role="dialog"]')!))
-
-    expect(resolveFlag).toHaveBeenCalledWith(5, '')
-  })
-
   it('lets read-only admins look but not change anything', async () => {
     signIn('Admin (Read-only)')
     stubDeals()
-    const wrapper = await mountInApp(DealsPage, {}, { route: '/admin/deals' })
+    await mountInApp(DealsPage, {}, { route: '/admin/deals' })
 
     expect(hasButton('Create Deal')).toBe(false)
     expect(hasButton('Cancel')).toBe(false)
-    await showTab(wrapper, 'flags')
-    expect(hasButton('Resolve')).toBe(false)
   })
 
   it.each([
     ['deals', 'Failed to load active deals. Please try again.'],
     ['queue', 'Failed to load the wait queue. Please try again.'],
-    ['flags', 'Failed to load flagged deals. Please try again.'],
   ] as const)(
     "shows an error when the %s can't be loaded",
     async (which, description) => {
@@ -754,6 +724,245 @@ describe('admin deals page', () => {
       expect(toasts()[0]).toMatchObject({ color: 'error', description })
     },
   )
+})
+
+describe('admin flags page', () => {
+  // Ruler1 is holding up active deal 10; Ruler3's deal 11 was cancelled; deal 12's offer failed, flagging Ruler5 and Ruler6
+  const stubFlags = (
+    flags = [
+      cancelledDealFlag({
+        id: 6,
+        dealId: 11,
+        flaggedOn: '2026-10-08T18:00:00',
+        flaggedAccount: accountSimplified(3),
+        innocentAccount: accountSimplified(4, { allianceName: 'Rogues' }),
+      }),
+      dealFlag({ id: 5 }),
+      cancelledDealFlag({
+        id: 7,
+        dealId: 12,
+        flagType: DealFlagType.AidFailed,
+        flagReason: DealFlagReason.AidExpired,
+        flaggedAccount: accountSimplified(5),
+        innocentAccount: accountSimplified(6),
+      }),
+      cancelledDealFlag({
+        id: 8,
+        dealId: 12,
+        flagType: DealFlagType.AidFailed,
+        flagReason: DealFlagReason.AidExpired,
+        flaggedAccount: accountSimplified(6),
+        innocentAccount: accountSimplified(5),
+      }),
+    ],
+  ) => {
+    const store = useAdminDealsStore()
+    return vi.spyOn(store, 'loadFlags').mockImplementation(async () => {
+      store.flags = flags
+    })
+  }
+
+  const cards = () =>
+    Array.from(document.querySelectorAll<HTMLElement>('[data-flag-id]'))
+  const cardIds = () => cards().map((card) => Number(card.dataset.flagId))
+  const card = (id: number) =>
+    document.querySelector<HTMLElement>(`[data-flag-id="${id}"]`)!
+  const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]')!
+
+  it('loads the flags, most urgent first, explaining each one', async () => {
+    signIn('Super Admin')
+    const loadFlags = stubFlags()
+
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    expect(loadFlags).toHaveBeenCalled()
+    expect(bodyText()).toContain('4 open flags across 3 deals')
+    expect(bodyText()).toContain('1 still held up')
+    expect(bodyText()).toContain('All (4)')
+    expect(bodyText()).toContain('Active Deals (1)')
+    expect(bodyText()).toContain('Cancelled Deals (3)')
+    expect(cardIds()).toEqual([5, 7, 8, 6])
+
+    const warning = card(5).textContent
+    expect(warning).toContain('1-Day Warning')
+    expect(warning).toContain('Active, still held up')
+    expect(warning).toContain(
+      "It was Ruler1's turn to send $9M to Ruler2, and both nations had a free aid slot.",
+    )
+    expect(warning).toContain("Ruler1 didn't send it.")
+    expect(warning).toContain(
+      'If Ruler1 is still holding up the deal at the daily check on 2026-10-13, VEP cancels it',
+    )
+    const cancelled = card(6).textContent
+    expect(cancelled).toContain('5-Day Cancellation')
+    expect(cancelled).toContain('Cancelled 2026-10-09')
+    expect(cancelled).toContain('Stays open until an admin resolves it')
+    expect(cancelled).toContain(
+      'Expected aid not sent for 5+ days - automatically cancelled',
+    )
+  })
+
+  it('filters by search and by whether the deal is still active', async () => {
+    signIn('Super Admin')
+    stubFlags()
+    const wrapper = await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    await type(
+      inputByPlaceholder(
+        'Search by nation, ruler, alliance, role, or deal #...',
+      ),
+      'rogues',
+    )
+    expect(cardIds()).toEqual([6])
+    expect(bodyText()).toContain('All (1)')
+
+    await type(
+      inputByPlaceholder(
+        'Search by nation, ruler, alliance, role, or deal #...',
+      ),
+      '',
+    )
+    wrapper.findComponent(UTabs).vm.$emit('update:modelValue', 'active')
+    await flushPromises()
+    expect(cardIds()).toEqual([5])
+  })
+
+  it('starts from the search in the link', async () => {
+    signIn('Super Admin')
+    stubFlags()
+
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags?search=%2312' })
+
+    expect(cardIds()).toEqual([7, 8])
+  })
+
+  it('shows the aid behind a flag on request', async () => {
+    signIn('Super Admin')
+    stubFlags()
+    const store = useAdminDealsStore()
+    const loadEvidence = vi
+      .spyOn(store, 'loadFlagEvidence')
+      .mockImplementation(async (flagId) => {
+        store.flagEvidence[flagId] = {
+          legs: [
+            {
+              legNumber: 1,
+              aidId: 1,
+              activityDate: '2026-09-28T00:00:00',
+              sentByFlaggedAccount: true,
+              money: 9_000_000,
+              technology: 0,
+              outcome: DealLegOutcome.Accepted,
+              failureExcused: false,
+            },
+          ],
+          slotsAsOf: '2026-10-10T00:00:00',
+          flaggedSlotsTotal: 4,
+          flaggedSlotAid: [
+            {
+              aidId: 2,
+              sentOn: '2026-10-08T12:00:00',
+              isOutgoing: true,
+              status: 2,
+              money: 3_000_000,
+              technology: 0,
+              soldiers: 0,
+              reason: 'War aid',
+              dealId: null,
+              sentBeforeDeal: false,
+              otherNation: {
+                nationId: 500,
+                nationName: 'Farland',
+                rulerName: 'Faraway',
+                allianceName: 'Other',
+              },
+            },
+          ],
+        }
+      })
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    await click(button('Show aid details', card(5)))
+
+    expect(loadEvidence).toHaveBeenCalledWith(5)
+    const text = card(5).textContent
+    expect(text).toContain('Ruler1 → Ruler2')
+    expect(text).toContain('Accepted')
+    expect(text).toContain("Ruler1's aid slots right now")
+    expect(text).toContain(
+      '1 of 4 in use, 1 outside VEP since this deal started',
+    )
+    expect(text).toContain('Sent to Faraway (Farland)')
+    expect(text).toContain('$3M')
+    expect(text).toContain('Outside VEP')
+    expect(text).toContain('"War aid"')
+  })
+
+  it('clears a warning, then reloads the flags', async () => {
+    signIn('Super Admin')
+    const loadFlags = stubFlags()
+    const resolveFlag = vi
+      .spyOn(useAdminDealsStore(), 'resolveFlag')
+      .mockResolvedValue()
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+    loadFlags.mockClear()
+
+    await click(button('Resolve...', card(5)))
+    expect(dialog().textContent).toContain('Cancel the deal now')
+    await click(button('Clear Flag', dialog()))
+
+    expect(resolveFlag).toHaveBeenCalledWith(5, '')
+    expect(loadFlags).toHaveBeenCalled()
+  })
+
+  it("restores a deal, passing along the partner's flag for failed aid", async () => {
+    signIn('Super Admin')
+    stubFlags()
+    const restore = vi
+      .spyOn(useAdminDealsStore(), 'restoreFlaggedDeal')
+      .mockResolvedValue()
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    await click(button('Resolve...', card(7)))
+    expect(dialog().textContent).toContain(
+      "Clear both accounts' flags, keep the deal cancelled",
+    )
+    await click(dialog().querySelectorAll<HTMLElement>('[role="radio"]')[0])
+    await click(button('Restore Deal', dialog()))
+
+    expect(restore).toHaveBeenCalledWith(7, '')
+  })
+
+  it('lets read-only admins look but not resolve', async () => {
+    signIn('Admin (Read-only)')
+    stubFlags()
+
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    expect(cards()).toHaveLength(4)
+    expect(hasButton('Resolve...')).toBe(false)
+  })
+
+  it('says when there is nothing flagged', async () => {
+    signIn('Super Admin')
+    stubFlags([])
+
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    expect(bodyText()).toContain('No open flags. Every account is clear.')
+  })
+
+  it("shows an error when the flags can't be loaded", async () => {
+    signIn('Super Admin')
+    stubFlags().mockRejectedValue(new Error('down'))
+
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description: 'Failed to load flagged deals. Please try again.',
+    })
+  })
 })
 
 describe('admin messages page', () => {

@@ -349,6 +349,44 @@ describe('admin deals store', () => {
     expect(store.flags.map((f) => f.id)).toEqual([6])
   })
 
+  it('loads the evidence for a flag, and forgets it when the flags reload', async () => {
+    const evidence = {
+      legs: [],
+      slotsAsOf: '2026-10-10T00:00:00',
+      flaggedSlotsTotal: 4,
+      flaggedSlotAid: [],
+    }
+    apiFetch.mockResolvedValueOnce(apiOk(evidence))
+    const store = useAdminDealsStore()
+
+    await store.loadFlagEvidence(5)
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/deals/admin/flags/5/evidence')
+    expect(store.flagEvidence[5]).toEqual(evidence)
+
+    apiFetch.mockResolvedValueOnce(apiOk([dealFlag()]))
+    await store.loadFlags()
+    expect(store.flagEvidence).toEqual({})
+  })
+
+  it("restores a flag's deal, dropping every flag on that deal", async () => {
+    apiFetch.mockResolvedValue(apiOk(null))
+    const store = useAdminDealsStore()
+    store.flags = [
+      dealFlag({ id: 5, dealId: 10 }),
+      dealFlag({ id: 6, dealId: 10 }),
+      dealFlag({ id: 7, dealId: 11 }),
+    ]
+
+    await store.restoreFlaggedDeal(5, 'on vacation')
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/deals/admin/flags/5/restore', {
+      method: 'PUT',
+      body: { adminNotes: 'on vacation' },
+    })
+    expect(store.flags.map((f) => f.id)).toEqual([7])
+  })
+
   it("loads an account's open slots", async () => {
     apiFetch.mockResolvedValueOnce(apiOk([slot(3)]))
     const store = useAdminDealsStore()
@@ -367,6 +405,8 @@ describe('admin deals store', () => {
     ['cancelDeal', [10, 'x']],
     ['createDeal', [1, 2]],
     ['resolveFlag', [5, '']],
+    ['restoreFlaggedDeal', [5, '']],
+    ['loadFlagEvidence', [5]],
     ['loadAvailableSlots', [1]],
   ])('%s throws on failure', async (action, args) => {
     apiFetch.mockResolvedValue(apiError(failure))

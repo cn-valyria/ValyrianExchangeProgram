@@ -306,6 +306,73 @@ public class DealsController : ControllerBase
     }
 
     /// <summary>
+    /// Get the aid behind a deal flag: the deal's legs and what held the flagged nation's slots (admin only)
+    /// </summary>
+    [HttpGet("admin/flags/{flagId}/evidence")]
+    [Authorize(Policy = Policies.ViewAdminPortal)]
+    public async Task<IActionResult> GetDealFlagEvidence(int flagId)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName} with flagId={FlagId}", nameof(GetDealFlagEvidence), flagId);
+
+        try
+        {
+            var result = await _dealsRepository.GetDealFlagEvidenceAsync(flagId);
+
+            if (result == null)
+            {
+                _logger.LogWarning("Flag with id={FlagId} not found", flagId);
+                return NotFound(new { error = $"Flag with id {flagId} not found" });
+            }
+
+            _logger.LogInformation("{MethodName} execution complete. Found {LegCount} legs and {SlotAidCount} aid in the flagged nation's slots",
+                nameof(GetDealFlagEvidence), result.Legs.Count, result.FlaggedSlotAid.Count);
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetDealFlagEvidence)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
+    /// Restore the deal a flag cancelled, resolving the deal's open flags (admin only)
+    /// </summary>
+    [HttpPut("admin/flags/{flagId}/restore")]
+    [Authorize(Policy = Policies.ManageProgram)]
+    public async Task<IActionResult> RestoreFlaggedDeal(int flagId, [FromBody] ResolveFlagRequest request)
+    {
+        _logger.LogInformation("Beginning execution for {MethodName} with flagId={FlagId}", nameof(RestoreFlaggedDeal), flagId);
+
+        try
+        {
+            var result = await _dealsRepository.RestoreFlaggedDealAsync(flagId, User.GetAuditName(), request.AdminNotes);
+
+            switch (result)
+            {
+                case DealRestoreResult.FlagNotFound:
+                    _logger.LogWarning("Open flag with id={FlagId} not found", flagId);
+                    return NotFound(new { error = $"Open flag with id {flagId} not found" });
+                case DealRestoreResult.NotRestorable:
+                    _logger.LogWarning("Deal for flag with id={FlagId} can't be restored", flagId);
+                    return Conflict(new { error = "This flag's deal can't be restored. Its slots or accounts may no longer be free." });
+            }
+
+            _logger.LogInformation("{MethodName} execution complete for flagId={FlagId}", nameof(RestoreFlaggedDeal), flagId);
+
+            return NoContent();
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(RestoreFlaggedDeal)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
     /// Resolve a deal flag (admin only)
     /// </summary>
     [HttpPut("admin/flags/{flagId}/resolve")]

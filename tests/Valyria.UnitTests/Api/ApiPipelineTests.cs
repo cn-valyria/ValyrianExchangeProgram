@@ -134,6 +134,8 @@ public class ApiPipelineTests : IDisposable
         { "GET", "/api/deals/admin/wait-queue", null, View },
         { "GET", "/api/deals/admin/flagged", null, View },
         { "PUT", "/api/deals/admin/flags/1/resolve", "{}", Manage },
+        { "GET", "/api/deals/admin/flags/1/evidence", null, View },
+        { "PUT", "/api/deals/admin/flags/1/restore", "{}", Manage },
         { "GET", "/api/slots/account/7", null, View },
         { "GET", "/api/slots/available/7", null, View },
         { "PUT", "/api/slots/1", "{}", Manage },

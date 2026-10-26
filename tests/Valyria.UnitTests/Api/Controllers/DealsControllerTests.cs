@@ -296,4 +296,80 @@ public class DealsControllerTests
 
         AssertServerError(await CreateController().ResolveDealFlag(9, new ResolveFlagRequest()), "boom");
     }
+
+    [Fact]
+    public async Task GetDealFlagEvidence_ReturnsTheEvidence()
+    {
+        var evidence = new DealFlagEvidence { FlaggedSlotsTotal = 4 };
+        _repository.GetDealFlagEvidenceAsync(9).Returns(evidence);
+
+        Assert.Same(evidence, AssertOk<DealFlagEvidence>(await CreateController().GetDealFlagEvidence(9)));
+    }
+
+    [Fact]
+    public async Task GetDealFlagEvidence_Returns404_WhenTheFlagIsMissing()
+    {
+        _repository.GetDealFlagEvidenceAsync(9).Returns((DealFlagEvidence)null!);
+
+        Assert.IsType<NotFoundObjectResult>(await CreateController().GetDealFlagEvidence(9));
+    }
+
+    [Fact]
+    public async Task GetDealFlagEvidence_Returns500_OnError()
+    {
+        _repository.GetDealFlagEvidenceAsync(9).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await CreateController().GetDealFlagEvidence(9), "boom");
+    }
+
+    [Theory]
+    [InlineData(DealRestoreResult.Restored, typeof(NoContentResult))]
+    [InlineData(DealRestoreResult.FlagNotFound, typeof(NotFoundObjectResult))]
+    [InlineData(DealRestoreResult.NotRestorable, typeof(ConflictObjectResult))]
+    public async Task RestoreFlaggedDeal_RestoresAsTheSignedInRulerName(DealRestoreResult result, Type expected)
+    {
+        _repository.RestoreFlaggedDealAsync(9, "Bob", "ok").Returns(result);
+
+        Assert.IsType(expected, await CreateController("Bob").RestoreFlaggedDeal(9, new ResolveFlagRequest { AdminNotes = "ok" }));
+
+        await _repository.Received(1).RestoreFlaggedDealAsync(9, "Bob", "ok");
+    }
+
+    [Fact]
+    public async Task RestoreFlaggedDeal_Returns500_OnError()
+    {
+        _repository.RestoreFlaggedDealAsync(9, Arg.Any<string>(), Arg.Any<string?>()).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await CreateController().RestoreFlaggedDeal(9, new ResolveFlagRequest()), "boom");
+    }
+
+    [Fact]
+    public void DealFlagDetail_CanOnlyRestoreDealsItsFlagCancelled_WhileTheirSlotsAndAccountsAreFree()
+    {
+        static DealFlagDetail Flag(Action<DealFlagDetail>? change = null)
+        {
+            var flag = new DealFlagDetail
+            {
+                FlagType = DealFlagType.FiveDayReplacement,
+                DealStatus = DealStatus.Cancelled,
+                DealCancelledBy = "system",
+                FlaggedSlot = new SlotDetail { CashSentCycles = 1, TechReceivedCycles = 1 },
+                InnocentSlot = new SlotDetail { CashReceivedCycles = 1, TechSentCycles = 1 }
+            };
+            change?.Invoke(flag);
+            return flag;
+        }
+
+        Assert.True(Flag().CanRestoreDeal);
+        Assert.True(Flag(f => f.FlagType = DealFlagType.AidFailed).CanRestoreDeal);
+        Assert.False(Flag(f => f.FlagType = DealFlagType.OneDayInactive).CanRestoreDeal);
+        Assert.False(Flag(f => f.DealStatus = DealStatus.Active).CanRestoreDeal);
+        Assert.False(Flag(f => f.DealCancelledBy = "Bob").CanRestoreDeal);
+        Assert.False(Flag(f => f.FlaggedSlotOtherDealId = 3).CanRestoreDeal);
+        Assert.False(Flag(f => f.InnocentSlotOtherDealId = 3).CanRestoreDeal);
+        Assert.False(Flag(f => f.PairOtherDealId = 3).CanRestoreDeal);
+        Assert.False(Flag(f => f.FlaggedAccountOnHold = true).CanRestoreDeal);
+        Assert.False(Flag(f => f.InnocentAccountOnHold = true).CanRestoreDeal);
+        Assert.False(Flag(f => f.InnocentSlot.TechSentCycles = 2).CanRestoreDeal);
+    }
 }

@@ -92,13 +92,13 @@ public sealed class TestData(string connectionString)
 
     public Task<int> DealActivityAsync(int dealId, int legNumber, int senderNationId, int receiverNationId,
         DateTime activityDate, int? aidId = null, DateTime? approvedOn = null, bool linkedLate = false,
-        string? failureReason = null) => ScalarAsync<int>(@"
+        string? failureReason = null, DateTime? failedOn = null) => ScalarAsync<int>(@"
         insert into vep_db.deal_activity (deal_id, aid_id, leg_number, expected_sender_nation_id,
-            expected_receiver_nation_id, activity_date, approved_on, linked_late, failure_reason)
+            expected_receiver_nation_id, activity_date, approved_on, linked_late, failure_reason, failed_on)
         values (@dealId, @aidId, @legNumber, @senderNationId, @receiverNationId, @activityDate, @approvedOn,
-            @linkedLate, @failureReason);
+            @linkedLate, @failureReason, @failedOn);
         select last_insert_id();",
-        new { dealId, aidId, legNumber, senderNationId, receiverNationId, activityDate, approvedOn, linkedLate, failureReason });
+        new { dealId, aidId, legNumber, senderNationId, receiverNationId, activityDate, approvedOn, linkedLate, failureReason, failedOn });
 
     public Task<int> DealFlagAsync(int dealId, string flagType, int flaggedAccountId, int innocentAccountId,
         string? flagReason = null, DateTime? flaggedOn = null, DateTime? resolvedOn = null) => ScalarAsync<int>(@"

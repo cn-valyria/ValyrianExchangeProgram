@@ -3,8 +3,11 @@ import type {
   AccountSimplified,
   DealActivityState,
   DealBlockedReason,
+  DealLegOutcome,
+  DealStatus,
   SlotDetail,
 } from './account'
+import type { NationSimplified } from './shared/nationSimplified'
 
 export interface AdminDeal {
   id: number
@@ -62,12 +65,85 @@ export interface DealFlag {
   flagType: DealFlagType
   // Null for flags raised before VEP 3.0's activity rules
   flagReason: DealFlagReason | null
+  // Names are null if the account's nation has been deleted
   flaggedAccount: AccountSimplified
   innocentAccount: AccountSimplified
   flaggedOn: string
   resolvedOn: string | null
   resolvedBy: string | null
   adminNotes: string | null
+  flaggedAccountRole: string
+  innocentAccountRole: string
+  // Open flags against the flagged account, this one included. It isn't matched until they're all resolved
+  flaggedAccountOpenFlagCount: number
+  flaggedSlot: SlotDetail
+  innocentSlot: SlotDetail
+  dealStatus: DealStatus
+  dealCreatedOn: string
+  dealCancelledOn: string | null
+  dealCancelledBy: string | null
+  cancellationReason: string | null
+  // The deal's current state. Null once it's cancelled, or until the data loader picks up a restored deal
+  state: DealActivityState | null
+  blockedReason: DealBlockedReason | null
+  stateSince: string | null
+  nextSenderAccountId: number | null
+  responsibleAccountId: number | null
+  daysResponsible: number | null
+  cancelsOn: string | null
+  inFlightUntil: string | null
+  blockedUntil: string | null
+  // Legs that haven't failed, including any in flight
+  legsCompleted: number
+  flaggedLastSentOn: string | null
+  // What stops the deal being restored
+  flaggedSlotOtherDealId: number | null
+  innocentSlotOtherDealId: number | null
+  pairOtherDealId: number | null
+  flaggedAccountOnHold: boolean
+  innocentAccountOnHold: boolean
+  slotsStillMatch: boolean
+  canRestoreDeal: boolean
+}
+
+export interface FlagDealLeg {
+  legNumber: number
+  aidId: number | null
+  activityDate: string
+  sentByFlaggedAccount: boolean
+  money: number
+  technology: number
+  outcome: DealLegOutcome
+  // The leg failed, but an admin restored the deal it cancelled
+  failureExcused: boolean
+}
+
+export interface FlagSlotAid {
+  aidId: number
+  sentOn: string
+  // True if the flagged nation sent it
+  isOutgoing: boolean
+  status: number
+  money: number
+  technology: number
+  soldiers: number
+  reason: string | null
+  // The deal this aid is a leg of, if any
+  dealId: number | null
+  // Sent before the flag's deal was created, so it isn't held against the nation
+  sentBeforeDeal: boolean
+  // Names are null if the nation has since been deleted
+  otherNation: NationSimplified
+}
+
+export interface DealFlagEvidence {
+  // Oldest first
+  legs: FlagDealLeg[]
+  // CN date: today while the deal is active, otherwise the day the flag was raised
+  slotsAsOf: string
+  flaggedSlotsTotal: number
+  // Aid that held one of the flagged nation's slots as of slotsAsOf, oldest first
+  flaggedSlotAid: FlagSlotAid[]
 }
 
 export const useAdminDealsStore = defineStore('adminDeals', {
@@ -75,6 +151,7 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     activeDeals: { totalCount: 0, results: [] } as AdminDealPage,
     waitQueue: [] as WaitQueueEntry[],
     flags: [] as DealFlag[],
+    flagEvidence: {} as Record<number, DealFlagEvidence>,
   }),
 
   actions: {
@@ -130,6 +207,25 @@ export const useAdminDealsStore = defineStore('adminDeals', {
 
       if (data.value) {
         this.flags = data.value as DealFlag[]
+        // Evidence for an active deal goes stale between loads
+        this.flagEvidence = {}
+      }
+    },
+
+    async loadFlagEvidence(flagId: number) {
+      const { apiFetch } = useApiClient()
+
+      const { data, error } = await apiFetch<DealFlagEvidence>(
+        `/api/deals/admin/flags/${flagId}/evidence`,
+      )
+
+      if (error.value) {
+        console.error('Failed to load flag evidence:', error.value)
+        throw error.value
+      }
+
+      if (data.value) {
+        this.flagEvidence[flagId] = data.value as DealFlagEvidence
       }
     },
 
@@ -178,6 +274,27 @@ export const useAdminDealsStore = defineStore('adminDeals', {
       }
 
       this.flags = this.flags.filter((flag) => flag.id !== flagId)
+    },
+
+    // Restoring resolves every open flag on the deal, so they all leave the list
+    async restoreFlaggedDeal(flagId: number, adminNotes: string) {
+      const { apiFetch } = useApiClient()
+
+      const { error } = await apiFetch<null>(
+        `/api/deals/admin/flags/${flagId}/restore`,
+        {
+          method: 'PUT',
+          body: { adminNotes },
+        },
+      )
+
+      if (error.value) {
+        console.error('Failed to restore deal:', error.value)
+        throw error.value
+      }
+
+      const dealId = this.flags.find((flag) => flag.id === flagId)?.dealId
+      this.flags = this.flags.filter((flag) => flag.dealId !== dealId)
     },
 
     async loadAvailableSlots(accountId: number): Promise<SlotDetail[]> {

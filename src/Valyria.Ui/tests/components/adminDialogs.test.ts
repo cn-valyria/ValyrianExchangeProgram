@@ -19,11 +19,14 @@ import CancelDealDialog from '~/components/admin/CancelDealDialog.vue'
 import CreateDealDialog from '~/components/admin/CreateDealDialog.vue'
 import DealSlotPicker from '~/components/admin/DealSlotPicker.vue'
 import ResolveFlagDialog from '~/components/admin/ResolveFlagDialog.vue'
+import { DealFlagType } from '~/stores/adminDeals'
 import {
+  accountSimplified,
   adminAccount,
   adminDeal,
   apiError,
   apiOk,
+  cancelledDealFlag,
   dealFlag,
   slot,
 } from '../helpers/fixtures'
@@ -112,7 +115,12 @@ describe('CancelDealDialog', () => {
 })
 
 describe('ResolveFlagDialog', () => {
-  it('resolves the flag with the notes', async () => {
+  const radios = () =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>('[role="dialog"] [role="radio"]'),
+    )
+
+  it('clears the flag with the notes by default', async () => {
     const resolveFlag = vi
       .spyOn(useAdminDealsStore(), 'resolveFlag')
       .mockResolvedValue()
@@ -121,18 +129,95 @@ describe('ResolveFlagDialog', () => {
     })
 
     expect(bodyText()).toContain('Resolve Flag on Deal #10')
+    expect(bodyText()).toContain(
+      '1-Day Warning against Ruler1 · Active, still held up',
+    )
+    expect(bodyText()).toContain("This doesn't stop the clock")
     await type(
       inputByPlaceholder('Optional notes on how this was resolved'),
       ' Partner was on vacation ',
     )
-    await click(button('Resolve'))
+    await click(button('Clear Flag'))
 
     expect(resolveFlag).toHaveBeenCalledWith(5, 'Partner was on vacation')
     expect(toasts()[0]).toMatchObject({
       color: 'success',
-      description: 'Flag resolved.',
+      description: 'Flag cleared.',
     })
     expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it('cancels a held-up deal with a reason, then clears the warning', async () => {
+    const store = useAdminDealsStore()
+    const cancelDeal = vi.spyOn(store, 'cancelDeal').mockResolvedValue()
+    const resolveFlag = vi.spyOn(store, 'resolveFlag').mockResolvedValue()
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: dealFlag({ id: 5, dealId: 10 }),
+    })
+
+    await click(radios()[1])
+    expect(button('Cancel Deal').disabled).toBe(true)
+    await type(
+      inputByPlaceholder('Why is this deal being cancelled?'),
+      'Inactive for a week',
+    )
+    await click(button('Cancel Deal'))
+
+    expect(cancelDeal).toHaveBeenCalledWith(10, 'Inactive for a week')
+    expect(resolveFlag).toHaveBeenCalledWith(5, 'Inactive for a week')
+    expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it('restores a deal cancelled by its flag', async () => {
+    const restore = vi
+      .spyOn(useAdminDealsStore(), 'restoreFlaggedDeal')
+      .mockResolvedValue()
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: cancelledDealFlag({ id: 5, dealId: 10 }),
+    })
+
+    await click(radios()[0])
+    await click(button('Restore Deal'))
+
+    expect(restore).toHaveBeenCalledWith(5, '')
+    expect(toasts()[0]).toMatchObject({ description: 'Deal #10 restored.' })
+    expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it("explains why a deal can't be restored, and won't select it", async () => {
+    await openDialog(ResolveFlagDialog, {
+      flag: cancelledDealFlag({
+        innocentSlotOtherDealId: 31,
+        canRestoreDeal: false,
+      }),
+    })
+
+    expect(bodyText()).toContain(
+      "Not available: Ruler2's slot #1 has been matched into deal #31 since.",
+    )
+    expect(radios()[0].hasAttribute('disabled')).toBe(true)
+  })
+
+  it("clears both accounts' flags for failed aid", async () => {
+    const resolveFlag = vi
+      .spyOn(useAdminDealsStore(), 'resolveFlag')
+      .mockResolvedValue()
+    await openDialog(ResolveFlagDialog, {
+      flag: cancelledDealFlag({ id: 5, flagType: DealFlagType.AidFailed }),
+      partnerFlag: cancelledDealFlag({
+        id: 6,
+        flagType: DealFlagType.AidFailed,
+        flaggedAccount: accountSimplified(2),
+        innocentAccount: accountSimplified(1),
+      }),
+    })
+
+    await click(radios()[2])
+    await click(button('Clear Both Flags'))
+
+    expect(resolveFlag).toHaveBeenNthCalledWith(1, 5, '')
+    expect(resolveFlag).toHaveBeenNthCalledWith(2, 6, '')
+    expect(toasts()[0]).toMatchObject({ description: 'Both flags cleared.' })
   })
 
   it('stays open with an error when resolving fails', async () => {
@@ -143,9 +228,29 @@ describe('ResolveFlagDialog', () => {
       flag: dealFlag(),
     })
 
-    await click(button('Resolve'))
+    await click(button('Clear Flag'))
 
     expect(toasts()[0]).toMatchObject({ color: 'error' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('says to reload when the deal can no longer be restored', async () => {
+    vi.spyOn(useAdminDealsStore(), 'restoreFlaggedDeal').mockRejectedValue({
+      statusCode: 409,
+      message: 'Conflict',
+    })
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: cancelledDealFlag(),
+    })
+
+    await click(radios()[0])
+    await click(button('Restore Deal'))
+
+    expect(toasts()[0]).toMatchObject({
+      color: 'error',
+      description:
+        "This deal can't be restored any more. Reload the page to see why.",
+    })
     expect(onClose).not.toHaveBeenCalled()
   })
 

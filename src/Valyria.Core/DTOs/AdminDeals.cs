@@ -67,6 +67,68 @@ public class AidActivityPage
     public List<AidActivityItem> Results { get; set; } = new();
 }
 
+/// <summary>
+/// The aid behind a deal flag
+/// </summary>
+public class DealFlagEvidence
+{
+    /// <summary>
+    /// Every leg of the flag's deal, oldest first
+    /// </summary>
+    public List<FlagDealLeg> Legs { get; set; } = new();
+    /// <summary>
+    /// CN date the slot aid is as of: today while the deal is active, otherwise the day the flag was raised
+    /// </summary>
+    public DateTime SlotsAsOf { get; set; }
+    public int FlaggedSlotsTotal { get; set; }
+    /// <summary>
+    /// Aid sent or received by the flagged nation that held one of its in-game aid slots as of SlotsAsOf, oldest first
+    /// </summary>
+    public List<FlagSlotAid> FlaggedSlotAid { get; set; } = new();
+}
+
+public class FlagDealLeg
+{
+    public int LegNumber { get; set; }
+    public int? AidId { get; set; }
+    public DateTime ActivityDate { get; set; }
+    public bool SentByFlaggedAccount { get; set; }
+    public int Money { get; set; }
+    public int Technology { get; set; }
+    public DealLegOutcome Outcome { get; set; }
+    /// <summary>
+    /// The leg failed, but an admin restored the deal it cancelled
+    /// </summary>
+    public bool FailureExcused { get; set; }
+}
+
+public class FlagSlotAid
+{
+    public int AidId { get; set; }
+    public DateTime SentOn { get; set; }
+    /// <summary>
+    /// True if the flagged nation sent it, false if it received it
+    /// </summary>
+    public bool IsOutgoing { get; set; }
+    public int Status { get; set; }
+    public int Money { get; set; }
+    public int Technology { get; set; }
+    public int Soldiers { get; set; }
+    public string Reason { get; set; }
+    /// <summary>
+    /// The deal this aid is a leg of, if any
+    /// </summary>
+    public int? DealId { get; set; }
+    /// <summary>
+    /// Sent before the flag's deal was created, so VEP doesn't hold it against the nation
+    /// </summary>
+    public bool SentBeforeDeal { get; set; }
+    /// <summary>
+    /// The nation on the other side. Names are null if the nation has since been deleted
+    /// </summary>
+    public NationSimplified OtherNation { get; set; }
+}
+
 public class AidActivityFilters
 {
     /// <summary>
