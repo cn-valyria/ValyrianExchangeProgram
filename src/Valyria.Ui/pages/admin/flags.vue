@@ -49,8 +49,22 @@
           :content="false"
           class="w-full sm:w-auto"
         />
-        <div class="text-sm text-gray-600 dark:text-gray-400">
-          {{ resultSummary }}
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm text-gray-600 dark:text-gray-400">
+            {{ resultSummary }}
+          </div>
+          <UButton
+            :label="expandAll ? 'Collapse all' : 'Expand all'"
+            :icon="
+              expandAll
+                ? 'i-heroicons-arrows-pointing-in'
+                : 'i-heroicons-arrows-pointing-out'
+            "
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="toggleExpandAll()"
+          />
         </div>
       </div>
 
@@ -70,17 +84,34 @@
           }}
         </div>
       </UCard>
-      <div v-else class="space-y-4">
-        <FlagCard
-          v-for="flag in visibleFlags"
-          :key="flag.id"
-          :data-flag-id="flag.id"
-          :flag="flag"
-          :today="today"
-          :read-only="isReadOnly"
-          @resolve="openResolveFlag"
-        />
-      </div>
+      <UCard v-else :ui="{ body: 'p-0 sm:p-0' }">
+        <div
+          :class="[
+            'hidden px-4 py-2 text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800',
+            FLAG_ROW_GRID,
+          ]"
+        >
+          <div class="pl-9">Flag</div>
+          <div>Flagged Account</div>
+          <div>Partner</div>
+          <div>Deal</div>
+          <div>If Left Alone</div>
+          <div />
+        </div>
+        <div class="divide-y divide-gray-200 dark:divide-gray-800">
+          <FlagRow
+            v-for="flag in visibleFlags"
+            :key="flag.id"
+            :data-flag-id="flag.id"
+            :flag="flag"
+            :today="today"
+            :read-only="isReadOnly"
+            :expanded="isExpanded(flag)"
+            @toggle="toggleFlag"
+            @resolve="openResolveFlag"
+          />
+        </div>
+      </UCard>
     </div>
   </UContainer>
 </template>
@@ -88,6 +119,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import {
+  FLAG_ROW_GRID,
   findPartnerFlag,
   getCnToday,
   isOnActiveDeal,
@@ -99,7 +131,7 @@ import {
 } from '~/infrastructure/flags'
 import { useAdminDealsStore, type DealFlag } from '~/stores/adminDeals'
 import { useAuthStore } from '~/stores/auth'
-import FlagCard from '~/components/admin/FlagCard.vue'
+import FlagRow from '~/components/admin/FlagRow.vue'
 import ResolveFlagDialog from '~/components/admin/ResolveFlagDialog.vue'
 
 const toast = useToast()
@@ -189,6 +221,31 @@ const resultSummary = computed(() => {
   return `Showing ${plural(visibleFlags.value.length, 'flag')} on ${plural(accounts, 'account')}, most urgent first`
 })
 
+// Rows start collapsed, or all open for admins who prefer working through them that way. The
+// choice is remembered in this browser; rows toggled by hand are the exceptions to it
+const EXPAND_ALL_KEY = 'vep.adminFlags.expandAll'
+const expandAll = ref<boolean>(false)
+const toggledIds = ref<Set<number>>(new Set())
+
+const isExpanded = (flag: DealFlag): boolean =>
+  expandAll.value !== toggledIds.value.has(flag.id)
+
+const toggleFlag = (flag: DealFlag): void => {
+  const toggled = new Set(toggledIds.value)
+  if (!toggled.delete(flag.id)) toggled.add(flag.id)
+  toggledIds.value = toggled
+}
+
+const toggleExpandAll = (): void => {
+  expandAll.value = !expandAll.value
+  toggledIds.value = new Set()
+  try {
+    localStorage.setItem(EXPAND_ALL_KEY, String(expandAll.value))
+  } catch {
+    // Storage can be blocked; the choice just won't be remembered
+  }
+}
+
 const loadFlags = async (): Promise<void> => {
   try {
     await adminDealsStore.loadFlags()
@@ -213,6 +270,11 @@ const openResolveFlag = async (flag: DealFlag): Promise<void> => {
 }
 
 onMounted(async () => {
+  try {
+    expandAll.value = localStorage.getItem(EXPAND_ALL_KEY) === 'true'
+  } catch {
+    // Storage can be blocked; start collapsed
+  }
   await loadFlags()
   loading.value = false
 })
