@@ -98,12 +98,26 @@
               :alliance-name="party.slot.account.allianceName"
             />
             <div class="min-w-0">
-              <NuxtLink
-                :to="`/account/${party.slot.account.accountId}`"
-                class="font-medium text-gray-900 dark:text-white hover:underline"
-              >
-                {{ getAccountName(party.slot.account) }}
-              </NuxtLink>
+              <div class="flex items-center gap-1">
+                <NuxtLink
+                  :to="{
+                    path: '/admin/accounts',
+                    query: { account: party.slot.account.accountId },
+                  }"
+                  class="font-medium text-gray-900 dark:text-white hover:underline"
+                >
+                  {{ getAccountName(party.slot.account) }}
+                </NuxtLink>
+                <UButton
+                  :to="getNationLink(party.slot.account)"
+                  target="_blank"
+                  icon="i-heroicons-arrow-top-right-on-square"
+                  aria-label="Open nation in CN"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                />
+              </div>
               <div class="text-sm text-gray-500 dark:text-gray-400 truncate">
                 {{ party.slot.account.nationName ?? 'Nation deleted' }} · Slot
                 #{{ party.slot.slotNumber }} · sends
@@ -193,7 +207,11 @@
 </template>
 
 <script setup lang="ts">
-import { describeAid, type BadgeColor } from '~/infrastructure/deals'
+import {
+  describeAid,
+  getNationLink,
+  type BadgeColor,
+} from '~/infrastructure/deals'
 import {
   describeExpectation,
   describeWhatHappened,

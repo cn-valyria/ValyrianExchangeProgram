@@ -70,6 +70,8 @@ import AccountEditDialog from '~/components/admin/AccountEditDialog.vue'
 
 const toast = useToast()
 const overlay = useOverlay()
+const route = useRoute()
+const router = useRouter()
 
 const modal = overlay.create(AccountEditDialog)
 
@@ -297,12 +299,43 @@ const handleToggleChange = async (): Promise<void> => {
   }
 }
 
+// Other pages link here to a specific account, e.g. ?account=12. Read-only admins can't open the
+// edit dialog, so they get the table narrowed to that account instead
+const openLinkedAccount = async (): Promise<void> => {
+  const accountId = Number(route.query.account)
+  if (!accountId) return
+
+  // Drop the query so closing the dialog and refreshing doesn't reopen it
+  router.replace({ query: { ...route.query, account: undefined } })
+
+  let account = accounts.value.find((a) => a.id === accountId)
+  if (!account && !showOnHold.value) {
+    showOnHold.value = true
+    await adminAccountsStore.loadAllAccounts(showOnHold.value)
+    account = accounts.value.find((a) => a.id === accountId)
+  }
+
+  if (!account) {
+    toast.add({
+      color: 'warning',
+      title: 'Account not found',
+      description: `No VEP account with ID ${accountId} was found.`,
+      duration: 5000,
+    })
+  } else if (isReadOnly.value) {
+    searchQuery.value = account.rulerName
+  } else {
+    editAccount(account)
+  }
+}
+
 // Check admin access and load accounts on mount
 onMounted(async () => {
   loading.value = true
   try {
     await adminAccountsStore.loadAllAccounts(showOnHold.value)
     console.log('Accounts loaded:', accounts.value)
+    await openLinkedAccount()
   } catch (error) {
     console.error('Failed to load accounts:', error)
     toast.add({

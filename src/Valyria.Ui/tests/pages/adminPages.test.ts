@@ -261,6 +261,57 @@ describe('admin accounts page', () => {
     expect(bodyText()).toContain("Sue's Account")
   })
 
+  it('opens the account linked from another page', async () => {
+    signIn('Super Admin')
+    stubAccounts()
+    vi.spyOn(useAdminAccountsStore(), 'loadAccountSlots').mockResolvedValue([])
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=2' })
+
+    expect(bodyText()).toContain("Sue's Account")
+  })
+
+  it('looks in on-hold accounts for a linked account', async () => {
+    signIn('Super Admin')
+    const store = useAdminAccountsStore()
+    const load = vi
+      .spyOn(store, 'loadAllAccounts')
+      .mockImplementation(async (includeOnHold) => {
+        store.accounts = includeOnHold
+          ? accounts.map((a) => ({ ...a }))
+          : [{ ...accounts[0] }]
+      })
+    vi.spyOn(store, 'loadAccountSlots').mockResolvedValue([])
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=2' })
+
+    expect(load).toHaveBeenLastCalledWith(true)
+    expect(bodyText()).toContain("Sue's Account")
+  })
+
+  it('warns when the linked account is missing', async () => {
+    signIn('Super Admin')
+    stubAccounts()
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=99' })
+
+    expect(toasts().at(-1)).toMatchObject({
+      color: 'warning',
+      title: 'Account not found',
+    })
+  })
+
+  it('narrows the table to a linked account for read-only admins', async () => {
+    signIn('Admin (Read-only)')
+    stubAccounts()
+
+    await mountInApp(AccountsPage, {}, { route: '/admin/accounts?account=2' })
+
+    expect(bodyText()).not.toContain("Sue's Account")
+    expect(tableRows()).toHaveLength(1)
+    expect(tableRows()[0]).toContain('Sue')
+  })
+
   it('deletes an account', async () => {
     signIn('Super Admin')
     stubAccounts()
@@ -910,6 +961,25 @@ describe('admin flags page', () => {
     expect(text).toContain('$3M')
     expect(text).toContain('Outside VEP')
     expect(text).toContain('"War aid"')
+  })
+
+  it('links each party to its admin account and its CN nation', async () => {
+    signIn('Super Admin')
+    stubFlags()
+    await mountInApp(FlagsPage, {}, { route: '/admin/flags' })
+
+    await click(
+      card(5).querySelector<HTMLElement>('[aria-label="Show details"]')!,
+    )
+
+    const hrefs = Array.from(card(5).querySelectorAll('a')).map((a) =>
+      a.getAttribute('href'),
+    )
+    // Ruler1 is account 1, nation 101
+    expect(hrefs).toContain('/admin/accounts?account=1')
+    expect(hrefs).toContain(
+      'https://www.cybernations.net/nation_drill_display.asp?Nation_ID=101',
+    )
   })
 
   it('expands one row at a time, or all of them, remembering the choice', async () => {
