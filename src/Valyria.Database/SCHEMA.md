@@ -135,6 +135,16 @@ Any unresolved flag keeps the account out of matching.
 
 Recipients aren't stored; the API works them out from `deal_state` and `deal_flag` each time the page loads. The old `list`, `list_recipient` and `account_list_performance` tables are left in place but unused.
 
+### [V15__restore_flagged_deals.sql](migrations/V15__restore_flagged_deals.sql)
+**VEP 3.0: Restoring deals cancelled by a flag**
+
+Admins can restore a deal cancelled by a `5_day_replacement` or `aid_failed` flag. The deal goes back to active with a fresh `deal_state`, and its cancellation flags are resolved. `deal_activity.failure_excused` (new) marks the failed legs of a restored deal, which `check_deal_inactivity()` (rewritten) no longer cancels the deal over.
+
+### [V16__deal_extensions.sql](migrations/V16__deal_extensions.sql)
+**VEP 3.0: Giving an account more time before a deal is cancelled**
+
+Resolving a 1-day warning doesn't move the cancellation, so admins grant an extension instead (`deal_extension`, new): `five_days` moves the deadline 5 days past its current date, and `until_next_leg` stops warnings and cancellation altogether. An extension only applies while the same account is holding up the deal and no new leg has been recorded. `deal_deadline` (new view) gives each deal's clock with any extension applied; `check_deal_inactivity()` (rewritten), the mass messages and the deal pages all use it, and the check ends extensions that no longer apply.
+
 ## Database Architecture
 
 ### Two-Database Design

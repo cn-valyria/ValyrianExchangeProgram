@@ -15,6 +15,7 @@ import { adminDeal } from '../helpers/fixtures'
 import {
   DealActivityState,
   DealBlockedReason,
+  DealExtensionKind,
   type DealDetail,
   type SlotDetail,
 } from '~/stores/account'
@@ -447,7 +448,7 @@ describe('getAdminDealStatus', () => {
     )
     expect(today).toMatchObject({ label: 'Awaiting Send', color: 'warning' })
     expect(today.detail).toBe(
-      'Ruler1 should send. Ruler1 has held it up for 0 days; cancels on 2026-10-14.',
+      'Ruler1 should send. Ruler1 has held it up for 0 days; cancels 2026-10-14.',
     )
 
     const late = getAdminDealStatus(
@@ -455,6 +456,27 @@ describe('getAdminDealStatus', () => {
     )
     expect(late.color).toBe('error')
     expect(late.detail).toContain('1 day;')
+  })
+
+  it.each([
+    [
+      DealExtensionKind.FiveDays,
+      'Ruler1 has held it up for 7 days; cancels 2026-10-18 (extended by Bob).',
+    ],
+    [
+      DealExtensionKind.UntilNextLeg,
+      'Ruler1 has held it up for 7 days; no deadline until the next aid (extended by Bob).',
+    ],
+  ])('says when an admin gave the account more time (%s)', (kind, text) => {
+    const deal = adminDeal({
+      responsibleAccountId: 1,
+      daysResponsible: 7,
+      cancelsOn:
+        kind === DealExtensionKind.FiveDays ? '2026-10-18T00:00:00' : null,
+      extensionKind: kind,
+      extendedBy: 'Bob',
+    })
+    expect(getAdminDealStatus(deal).detail).toContain(text)
   })
 
   it("leaves out who's holding up a deal when no one is", () => {

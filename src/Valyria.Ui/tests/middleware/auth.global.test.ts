@@ -66,6 +66,8 @@ describe('auth middleware', () => {
     ['/admin', ['Admin - Lists'], false],
     ['/admin', ['Super Admin'], true],
     ['/admin/deals', ['Admin (Read-only)'], true],
+    ['/admin/flags', ['Admin - Lists'], false],
+    ['/admin/flags', ['Admin (Read-only)'], true],
     ['/admin/messages', [], false],
     ['/admin/messages', ['Admin - Lists'], true],
     ['/admin/messages', ['Admin (Read-only)'], true],

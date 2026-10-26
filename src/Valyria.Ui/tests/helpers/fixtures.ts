@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import {
   DealActivityState,
+  DealStatus,
   type Account,
   type AccountSimplified,
   type DealDetail,
@@ -137,6 +138,8 @@ export const adminDeal = (overrides: Partial<AdminDeal> = {}): AdminDeal => ({
   responsibleAccountId: null,
   daysResponsible: null,
   cancelsOn: null,
+  extensionKind: null,
+  extendedBy: null,
   inFlightUntil: null,
   hasOpenFlag: false,
   slot1: slot(1, { cash: 1 }),
@@ -144,6 +147,7 @@ export const adminDeal = (overrides: Partial<AdminDeal> = {}): AdminDeal => ({
   ...overrides,
 })
 
+// A 1-day warning on deal 10: Ruler1 (buyer, slot 1, sends $9M) hasn't sent to Ruler2 (seller) for 2 days
 export const dealFlag = (overrides: Partial<DealFlag> = {}): DealFlag => ({
   id: 5,
   dealId: 10,
@@ -155,8 +159,59 @@ export const dealFlag = (overrides: Partial<DealFlag> = {}): DealFlag => ({
   resolvedOn: null,
   resolvedBy: null,
   adminNotes: null,
+  flaggedAccountRole: 'B',
+  innocentAccountRole: 'S',
+  flaggedAccountOpenFlagCount: 1,
+  flaggedSlot: slot(1, { cash: 1 }, { techReceivedCycles: 1 }),
+  innocentSlot: slot(2, { tech: 1 }, { cashReceivedCycles: 1 }),
+  dealStatus: DealStatus.Active,
+  dealCreatedOn: '2026-10-01T00:00:00',
+  dealCancelledOn: null,
+  dealCancelledBy: null,
+  cancellationReason: null,
+  state: DealActivityState.AwaitingSend,
+  blockedReason: null,
+  stateSince: '2026-10-08T00:00:00',
+  nextSenderAccountId: 1,
+  responsibleAccountId: 1,
+  daysResponsible: 2,
+  cancelsOn: '2026-10-13T00:00:00',
+  extensionKind: null,
+  extendedBy: null,
+  inFlightUntil: null,
+  blockedUntil: null,
+  legsCompleted: 2,
+  flaggedLastSentOn: '2026-09-28T00:00:00',
+  flaggedSlotOtherDealId: null,
+  innocentSlotOtherDealId: null,
+  pairOtherDealId: null,
+  flaggedAccountOnHold: false,
+  innocentAccountOnHold: false,
+  slotsStillMatch: true,
+  canRestoreDeal: false,
   ...overrides,
 })
+
+// A deal that a flag cancelled, and that can be restored. Overrides apply on top
+export const cancelledDealFlag = (
+  overrides: Partial<DealFlag> = {},
+): DealFlag =>
+  dealFlag({
+    flagType: DealFlagType.FiveDayReplacement,
+    dealStatus: DealStatus.Cancelled,
+    dealCancelledOn: '2026-10-09T18:00:00',
+    dealCancelledBy: 'system',
+    cancellationReason:
+      'Expected aid not sent for 5+ days - automatically cancelled',
+    state: null,
+    stateSince: null,
+    nextSenderAccountId: null,
+    responsibleAccountId: null,
+    daysResponsible: null,
+    cancelsOn: null,
+    canRestoreDeal: true,
+    ...overrides,
+  })
 
 export const recipient = (
   id: number,

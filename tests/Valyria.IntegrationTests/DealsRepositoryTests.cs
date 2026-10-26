@@ -492,6 +492,360 @@ public class DealsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
     }
 
     [Fact]
+    public async Task FlaggedDeals_DescribeTheDeal_AndWhoIsHoldingItUp()
+    {
+        var (bob, sue, deal) = await SeedPairAsync();
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        var cnToday = await Data.CnTodayAsync();
+        await Data.DealActivityAsync(deal, 1, BobNation, SueNation, cnToday.AddDays(-13), approvedOn: cnToday.AddDays(-13));
+        await Data.DealActivityAsync(deal, 2, SueNation, BobNation, cnToday.AddDays(-12), approvedOn: cnToday.AddDays(-12));
+        await Data.DealActivityAsync(deal, 3, BobNation, SueNation, cnToday.AddDays(-3), failureReason: "cancelled", failedOn: cnToday.AddDays(-2));
+        await Data.DealStateAsync(deal, "awaiting_send", nextSender: bob, nextReceiver: sue, responsible: bob,
+            responsibleSince: cnToday.AddDays(-2));
+        var warning = await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, "awaiting_send");
+        // An older deal between them, cancelled over Bob holding it up
+        var oldDeal = await Data.DealAsync(bobSlots[1], sueSlots[1], "cancelled");
+        await Data.ExecuteAsync("update vep_db.deal set cancelled_by = 'system' where id = @oldDeal", new { oldDeal });
+        var replacement = await Data.DealFlagAsync(oldDeal, "5_day_replacement", bob, sue, "awaiting_send");
+
+        var flags = await Repository.GetFlaggedDealsAsync();
+
+        var active = flags.Single(f => f.Id == warning);
+        Assert.Equal((DealStatus.Active, DealActivityState.AwaitingSend, bob, bob, 2, cnToday.AddDays(3)),
+            (active.DealStatus, active.State!.Value, active.NextSenderAccountId!.Value, active.ResponsibleAccountId!.Value,
+                active.DaysResponsible!.Value, active.CancelsOn!.Value));
+        Assert.Equal((bobSlots[0], bob, sueSlots[0], sue),
+            (active.FlaggedSlot.Id, active.FlaggedSlot.Account.AccountId, active.InnocentSlot.Id, active.InnocentSlot.Account.AccountId));
+        Assert.Equal(("B", "S", 2), (active.FlaggedAccountRole, active.InnocentAccountRole, active.FlaggedAccountOpenFlagCount));
+        Assert.Equal((2, cnToday.AddDays(-13)), (active.LegsCompleted, active.FlaggedLastSentOn!.Value));
+        Assert.False(active.CanRestoreDeal);
+
+        // The old deal's slots are free, but Bob and Sue already have another deal together
+        var cancelled = flags.Single(f => f.Id == replacement);
+        Assert.Equal((DealStatus.Cancelled, "system"), (cancelled.DealStatus, cancelled.DealCancelledBy));
+        Assert.Null(cancelled.State);
+        Assert.Equal((null, null, deal), (cancelled.FlaggedSlotOtherDealId, cancelled.InnocentSlotOtherDealId, cancelled.PairOtherDealId));
+        Assert.True(cancelled.SlotsStillMatch);
+        Assert.False(cancelled.CanRestoreDeal);
+    }
+
+    [Fact]
+    public async Task FlaggedDeals_StillShowAccountsWhoseNationWasDeleted()
+    {
+        var (bob, sue, deal) = await SeedPairAsync();
+        await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, "awaiting_send");
+        await Data.ExecuteAsync("delete from cybernations_db.nation where id = @BobNation", new { BobNation });
+
+        var flag = (await Repository.GetFlaggedDealsAsync()).Single();
+
+        Assert.Equal((bob, BobNation, null), (flag.FlaggedAccount.AccountId, flag.FlaggedAccount.NationId, flag.FlaggedAccount.RulerName));
+        Assert.Equal("Sue", flag.InnocentAccount.RulerName);
+    }
+
+    /// <summary>
+    /// Bob and Sue's deal, cancelled by VEP with a 5-day flag against Bob
+    /// </summary>
+    private async Task<(int Bob, int Sue, int Deal, int Flag)> SeedCancelledByFlagAsync()
+    {
+        var (bob, sue, deal) = await SeedPairAsync("cancelled");
+        await Data.ExecuteAsync(@"
+            update vep_db.deal
+            set cancelled_by = 'system', cancellation_reason = 'Expected aid not sent for 5+ days - automatically cancelled'
+            where id = @deal", new { deal });
+        var flag = await Data.DealFlagAsync(deal, "5_day_replacement", bob, sue, "awaiting_send");
+        return (bob, sue, deal, flag);
+    }
+
+    [Theory]
+    [InlineData("nothing")]
+    [InlineData("flagged slot rematched")]
+    [InlineData("partner slot rematched")]
+    [InlineData("pair has another deal")]
+    [InlineData("partner on hold")]
+    public async Task FlaggedDeals_SayWhetherTheCancelledDealCanBeRestored(string blocker)
+    {
+        var (bob, sue, _, flagId) = await SeedCancelledByFlagAsync();
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        var carol = await Data.MemberAsync(300, "Carol", 'S');
+        int? otherDeal = blocker switch
+        {
+            "flagged slot rematched" => await Data.DealAsync(bobSlots[0], (await Data.SlotIdsAsync(carol))[0]),
+            "partner slot rematched" => await Data.DealAsync(sueSlots[0], (await Data.SlotIdsAsync(carol))[0]),
+            "pair has another deal" => await Data.DealAsync(bobSlots[1], sueSlots[1]),
+            _ => null
+        };
+        if (blocker == "partner on hold")
+            await Data.ExecuteAsync("update vep_db.account set va = 'H' where id = @sue", new { sue });
+
+        var flag = (await Repository.GetFlaggedDealsAsync()).Single(f => f.Id == flagId);
+
+        Assert.Equal(blocker == "flagged slot rematched" ? otherDeal : null, flag.FlaggedSlotOtherDealId);
+        Assert.Equal(blocker == "partner slot rematched" ? otherDeal : null, flag.InnocentSlotOtherDealId);
+        Assert.Equal(blocker == "pair has another deal" ? otherDeal : null, flag.PairOtherDealId);
+        Assert.Equal(blocker == "partner on hold", flag.InnocentAccountOnHold);
+        // Going on hold also resets the account's slots, so they no longer match
+        Assert.Equal(blocker != "partner on hold", flag.SlotsStillMatch);
+        Assert.Equal(blocker == "nothing", flag.CanRestoreDeal);
+    }
+
+    [Fact]
+    public async Task FlagEvidence_ShowsTheLegs_AndWhatHeldTheFlaggedNationsSlots()
+    {
+        var (bob, sue, deal) = await SeedPairAsync();
+        var cnToday = await Data.CnTodayAsync();
+        // Deal times are server UTC; CN noon is 17:00 UTC
+        await Data.ExecuteAsync("update vep_db.deal set created_on = @createdOn where id = @deal",
+            new { deal, createdOn = cnToday.AddDays(-5).AddHours(17) });
+        var carol = await Data.MemberAsync(300, "Carol", 'S');
+        var carolDeal = await Data.DealAsync((await Data.SlotIdsAsync(bob))[1], (await Data.SlotIdsAsync(carol))[0]);
+
+        DateTime CnNoon(int daysAgo) => cnToday.AddDays(-daysAgo).AddHours(12);
+        await Data.AidAsync(801, BobNation, SueNation, CnNoon(4), money: 9_000_000);
+        await Data.AidAsync(802, SueNation, BobNation, CnNoon(3), technology: 100);
+        await Data.AidAsync(803, BobNation, 300, CnNoon(2), money: 9_000_000);
+        await Data.AidAsync(804, BobNation, 500, CnNoon(6), money: 1_000_000, reason: "Before the deal");
+        await Data.AidAsync(805, BobNation, 500, CnNoon(1), money: 2_000_000, reason: "Outside VEP");
+        await Data.AidAsync(806, BobNation, 500, CnNoon(11), money: 3_000_000);
+        await Data.AidAsync(807, BobNation, 500, CnNoon(1), status: 3);
+        await Data.DealActivityAsync(deal, 1, BobNation, SueNation, cnToday.AddDays(-4), aidId: 801, approvedOn: cnToday.AddDays(-4));
+        await Data.DealActivityAsync(deal, 2, SueNation, BobNation, cnToday.AddDays(-3), aidId: 802);
+        await Data.DealActivityAsync(carolDeal, 1, BobNation, 300, cnToday.AddDays(-2), aidId: 803);
+        var flagId = await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, "sender_slots_full");
+
+        var evidence = await Repository.GetDealFlagEvidenceAsync(flagId);
+
+        Assert.Equal([(1, true, 9_000_000, 0, DealLegOutcome.Accepted), (2, false, 0, 100, DealLegOutcome.Pending)],
+            evidence.Legs.Select(l => (l.LegNumber, l.SentByFlaggedAccount, l.Money, l.Technology, l.Outcome)));
+        Assert.Equal((cnToday, 4), (evidence.SlotsAsOf, evidence.FlaggedSlotsTotal));
+        Assert.Equal([804, 801, 802, 803, 805], evidence.FlaggedSlotAid.Select(a => a.AidId));
+        Assert.Equal([null, deal, deal, carolDeal, null], evidence.FlaggedSlotAid.Select(a => a.DealId));
+        Assert.Equal([true, false, false, false, false], evidence.FlaggedSlotAid.Select(a => a.SentBeforeDeal));
+        Assert.Equal([true, true, false, true, true], evidence.FlaggedSlotAid.Select(a => a.IsOutgoing));
+        Assert.Equal((SueNation, "Sue"), (evidence.FlaggedSlotAid[2].OtherNation.NationId, evidence.FlaggedSlotAid[2].OtherNation.RulerName));
+        Assert.Equal((500, null), (evidence.FlaggedSlotAid[0].OtherNation.NationId, evidence.FlaggedSlotAid[0].OtherNation.RulerName));
+
+        // Once the deal has ended, the slots are shown as they were when the flag was raised: CN evening two days ago
+        await Data.ExecuteAsync("update vep_db.deal set status = 'cancelled' where id = @deal", new { deal });
+        await Data.ExecuteAsync("update vep_db.deal_flag set flagged_on = @flaggedOn where id = @flagId",
+            new { flagId, flaggedOn = cnToday.AddDays(-2).AddHours(23) });
+        await Data.ExecuteAsync("update cybernations_db.aid set status = 4 where id = 804");
+
+        var asFlagged = await Repository.GetDealFlagEvidenceAsync(flagId);
+
+        // 806 was still inside its 10 days then, and 805 hadn't been sent yet
+        Assert.Equal(cnToday.AddDays(-2), asFlagged.SlotsAsOf);
+        Assert.Equal([806, 804, 801, 802, 803], asFlagged.FlaggedSlotAid.Select(a => a.AidId));
+    }
+
+    [Fact]
+    public async Task FlagEvidence_IsNull_ForAMissingFlag()
+    {
+        Assert.Null(await Repository.GetDealFlagEvidenceAsync(12345));
+    }
+
+    [Fact]
+    public async Task RestoreFlaggedDeal_PutsTheDealBack_WithAFreshClock_AndResolvesItsFlags()
+    {
+        var (bob, sue, deal) = await SeedPairAsync();
+        var cnToday = await Data.CnTodayAsync();
+        // The first leg expired unaccepted, so the daily check cancels the deal and flags both accounts
+        await Data.DealActivityAsync(deal, 1, BobNation, SueNation, cnToday.AddDays(-10), failureReason: "expired", failedOn: cnToday);
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+        var flags = await Repository.GetFlaggedDealsAsync();
+        Assert.Equal(2, flags.Count);
+        Assert.All(flags, f => Assert.True(f.FlagType == DealFlagType.AidFailed && f.CanRestoreDeal));
+        // A cancelled deal keeps its state until the data loader's next update_deal_state run
+        await Data.DealStateAsync(deal, "awaiting_send", nextSender: bob, nextReceiver: sue, responsible: bob,
+            responsibleSince: cnToday.AddDays(-4));
+
+        var result = await Repository.RestoreFlaggedDealAsync(flags[0].Id, "admin", " both were on vacation ");
+
+        Assert.Equal(DealRestoreResult.Restored, result);
+        Assert.Empty(await Repository.GetFlaggedDealsAsync());
+        Assert.Equal(("active", null, null, null), (await Data.QueryAsync<(string, DateTime?, string?, string?)>(
+            "select status, cancelled_on, cancelled_by, cancellation_reason from vep_db.deal where id = @deal", new { deal })).Single());
+        Assert.Equal(0, await Data.ScalarAsync<int>("select count(*) from vep_db.deal_state where deal_id = @deal", new { deal }));
+        Assert.All(await Data.QueryAsync<(string, string)>("select resolved_by, admin_notes from vep_db.deal_flag where deal_id = @deal", new { deal }),
+            f => Assert.Equal(("admin", "Deal restored: both were on vacation"), f));
+
+        // The excused failure doesn't cancel it again
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+
+        Assert.Equal("active", await Data.ScalarAsync<string>("select status from vep_db.deal where id = @deal", new { deal }));
+        Assert.Empty(await Repository.GetFlaggedDealsAsync());
+        var leg = (await Repository.GetDealFlagEvidenceAsync(flags[0].Id)).Legs.Single();
+        Assert.Equal((DealLegOutcome.Expired, true), (leg.Outcome, leg.FailureExcused));
+    }
+
+    [Fact]
+    public async Task RestoreFlaggedDeal_RefusesFlagsThatCantBeRestored()
+    {
+        var (bob, sue, deal, replacement) = await SeedCancelledByFlagAsync();
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        var newDeal = await Data.DealAsync(bobSlots[1], sueSlots[1]);
+        var warning = await Data.DealFlagAsync(newDeal, "1_day_inactive", bob, sue, "awaiting_send");
+        var resolved = await Data.DealFlagAsync(deal, "5_day_replacement", bob, sue, "awaiting_send", resolvedOn: DateTime.UtcNow);
+
+        Assert.Equal(DealRestoreResult.NotRestorable, await Repository.RestoreFlaggedDealAsync(warning, "admin", null));
+        // Bob and Sue have a new deal together now
+        Assert.Equal(DealRestoreResult.NotRestorable, await Repository.RestoreFlaggedDealAsync(replacement, "admin", null));
+        Assert.Equal(DealRestoreResult.FlagNotFound, await Repository.RestoreFlaggedDealAsync(resolved, "admin", null));
+        Assert.Equal(DealRestoreResult.FlagNotFound, await Repository.RestoreFlaggedDealAsync(12345, "admin", null));
+
+        Assert.Equal("cancelled", await Data.ScalarAsync<string>("select status from vep_db.deal where id = @deal", new { deal }));
+        Assert.Equal([replacement, warning], (await Repository.GetFlaggedDealsAsync()).Select(f => f.Id).Order());
+    }
+
+    [Fact]
+    public async Task RestoreFlaggedDeal_NotesJustTheRestore_WithoutAdminNotes()
+    {
+        var (_, _, deal, flag) = await SeedCancelledByFlagAsync();
+
+        Assert.Equal(DealRestoreResult.Restored, await Repository.RestoreFlaggedDealAsync(flag, "admin", "  "));
+
+        Assert.Equal("Deal restored", await Data.ScalarAsync<string>("select admin_notes from vep_db.deal_flag where id = @flag", new { flag }));
+        Assert.Equal("active", await Data.ScalarAsync<string>("select status from vep_db.deal where id = @deal", new { deal }));
+    }
+
+    /// <summary>
+    /// Bob has held up his deal with Sue for the given days, and has been warned
+    /// </summary>
+    private async Task<(int Bob, int Sue, int Deal, int Warning, DateTime CnToday)> SeedHeldUpDealAsync(int daysHeldUp,
+        string state = "awaiting_send", string? blockedReason = null)
+    {
+        var (bob, sue, deal) = await SeedPairAsync();
+        var cnToday = await Data.CnTodayAsync();
+        await Data.DealStateAsync(deal, state, nextSender: bob, nextReceiver: sue, responsible: bob,
+            responsibleSince: cnToday.AddDays(-daysHeldUp), blockedReason: blockedReason);
+        var warning = await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, blockedReason ?? "awaiting_send");
+        return (bob, sue, deal, warning, cnToday);
+    }
+
+    private Task<string> DealStatusAsync(int deal) =>
+        Data.ScalarAsync<string>("select status from vep_db.deal where id = @deal", new { deal });
+
+    private Task<IEnumerable<(string Kind, DateTime? ExtendedUntil, string? EndReason)>> ExtensionsAsync(int deal) =>
+        Data.QueryAsync<(string, DateTime?, string?)>(
+            "select kind, extended_until, end_reason from vep_db.deal_extension where deal_id = @deal order by id", new { deal });
+
+    [Fact]
+    public async Task ExtendFlaggedDeal_FiveDays_MovesTheDeadline_AndClearsTheWarning()
+    {
+        // Cancelled at tomorrow's check without an extension
+        var (bob, sue, deal, warning, cnToday) = await SeedHeldUpDealAsync(4);
+
+        var result = await Repository.ExtendFlaggedDealAsync(warning, DealExtensionKind.FiveDays, "admin", " on vacation ");
+
+        Assert.Equal(DealExtendResult.Extended, result);
+        Assert.Equal($"Given 5 more days, until {cnToday.AddDays(6):yyyy-MM-dd}: on vacation",
+            await Data.ScalarAsync<string>("select admin_notes from vep_db.deal_flag where id = @warning", new { warning }));
+        Assert.Empty(await Repository.GetFlaggedDealsAsync());
+        var listed = (await Repository.GetActiveDealsAsync(null, 25, 0)).Results.Single();
+        Assert.Equal((cnToday.AddDays(6), DealExtensionKind.FiveDays, "admin", 4),
+            (listed.CancelsOn!.Value, listed.ExtensionKind!.Value, listed.ExtendedBy, listed.DaysResponsible!.Value));
+
+        // Tomorrow's check neither cancels the deal nor warns Bob again
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+        Assert.Equal("active", await DealStatusAsync(deal));
+        Assert.Empty(await Repository.GetFlaggedDealsAsync());
+
+        // A day past the old deadline Bob is warned again, as he would be a day into a normal clock
+        await Data.ExecuteAsync("update vep_db.deal_extension set extended_until = @until where deal_id = @deal",
+            new { deal, until = cnToday.AddDays(4) });
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+        Assert.Equal([bob], (await Repository.GetFlaggedDealsAsync()).Select(f => f.FlaggedAccount.AccountId));
+
+        // And on the new deadline the deal is cancelled, ending the extension
+        await Data.ExecuteAsync("update vep_db.deal_extension set extended_until = @until where deal_id = @deal",
+            new { deal, until = cnToday });
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+        Assert.Equal("cancelled", await DealStatusAsync(deal));
+        Assert.Contains(await Repository.GetFlaggedDealsAsync(), f => f.FlagType == DealFlagType.FiveDayReplacement && f.FlaggedAccount.AccountId == bob);
+        Assert.Equal([("five_days", (DateTime?)cnToday, "deal_ended")],
+            (await ExtensionsAsync(deal)).Select(e => (e.Kind, e.ExtendedUntil, e.EndReason)));
+    }
+
+    [Fact]
+    public async Task ExtendFlaggedDeal_FiveDaysAgain_RunsFromTheExtendedDeadline()
+    {
+        var (bob, sue, deal, warning, cnToday) = await SeedHeldUpDealAsync(2);
+        await Repository.ExtendFlaggedDealAsync(warning, DealExtensionKind.FiveDays, "admin", null);
+        // Warned again later in the extension
+        var second = await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, "awaiting_send");
+
+        Assert.Equal(DealExtendResult.Extended, await Repository.ExtendFlaggedDealAsync(second, DealExtensionKind.FiveDays, "admin", null));
+
+        Assert.Equal(cnToday.AddDays(13), (await Repository.GetActiveDealsAsync(null, 25, 0)).Results.Single().CancelsOn);
+        Assert.Equal([("five_days", (string?)"superseded"), ("five_days", null)],
+            (await ExtensionsAsync(deal)).Select(e => (e.Kind, e.EndReason)));
+        Assert.Equal("Given 5 more days, until " + cnToday.AddDays(13).ToString("yyyy-MM-dd"),
+            await Data.ScalarAsync<string>("select admin_notes from vep_db.deal_flag where id = @second", new { second }));
+    }
+
+    [Fact]
+    public async Task ExtendFlaggedDeal_UntilNextLeg_HoldsOffForOutOfTurnAid_UntilSomeoneElseIsResponsible()
+    {
+        // Bob's out-of-turn aid has blocked the deal for a week, longer than the usual 5 days
+        var (bob, sue, deal, warning, cnToday) = await SeedHeldUpDealAsync(7, "blocked", "out_of_sequence_aid");
+
+        Assert.Equal(DealExtendResult.Extended,
+            await Repository.ExtendFlaggedDealAsync(warning, DealExtensionKind.UntilNextLeg, "admin", null));
+
+        var listed = (await Repository.GetActiveDealsAsync(null, 25, 0)).Results.Single();
+        Assert.Equal((null, DealExtensionKind.UntilNextLeg), (listed.CancelsOn, listed.ExtensionKind!.Value));
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+        Assert.Equal("active", await DealStatusAsync(deal));
+        Assert.Empty(await Repository.GetFlaggedDealsAsync());
+
+        // The aid clears and it's Sue's turn: the extension ends, and Sue gets a normal clock
+        await Data.ExecuteAsync(@"
+            update vep_db.deal_state
+            set state = 'awaiting_send', blocked_reason = null, next_sender_account_id = @sue, next_receiver_account_id = @bob,
+                responsible_account_id = @sue, responsible_since = @today
+            where deal_id = @deal", new { deal, bob, sue, today = cnToday });
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+
+        Assert.Equal("active", await DealStatusAsync(deal));
+        Assert.Equal([("until_next_leg", "responsibility_moved")], (await ExtensionsAsync(deal)).Select(e => (e.Kind, e.EndReason)));
+        Assert.Equal(cnToday.AddDays(5), (await Repository.GetActiveDealsAsync(null, 25, 0)).Results.Single().CancelsOn);
+    }
+
+    [Fact]
+    public async Task ExtendFlaggedDeal_StopsApplying_OnceANewLegIsRecorded()
+    {
+        var (_, _, deal, warning, _) = await SeedHeldUpDealAsync(7);
+        await Repository.ExtendFlaggedDealAsync(warning, DealExtensionKind.UntilNextLeg, "admin", null);
+
+        // Bob is still responsible, but for the leg after the one he was given time for
+        await Data.ExecuteAsync("update vep_db.deal_state set legs_counted = legs_counted + 1 where deal_id = @deal", new { deal });
+        await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
+
+        Assert.Equal("cancelled", await DealStatusAsync(deal));
+        Assert.Equal([("until_next_leg", "deal_ended")], (await ExtensionsAsync(deal)).Select(e => (e.Kind, e.EndReason)));
+    }
+
+    [Fact]
+    public async Task ExtendFlaggedDeal_RefusesFlagsWhoseDealCantBeExtended()
+    {
+        var (bob, sue, deal, warning, _) = await SeedHeldUpDealAsync(2);
+        // Sue has become the one holding it up
+        await Data.ExecuteAsync("update vep_db.deal_state set responsible_account_id = @sue where deal_id = @deal", new { deal, sue });
+        var cancelledDeal = await Data.DealAsync((await Data.SlotIdsAsync(bob))[1], (await Data.SlotIdsAsync(sue))[1], "cancelled");
+        var replacement = await Data.DealFlagAsync(cancelledDeal, "5_day_replacement", bob, sue, "awaiting_send");
+
+        Assert.Equal(DealExtendResult.NotExtendable, await Repository.ExtendFlaggedDealAsync(warning, DealExtensionKind.FiveDays, "admin", null));
+        Assert.Equal(DealExtendResult.NotExtendable, await Repository.ExtendFlaggedDealAsync(replacement, DealExtensionKind.FiveDays, "admin", null));
+        Assert.Equal(DealExtendResult.FlagNotFound, await Repository.ExtendFlaggedDealAsync(12345, DealExtensionKind.FiveDays, "admin", null));
+
+        Assert.Empty(await ExtensionsAsync(deal));
+        Assert.Empty(await ExtensionsAsync(cancelledDeal));
+        Assert.Equal(2, (await Repository.GetFlaggedDealsAsync()).Count);
+    }
+
+    [Fact]
     public async Task GetAccountSlots_ReturnsEverySlot_WithWhetherItHasADeal()
     {
         var (bob, _, _) = await SeedPairAsync();

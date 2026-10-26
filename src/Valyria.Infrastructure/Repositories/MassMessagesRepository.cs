@@ -17,7 +17,8 @@ public class MassMessagesRepository : IMassMessagesRepository
     // Same CN date the deal procedures use
     private const string CnToday = "DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'))";
 
-    // A deal held up this many days is cancelled at the next daily check (5 days, see V10)
+    // A deal this many days into its clock is cancelled at the next daily check (5 days, see V10;
+    // an extension moves the clock, see V16)
     private const int FinalWarningDaysOverdue = 4;
 
     private const string GetMassMessagesQuery = @"
@@ -60,10 +61,11 @@ with deal_actions as (
                     and df.flag_type = '1_day_inactive'
                     and df.resolved_on is null
             ) as flagged,
-            datediff(" + CnToday + @", ds.responsible_since) as days_responsible,
-            ds.responsible_since + interval 5 day as cancels_on
+            datediff(" + CnToday + @", dd.clock_since) as days_responsible,
+            dd.cancels_on as cancels_on
     from deal_state ds
     join deal d on d.id = ds.deal_id and d.status = 'active'
+    join deal_deadline dd on dd.deal_id = ds.deal_id
     where ds.responsible_account_id is not null
 
     union all

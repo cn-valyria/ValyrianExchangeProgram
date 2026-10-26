@@ -45,11 +45,18 @@ describe('NavBar', () => {
     [
       ['Admin - Lists'],
       ['My Account', 'Messages'],
-      ['Admin Portal', 'Settings'],
+      ['Admin Portal', 'Flagged Deals', 'Settings'],
     ],
     [
       ['Admin (Read-only)'],
-      ['My Account', 'Accounts', 'Aid Activity', 'Deals', 'Messages'],
+      [
+        'My Account',
+        'Accounts',
+        'Aid Activity',
+        'Deals',
+        'Flagged Deals',
+        'Messages',
+      ],
       ['Settings'],
     ],
     [
@@ -59,6 +66,7 @@ describe('NavBar', () => {
         'Accounts',
         'Aid Activity',
         'Deals',
+        'Flagged Deals',
         'Messages',
         'Settings',
       ],

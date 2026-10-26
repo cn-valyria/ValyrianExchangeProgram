@@ -15,9 +15,9 @@ public class DealsRepository : IDealsRepository
 {
     private readonly string _connectionString;
 
-    // deal_state columns shared by the account and admin deal queries (alias ds). The DB enum
-    // values ('awaiting_send') aren't valid C# enum names, so they're mapped to the enums' numbers.
-    // CancelsOn mirrors the 5 day replacement threshold in check_deal_inactivity
+    // deal_state columns shared by the account and admin deal queries (aliases ds, and dd for
+    // deal_deadline). The DB enum values ('awaiting_send') aren't valid C# enum names, so they're mapped
+    // to the enums' numbers. CancelsOn is the deadline check_deal_inactivity cancels on, extensions included
     private const string DealStateColumns = @"
                 CASE ds.state
                     WHEN 'pending_start' THEN 0
@@ -33,7 +33,12 @@ public class DealsRepository : IDealsRepository
                 ds.state_since AS StateSince,
                 ds.in_flight_until AS InFlightUntil,
                 DATEDIFF(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')), ds.responsible_since) AS DaysResponsible,
-                ds.responsible_since + INTERVAL 5 DAY AS CancelsOn,";
+                dd.cancels_on AS CancelsOn,
+                CASE dd.extension_kind
+                    WHEN 'five_days' THEN 0
+                    WHEN 'until_next_leg' THEN 1
+                END AS ExtensionKind,
+                dd.extended_by AS ExtendedBy,";
 
     public DealsRepository(string connectionString) => _connectionString = connectionString;
 
@@ -122,6 +127,7 @@ public class DealsRepository : IDealsRepository
                 GROUP BY deal_id
             ) da ON d.id = da.deal_id
             LEFT JOIN deal_state ds ON ds.deal_id = d.id
+            LEFT JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
             -- The leg currently active between the pair, and any out-of-sequence aid blocking it
             LEFT JOIN deal_activity fl ON fl.aid_id = ds.in_flight_aid_id
             LEFT JOIN cybernations_db.aid ba ON ba.id = ds.blocking_aid_id
@@ -488,6 +494,7 @@ public class DealsRepository : IDealsRepository
             LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
             LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
             LEFT JOIN deal_state ds ON ds.deal_id = d.id
+            LEFT JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
             WHERE d.status = 'active'
                 AND (
                     @search IS NULL
@@ -665,7 +672,18 @@ public class DealsRepository : IDealsRepository
     {
         using var connection = new MySqlConnection(_connectionString);
 
-        var flags = await connection.QueryAsync<DealFlagDetail, AccountSimplified, AccountSimplified, DealFlagDetail>(@"
+        var flags = await QueryOpenFlagsAsync(connection, "TRUE", null);
+
+        return flags.ToList();
+    }
+
+    /// <summary>
+    /// Open flags matching the condition (alias df), newest first, with their deal, both slots and the deal's
+    /// current state
+    /// </summary>
+    private static Task<IEnumerable<DealFlagDetail>> QueryOpenFlagsAsync(IDbConnection connection, string condition,
+        object? param, IDbTransaction? transaction = null) =>
+        connection.QueryAsync<DealFlagDetail, SlotDetail, AccountSimplified, SlotDetail, AccountSimplified, DealFlagDetail>(@"
             SELECT
                 df.id AS Id,
                 df.deal_id AS DealId,
@@ -687,36 +705,341 @@ public class DealsRepository : IDealsRepository
                 df.resolved_on AS ResolvedOn,
                 df.resolved_by AS ResolvedBy,
                 df.admin_notes AS AdminNotes,
-                -- Flagged account
-                a1.id AS AccountId,
-                n1.id AS NationId,
-                n1.nation_name AS NationName,
-                n1.ruler_name AS RulerName,
-                al1.name AS AllianceName,
+                fa.va AS FlaggedAccountRole,
+                ia.va AS InnocentAccountRole,
+                (
+                    SELECT COUNT(*) FROM deal_flag o
+                    WHERE o.flagged_account_id = df.flagged_account_id AND o.resolved_on IS NULL
+                ) AS FlaggedAccountOpenFlagCount,
+                d.status AS DealStatus,
+                d.created_on AS DealCreatedOn,
+                d.cancelled_on AS DealCancelledOn,
+                d.cancelled_by AS DealCancelledBy,
+                d.cancellation_reason AS CancellationReason," + DealStateColumns + @"
+                ds.next_sender_account_id AS NextSenderAccountId,
+                ds.responsible_account_id AS ResponsibleAccountId,
+                DATE(ba.date) + INTERVAL 10 DAY AS BlockedUntil,
+                (
+                    SELECT COUNT(*) FROM deal_activity da
+                    WHERE da.deal_id = d.id AND da.failed_on IS NULL
+                ) AS LegsCompleted,
+                (
+                    SELECT MAX(da.activity_date) FROM deal_activity da
+                    WHERE da.deal_id = d.id AND da.failed_on IS NULL AND da.expected_sender_nation_id = fa.nation_id
+                ) AS FlaggedLastSentOn,
+                -- What would stop the deal being restored
+                (
+                    SELECT MIN(od.id) FROM deal od
+                    WHERE od.status = 'active' AND od.id <> d.id AND fs.id IN (od.slot_1_id, od.slot_2_id)
+                ) AS FlaggedSlotOtherDealId,
+                (
+                    SELECT MIN(od.id) FROM deal od
+                    WHERE od.status = 'active' AND od.id <> d.id AND ps.id IN (od.slot_1_id, od.slot_2_id)
+                ) AS InnocentSlotOtherDealId,
+                (
+                    SELECT MIN(dp.deal_id) FROM deal_participants dp
+                    WHERE dp.status = 'active' AND dp.deal_id <> d.id
+                        AND ((dp.account_1_id = fa.id AND dp.account_2_id = ia.id)
+                            OR (dp.account_1_id = ia.id AND dp.account_2_id = fa.id))
+                ) AS PairOtherDealId,
+                fa.va = 'H' AS FlaggedAccountOnHold,
+                ia.va = 'H' AS InnocentAccountOnHold,
+                -- Flagged slot
+                fs.id AS Id,
+                fs.slot_number AS SlotNumber,
+                fs.tech_sent_cycles AS TechSentCycles,
+                fs.tech_received_cycles AS TechReceivedCycles,
+                fs.cash_sent_cycles AS CashSentCycles,
+                fs.cash_received_cycles AS CashReceivedCycles,
+                d.status = 'active' AS HasActiveDeal,
+                -- Flagged account. Its nation may have been deleted since
+                fa.id AS AccountId,
+                fa.nation_id AS NationId,
+                fn.nation_name AS NationName,
+                fn.ruler_name AS RulerName,
+                fal.name AS AllianceName,
+                -- Innocent slot
+                ps.id AS Id,
+                ps.slot_number AS SlotNumber,
+                ps.tech_sent_cycles AS TechSentCycles,
+                ps.tech_received_cycles AS TechReceivedCycles,
+                ps.cash_sent_cycles AS CashSentCycles,
+                ps.cash_received_cycles AS CashReceivedCycles,
+                d.status = 'active' AS HasActiveDeal,
                 -- Innocent account
-                a2.id AS AccountId,
-                n2.id AS NationId,
-                n2.nation_name AS NationName,
-                n2.ruler_name AS RulerName,
-                al2.name AS AllianceName
+                ia.id AS AccountId,
+                ia.nation_id AS NationId,
+                pn.nation_name AS NationName,
+                pn.ruler_name AS RulerName,
+                pal.name AS AllianceName
             FROM deal_flag df
-            JOIN account a1 ON df.flagged_account_id = a1.id
-            JOIN account a2 ON df.innocent_account_id = a2.id
-            JOIN cybernations_db.nation n1 ON a1.nation_id = n1.id
-            JOIN cybernations_db.nation n2 ON a2.nation_id = n2.id
-            LEFT JOIN cybernations_db.alliance al1 ON n1.alliance_id = al1.id
-            LEFT JOIN cybernations_db.alliance al2 ON n2.alliance_id = al2.id
-            WHERE df.resolved_on IS NULL
-            ORDER BY df.flagged_on DESC",
-            (flag, flaggedAccount, innocentAccount) =>
+            JOIN deal d ON d.id = df.deal_id
+            JOIN account fa ON df.flagged_account_id = fa.id
+            JOIN account ia ON df.innocent_account_id = ia.id
+            JOIN slot fs ON fs.id IN (d.slot_1_id, d.slot_2_id) AND fs.account_id = fa.id
+            JOIN slot ps ON ps.id IN (d.slot_1_id, d.slot_2_id) AND ps.id <> fs.id
+            LEFT JOIN cybernations_db.nation fn ON fa.nation_id = fn.id
+            LEFT JOIN cybernations_db.nation pn ON ia.nation_id = pn.id
+            LEFT JOIN cybernations_db.alliance fal ON fn.alliance_id = fal.id
+            LEFT JOIN cybernations_db.alliance pal ON pn.alliance_id = pal.id
+            -- A cancelled deal keeps its deal_state row until the next update_deal_state run
+            LEFT JOIN deal_state ds ON ds.deal_id = d.id AND d.status = 'active'
+            LEFT JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
+            LEFT JOIN cybernations_db.aid ba ON ba.id = ds.blocking_aid_id
+            WHERE df.resolved_on IS NULL AND (" + condition + @")
+            ORDER BY df.flagged_on DESC, df.id DESC",
+            (flag, flaggedSlot, flaggedAccount, innocentSlot, innocentAccount) =>
             {
+                flaggedSlot.Account = flaggedAccount;
+                innocentSlot.Account = innocentAccount;
+                flag.FlaggedSlot = flaggedSlot;
+                flag.InnocentSlot = innocentSlot;
                 flag.FlaggedAccount = flaggedAccount;
                 flag.InnocentAccount = innocentAccount;
                 return flag;
             },
-            splitOn: "AccountId,AccountId");
+            param,
+            transaction,
+            splitOn: "Id,AccountId,Id,AccountId");
 
-        return flags.ToList();
+    private class FlagEvidenceContext
+    {
+        public int DealId { get; set; }
+        public bool DealIsActive { get; set; }
+        public DateTime DealCreatedOn { get; set; }
+        public DateTime FlaggedOn { get; set; }
+        public int FlaggedNationId { get; set; }
+        public int FlaggedSlotsTotal { get; set; }
+        public DateTime SlotsAsOf { get; set; }
+    }
+
+    public async Task<DealFlagEvidence> GetDealFlagEvidenceAsync(int flagId)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        var context = await connection.QueryFirstOrDefaultAsync<FlagEvidenceContext>(@"
+            SELECT
+                df.deal_id AS DealId,
+                d.status = 'active' AS DealIsActive,
+                d.created_on AS DealCreatedOn,
+                df.flagged_on AS FlaggedOn,
+                fa.nation_id AS FlaggedNationId,
+                4 + IF(fa.fm = 1, 1, 0) + IF(fa.dra = 1, 1, 0) AS FlaggedSlotsTotal,
+                IF(d.status = 'active',
+                    DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')),
+                    DATE(CONVERT_TZ(df.flagged_on, '+00:00', '-05:00'))) AS SlotsAsOf
+            FROM deal_flag df
+            JOIN deal d ON d.id = df.deal_id
+            JOIN account fa ON fa.id = df.flagged_account_id
+            WHERE df.id = @flagId",
+            new { flagId });
+
+        if (context == null)
+        {
+            return null;
+        }
+
+        // Same outcome rules as GetDealActivityAsync
+        var legs = await connection.QueryAsync<FlagDealLeg>(@"
+            SELECT
+                da.leg_number AS LegNumber,
+                da.aid_id AS AidId,
+                da.activity_date AS ActivityDate,
+                da.expected_sender_nation_id = @FlaggedNationId AS SentByFlaggedAccount,
+                COALESCE(aid.money, 0) AS Money,
+                COALESCE(aid.technology, 0) AS Technology,
+                CASE
+                    WHEN da.failure_reason = 'cancelled' THEN 2
+                    WHEN da.failure_reason = 'expired' THEN 3
+                    WHEN da.approved_on IS NOT NULL OR da.linked_late THEN 1
+                    ELSE 0
+                END AS Outcome,
+                da.failure_excused AS FailureExcused
+            FROM deal_activity da
+            LEFT JOIN cybernations_db.aid aid ON da.aid_id = aid.id
+            WHERE da.deal_id = @DealId
+            ORDER BY da.leg_number",
+            context);
+
+        // What held the nation's slots, using the same window as update_deal_state. For a deal that has
+        // ended, it's rebuilt as of the run that raised the flag, as in V13 (status 4 included, since the
+        // loader expires aid after its window)
+        var slotAid = await connection.QueryAsync<FlagSlotAid, NationSimplified, FlagSlotAid>(@"
+            SELECT
+                aid.id AS AidId,
+                aid.date AS SentOn,
+                aid.sending_nation_id = @FlaggedNationId AS IsOutgoing,
+                aid.status AS Status,
+                aid.money AS Money,
+                aid.technology AS Technology,
+                aid.soldiers AS Soldiers,
+                aid.reason AS Reason,
+                (SELECT MIN(da.deal_id) FROM deal_activity da WHERE da.aid_id = aid.id) AS DealId,
+                aid.date < CONVERT_TZ(@DealCreatedOn, '+00:00', '-05:00') AS SentBeforeDeal,
+                IF(aid.sending_nation_id = @FlaggedNationId, aid.receiving_nation_id, aid.sending_nation_id) AS NationId,
+                n.nation_name AS NationName,
+                n.ruler_name AS RulerName,
+                al.name AS AllianceName
+            FROM cybernations_db.aid aid
+            LEFT JOIN cybernations_db.nation n
+                ON n.id = IF(aid.sending_nation_id = @FlaggedNationId, aid.receiving_nation_id, aid.sending_nation_id)
+            LEFT JOIN cybernations_db.alliance al ON n.alliance_id = al.id
+            WHERE @FlaggedNationId IN (aid.sending_nation_id, aid.receiving_nation_id)
+                AND DATE(aid.date) > @SlotsAsOf - INTERVAL 10 DAY
+                AND IF(@DealIsActive,
+                    aid.status IN (1, 2),
+                    aid.status IN (1, 2, 4) AND aid.date < CONVERT_TZ(@FlaggedOn, '+00:00', '-05:00'))
+            ORDER BY aid.date, aid.id",
+            (aid, otherNation) =>
+            {
+                aid.OtherNation = otherNation;
+                return aid;
+            },
+            context,
+            splitOn: "NationId");
+
+        return new DealFlagEvidence
+        {
+            Legs = legs.ToList(),
+            SlotsAsOf = context.SlotsAsOf,
+            FlaggedSlotsTotal = context.FlaggedSlotsTotal,
+            FlaggedSlotAid = slotAid.ToList()
+        };
+    }
+
+    private class ExtensionBase
+    {
+        public int LegsCounted { get; set; }
+        public DateTime Deadline { get; set; }
+    }
+
+    public async Task<DealExtendResult> ExtendFlaggedDealAsync(int flagId, DealExtensionKind kind, string grantedBy, string? adminNotes)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+        using var transaction = await connection.BeginTransactionAsync();
+
+        var flag = (await QueryOpenFlagsAsync(connection, "df.id = @flagId", new { flagId }, transaction)).FirstOrDefault();
+        if (flag == null)
+        {
+            return DealExtendResult.FlagNotFound;
+        }
+
+        if (!flag.CanExtendDeal)
+        {
+            return DealExtendResult.NotExtendable;
+        }
+
+        // Hold the deal's state still while the extension is worked out from it
+        await connection.ExecuteAsync(
+            "SELECT 1 FROM deal_state WHERE deal_id = @dealId FOR UPDATE",
+            new { dealId = flag.DealId },
+            transaction);
+
+        // Five more days runs from the current deadline, which may already be extended. A deal with no
+        // deadline (held off until the next leg) gets five days from today
+        var current = await connection.QuerySingleAsync<ExtensionBase>(@"
+            SELECT
+                ds.legs_counted AS LegsCounted,
+                COALESCE(dd.cancels_on, DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00'))) AS Deadline
+            FROM deal_state ds
+            JOIN deal_deadline dd ON dd.deal_id = ds.deal_id
+            WHERE ds.deal_id = @dealId",
+            new { dealId = flag.DealId },
+            transaction);
+
+        DateTime? extendedUntil = kind == DealExtensionKind.FiveDays ? current.Deadline.AddDays(5) : null;
+        var granted = kind == DealExtensionKind.FiveDays
+            ? $"Given 5 more days, until {extendedUntil:yyyy-MM-dd}"
+            : "Given until the next aid is recorded";
+        var notes = string.IsNullOrWhiteSpace(adminNotes) ? granted : $"{granted}: {adminNotes.Trim()}";
+
+        await connection.ExecuteAsync(@"
+            UPDATE deal_extension
+            SET ended_on = CURRENT_TIMESTAMP,
+                end_reason = 'superseded'
+            WHERE deal_id = @dealId AND ended_on IS NULL;
+
+            INSERT INTO deal_extension (deal_id, flag_id, account_id, kind, extended_until, legs_counted_at_grant,
+                granted_by, admin_notes)
+            VALUES (@dealId, @flagId, @accountId, @kind, @extendedUntil, @legsCounted, @grantedBy, @adminNotes);
+
+            UPDATE deal_flag
+            SET resolved_on = CURRENT_TIMESTAMP,
+                resolved_by = @grantedBy,
+                admin_notes = @notes
+            WHERE id = @flagId;",
+            new
+            {
+                dealId = flag.DealId,
+                flagId,
+                accountId = flag.FlaggedAccount.AccountId,
+                kind = kind == DealExtensionKind.FiveDays ? "five_days" : "until_next_leg",
+                extendedUntil,
+                legsCounted = current.LegsCounted,
+                grantedBy,
+                adminNotes = string.IsNullOrWhiteSpace(adminNotes) ? null : adminNotes.Trim(),
+                notes
+            },
+            transaction);
+
+        await transaction.CommitAsync();
+
+        return DealExtendResult.Extended;
+    }
+
+    public async Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+        await connection.OpenAsync();
+        using var transaction = await connection.BeginTransactionAsync();
+
+        var flag = (await QueryOpenFlagsAsync(connection, "df.id = @flagId", new { flagId }, transaction)).FirstOrDefault();
+        if (flag == null)
+        {
+            return DealRestoreResult.FlagNotFound;
+        }
+
+        if (!flag.CanRestoreDeal)
+        {
+            return DealRestoreResult.NotRestorable;
+        }
+
+        var notes = string.IsNullOrWhiteSpace(adminNotes) ? "Deal restored" : $"Deal restored: {adminNotes.Trim()}";
+
+        // Dropping the deal's old state restarts its 5-day clock when the data loader next rebuilds it.
+        // Failed legs are excused so check_deal_inactivity doesn't cancel the deal over them again (V15).
+        // Every open flag on the deal goes, including any warning left over from before it was cancelled
+        await connection.ExecuteAsync(@"
+            UPDATE deal
+            SET status = 'active',
+                cancelled_on = NULL,
+                cancelled_by = NULL,
+                cancellation_reason = NULL
+            WHERE id = @dealId;
+
+            DELETE FROM deal_state WHERE deal_id = @dealId;
+
+            UPDATE deal_extension
+            SET ended_on = CURRENT_TIMESTAMP,
+                end_reason = 'deal_ended'
+            WHERE deal_id = @dealId AND ended_on IS NULL;
+
+            UPDATE deal_activity
+            SET failure_excused = TRUE
+            WHERE deal_id = @dealId AND failed_on IS NOT NULL;
+
+            UPDATE deal_flag
+            SET resolved_on = CURRENT_TIMESTAMP,
+                resolved_by = @restoredBy,
+                admin_notes = @notes
+            WHERE deal_id = @dealId AND resolved_on IS NULL;",
+            new { dealId = flag.DealId, restoredBy, notes },
+            transaction);
+
+        await transaction.CommitAsync();
+
+        return DealRestoreResult.Restored;
     }
 
     public async Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes)

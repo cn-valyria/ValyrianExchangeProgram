@@ -116,6 +116,12 @@
             >
               Deals
             </NuxtLink>
+            <NuxtLink
+              to="/admin/flags"
+              class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+            >
+              Flagged Deals
+            </NuxtLink>
           </template>
           <NuxtLink
             v-if="
@@ -231,6 +237,11 @@ const accountMenuItems = computed(() => {
         label: 'Deals',
         icon: 'i-heroicons-link',
         to: '/admin/deals',
+      })
+      adminItems.push({
+        label: 'Flagged Deals',
+        icon: 'i-heroicons-flag',
+        to: '/admin/flags',
       })
     }
 

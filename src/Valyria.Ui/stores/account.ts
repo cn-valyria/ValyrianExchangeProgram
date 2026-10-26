@@ -52,6 +52,12 @@ export enum DealBlockedReason {
   OutOfSequenceAid = 2,
 }
 
+// Mirrors Valyria.Core.Entities.DealExtensionKind, which is serialized as a number
+export enum DealExtensionKind {
+  FiveDays = 0,
+  UntilNextLeg = 1,
+}
+
 // Mirrors Valyria.Core.Entities.DealLegOutcome, which is serialized as a number
 export enum DealLegOutcome {
   Pending = 0,

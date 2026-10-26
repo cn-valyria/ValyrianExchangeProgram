@@ -2,6 +2,7 @@ import { AID_PACKAGE } from './constants'
 import {
   DealActivityState,
   DealBlockedReason,
+  DealExtensionKind,
   type AccountSimplified,
   type DealDetail,
   type SlotDetail,
@@ -288,6 +289,19 @@ function getDeadlineDetail(deal: DealDetail): string {
   return 'Do this today to keep the deal from being flagged.'
 }
 
+// When a held-up deal is cancelled, with any extension an admin gave, e.g. "cancels 2026-10-18 (extended by Bob)"
+export function describeAdminDeadline(deal: AdminDeal): string {
+  const by = `extended by ${deal.extendedBy ?? 'an admin'}`
+  switch (deal.extensionKind) {
+    case DealExtensionKind.UntilNextLeg:
+      return `no deadline until the next aid (${by})`
+    case DealExtensionKind.FiveDays:
+      return `cancels ${formatDate(deal.cancelsOn)} (${by})`
+    default:
+      return `cancels ${formatDate(deal.cancelsOn)}`
+  }
+}
+
 // The status badge for a deal on the admin deals page
 export function getAdminDealStatus(deal: AdminDeal): DealStatusInfo {
   const accountName = (accountId: number | null): string => {
@@ -309,7 +323,7 @@ export function getAdminDealStatus(deal: AdminDeal): DealStatusInfo {
   const daysResponsible = deal.daysResponsible ?? 0
   const heldUp =
     deal.responsibleAccountId !== null
-      ? ` ${accountName(deal.responsibleAccountId)} has held it up for ${plural(daysResponsible, 'day')}; cancels on ${formatDate(deal.cancelsOn)}.`
+      ? ` ${accountName(deal.responsibleAccountId)} has held it up for ${plural(daysResponsible, 'day')}; ${describeAdminDeadline(deal)}.`
       : ''
   const heldUpColor: BadgeColor = daysResponsible >= 1 ? 'error' : 'warning'
 
