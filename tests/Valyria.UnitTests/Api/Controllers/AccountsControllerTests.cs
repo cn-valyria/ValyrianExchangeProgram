@@ -140,6 +140,29 @@ public class AccountsControllerTests
     }
 
     [Fact]
+    public async Task HoldAccount_ReturnsOk()
+    {
+        Assert.IsType<OkResult>(await _controller.HoldAccount(3));
+        await _repository.Received(1).HoldAccountAsync(3, Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task HoldAccount_Returns404_WhenTheAccountIsNotFound()
+    {
+        _repository.HoldAccountAsync(3, Arg.Any<string>()).ThrowsAsync(new NotFoundException("missing"));
+
+        Assert.IsType<NotFoundObjectResult>(await _controller.HoldAccount(3));
+    }
+
+    [Fact]
+    public async Task HoldAccount_Returns500_OnError()
+    {
+        _repository.HoldAccountAsync(3, Arg.Any<string>()).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await _controller.HoldAccount(3), "boom");
+    }
+
+    [Fact]
     public async Task RemoveAccount_ReturnsOk()
     {
         Assert.IsType<OkResult>(await _controller.RemoveAccount(3));

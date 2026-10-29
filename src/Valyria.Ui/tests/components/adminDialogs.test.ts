@@ -121,6 +121,8 @@ describe('ResolveFlagDialog', () => {
     Array.from(
       document.querySelectorAll<HTMLElement>('[role="dialog"] [role="radio"]'),
     )
+  const checkbox = () =>
+    document.querySelector<HTMLElement>('[role="dialog"] [role="checkbox"]')
 
   it('makes the admin pick an option, then clears the flag with the notes', async () => {
     const resolveFlag = vi
@@ -170,6 +172,74 @@ describe('ResolveFlagDialog', () => {
     expect(cancelDeal).toHaveBeenCalledWith(10, 'Inactive for a week')
     expect(resolveFlag).toHaveBeenCalledWith(5, 'Inactive for a week')
     expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it('can also put the flagged account on hold when cancelling', async () => {
+    const store = useAdminDealsStore()
+    const calls: string[] = []
+    vi.spyOn(store, 'cancelDeal').mockImplementation(async () => {
+      calls.push('cancel')
+    })
+    vi.spyOn(store, 'resolveFlag').mockImplementation(async () => {
+      calls.push('resolve')
+    })
+    const holdAccount = vi
+      .spyOn(useAdminAccountsStore(), 'holdAccount')
+      .mockImplementation(async () => {
+        calls.push('hold')
+      })
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: dealFlag({ id: 5, dealId: 10 }),
+    })
+
+    expect(bodyText()).not.toContain('on hold')
+    await click(radios()[3])
+    await type(
+      inputByPlaceholder('Why is this deal being cancelled?'),
+      'Inactive for a week',
+    )
+    await click(checkbox()!)
+    await click(button('Cancel Deal'))
+
+    expect(holdAccount).toHaveBeenCalledWith(1)
+    expect(calls).toEqual(['cancel', 'hold', 'resolve'])
+    expect(toasts()[0]).toMatchObject({
+      color: 'success',
+      description:
+        'Deal #10 cancelled, Ruler1 put on hold and the warning cleared.',
+    })
+    expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it("doesn't offer a hold when the flagged account is already on hold", async () => {
+    await openDialog(ResolveFlagDialog, {
+      flag: dealFlag({ flaggedAccountRole: 'H' }),
+    })
+
+    await click(radios()[3])
+
+    expect(checkbox()).toBeNull()
+  })
+
+  it('leaves the flag open when the hold fails', async () => {
+    const store = useAdminDealsStore()
+    vi.spyOn(store, 'cancelDeal').mockResolvedValue()
+    const resolveFlag = vi.spyOn(store, 'resolveFlag').mockResolvedValue()
+    vi.spyOn(useAdminAccountsStore(), 'holdAccount').mockRejectedValue(
+      new Error('down'),
+    )
+    const { onClose } = await openDialog(ResolveFlagDialog, {
+      flag: dealFlag(),
+    })
+
+    await click(radios()[3])
+    await type(inputByPlaceholder('Why is this deal being cancelled?'), 'x')
+    await click(checkbox()!)
+    await click(button('Cancel Deal'))
+
+    expect(resolveFlag).not.toHaveBeenCalled()
+    expect(toasts()[0]).toMatchObject({ color: 'error' })
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it.each([

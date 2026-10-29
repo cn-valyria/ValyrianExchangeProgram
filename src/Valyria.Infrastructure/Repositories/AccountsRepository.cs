@@ -152,6 +152,36 @@ where id = @id";
         });
     }
 
+    public async Task HoldAccountAsync(int accountId, string heldBy)
+    {
+        if (!await AccountExists(accountId))
+            throw new NotFoundException($"Unable to find an account to put on hold by ID {accountId}.");
+
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.OpenAsync();
+        using var transaction = await sqlConnection.BeginTransactionAsync();
+
+        // Cancel first so the deals get a clear reason. Changing the role would otherwise
+        // cancel them as 'Account role changed'
+        await sqlConnection.ExecuteAsync(@"
+update deal d
+join slot s on s.id in (d.slot_1_id, d.slot_2_id)
+set
+    d.status = 'cancelled',
+    d.cancelled_on = current_timestamp,
+    d.cancelled_by = @heldBy,
+    d.cancellation_reason = 'Account put on hold'
+where s.account_id = @accountId
+    and d.status = 'active'", new { accountId, heldBy }, transaction);
+
+        await sqlConnection.ExecuteAsync(
+            "update account set va = 'H' where id = @accountId",
+            new { accountId },
+            transaction);
+
+        await transaction.CommitAsync();
+    }
+
     public async Task RemoveAccountAsync(int accountId)
     {
         if (!await AccountExists(accountId))

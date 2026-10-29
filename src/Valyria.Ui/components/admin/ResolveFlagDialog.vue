@@ -34,6 +34,12 @@
             class="w-full"
           />
         </UFormField>
+        <UCheckbox
+          v-if="canHoldAccount"
+          v-model="holdAccount"
+          :label="`Also put ${flaggedName} on hold`"
+          description="Cancels their other active deals and stops them being matched until an admin changes their role back."
+        />
         <UFormField v-else label="Admin Notes">
           <UTextarea
             v-model="notes"
@@ -62,7 +68,7 @@
 
 <script setup lang="ts">
 import type { ApiError } from '~/composables/useApiClient'
-import { ERROR_MESSAGES } from '~/infrastructure/constants'
+import { ACCOUNT_ROLE_CODES, ERROR_MESSAGES } from '~/infrastructure/constants'
 import {
   addDays,
   getAccountName,
@@ -73,6 +79,7 @@ import {
   type FlagResolution,
 } from '~/infrastructure/flags'
 import { DealExtensionKind } from '~/stores/account'
+import { useAdminAccountsStore } from '~/stores/adminAccounts'
 import { useAdminDealsStore, type DealFlag } from '~/stores/adminDeals'
 
 const props = defineProps<{
@@ -85,6 +92,7 @@ const emit = defineEmits<{ close: [boolean] }>()
 
 const toast = useToast()
 const adminDealsStore = useAdminDealsStore()
+const adminAccountsStore = useAdminAccountsStore()
 
 const options = computed(() =>
   getResolutionOptions(props.flag, props.partnerFlag),
@@ -96,7 +104,14 @@ const flaggedName = computed(() => getAccountName(props.flag.flaggedAccount))
 // Nothing is picked up front: the options do very different things, so each needs reading
 const resolution = ref<FlagResolution | null>(null)
 const notes = ref<string>('')
+const holdAccount = ref<boolean>(false)
 const isSaving = ref<boolean>(false)
+
+const canHoldAccount = computed(
+  () =>
+    resolution.value === 'cancelDeal' &&
+    props.flag.flaggedAccountRole !== ACCOUNT_ROLE_CODES.onHold,
+)
 
 const radioItems = computed(() =>
   options.value.map((option) => ({
@@ -138,7 +153,7 @@ const canConfirm = computed(
 )
 
 // Built on success: only warnings on running deals have a deadline to extend
-const getSuccessMessage = (chosen: FlagResolution): string => {
+const getSuccessMessage = (chosen: FlagResolution, held: boolean): string => {
   const deal = `deal #${props.flag.dealId}`
   switch (chosen) {
     case 'extendFiveDays':
@@ -150,7 +165,9 @@ const getSuccessMessage = (chosen: FlagResolution): string => {
     case 'restore':
       return `Deal #${props.flag.dealId} restored.`
     case 'cancelDeal':
-      return `Deal #${props.flag.dealId} cancelled and the warning cleared.`
+      return held
+        ? `Deal #${props.flag.dealId} cancelled, ${flaggedName.value} put on hold and the warning cleared.`
+        : `Deal #${props.flag.dealId} cancelled and the warning cleared.`
     default:
       return 'Flag cleared.'
   }
@@ -160,6 +177,7 @@ const resolve = async () => {
   if (resolution.value === null) return
   const chosen = resolution.value
   const trimmedNotes = notes.value.trim()
+  const held = canHoldAccount.value && holdAccount.value
   isSaving.value = true
   try {
     switch (chosen) {
@@ -177,7 +195,14 @@ const resolve = async () => {
         await adminDealsStore.restoreFlaggedDeal(props.flag.id, trimmedNotes)
         break
       case 'cancelDeal':
+        // Cancelled before the hold so this deal keeps the admin's reason. The flag is
+        // resolved last so it stays open to retry from if the hold fails
         await adminDealsStore.cancelDeal(props.flag.dealId, trimmedNotes)
+        if (held) {
+          await adminAccountsStore.holdAccount(
+            props.flag.flaggedAccount.accountId,
+          )
+        }
         await adminDealsStore.resolveFlag(props.flag.id, trimmedNotes)
         break
       case 'clearBoth':
@@ -192,7 +217,7 @@ const resolve = async () => {
     toast.add({
       color: 'success',
       title: 'Success',
-      description: getSuccessMessage(chosen),
+      description: getSuccessMessage(chosen, held),
       duration: 3000,
     })
     emit('close', true)

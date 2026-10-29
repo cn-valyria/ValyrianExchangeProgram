@@ -17,6 +17,11 @@ public interface IAccountsRepository
 
     Task UpdateAccountAsync(AccountUpdateRequest account);
 
+    /// <summary>
+    /// Cancels the account's active deals and moves it to the 'H' (hold) role, so it isn't matched
+    /// </summary>
+    Task HoldAccountAsync(int accountId, string heldBy);
+
     Task RemoveAccountAsync(int accountId);
 
     Task<ProspectAccount> FindProspectAccountAsync(int nationId);

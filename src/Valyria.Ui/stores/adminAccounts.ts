@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { ACCOUNT_ROLE_CODES } from '~/infrastructure/constants'
 import type { SlotDetail } from './account'
 import type { NationalWarStatus, RecentActivity } from './shared/enums'
 
@@ -93,6 +94,25 @@ export const useAdminAccountsStore = defineStore('adminAccounts', {
           hasDisasterReliefAgency: payload.hasDisasterReliefAgency,
         }
         this.accounts[index] = updatedAccount as AdminAccount
+      }
+    },
+
+    // Also cancels the account's active deals
+    async holdAccount(id: number) {
+      const { apiFetch } = useApiClient()
+
+      const { error } = await apiFetch<null>(`/api/accounts/${id}/hold`, {
+        method: 'PUT',
+      })
+
+      if (error.value) {
+        console.error('Failed to put account on hold:', error.value)
+        throw error.value
+      }
+
+      const account = this.accounts.find((a) => a.id === id)
+      if (account) {
+        account.role = ACCOUNT_ROLE_CODES.onHold
       }
     },
 

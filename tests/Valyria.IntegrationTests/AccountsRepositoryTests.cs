@@ -157,8 +157,28 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
     }
 
     [Fact]
+    public async Task HoldAccount_CancelsItsActiveDeals_AndPutsItOnHold()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B');
+        var sue = await Data.MemberAsync(200, "Sue", 'S');
+        var bobSlots = await Data.SlotIdsAsync(bob);
+        var sueSlots = await Data.SlotIdsAsync(sue);
+        var active = await Data.DealAsync(bobSlots[0], sueSlots[0]);
+        var alreadyCancelled = await Data.DealAsync(bobSlots[1], sueSlots[1], status: "cancelled");
+
+        await Repository.HoldAccountAsync(bob, "admin");
+
+        Assert.Equal('H', (await Repository.GetAccountByIdAsync(bob)).Role);
+        Assert.Equal('S', (await Repository.GetAccountByIdAsync(sue)).Role);
+        var dealSql = "select concat(status, '|', coalesce(cancelled_by, ''), '|', coalesce(cancellation_reason, '')) from deal where id = @id";
+        Assert.Equal("cancelled|admin|Account put on hold", await Data.ScalarAsync<string>(dealSql, new { id = active }));
+        Assert.Equal("cancelled||", await Data.ScalarAsync<string>(dealSql, new { id = alreadyCancelled }));
+    }
+
+    [Fact]
     public async Task UpdateAndRemove_ThrowNotFound_ForAMissingAccount()
     {
+        await Assert.ThrowsAsync<NotFoundException>(() => Repository.HoldAccountAsync(12345, "admin"));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.UpdateAccountAsync(new AccountUpdateRequest { Id = 12345 }));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.RemoveAccountAsync(12345));
     }

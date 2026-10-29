@@ -243,6 +243,21 @@ describe('admin accounts store', () => {
     expect(store.accounts).toEqual([adminAccount(1)])
   })
 
+  it('puts an account on hold', async () => {
+    apiFetch.mockResolvedValue(apiOk(null))
+    const store = useAdminAccountsStore()
+    store.accounts = [adminAccount(1), adminAccount(2)]
+
+    await store.holdAccount(2)
+    await store.holdAccount(99)
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/accounts/2/hold', {
+      method: 'PUT',
+    })
+    expect(store.accounts[1]).toMatchObject({ role: 'H' })
+    expect(store.accounts[0]).toEqual(adminAccount(1))
+  })
+
   it('loads and saves slots', async () => {
     apiFetch.mockResolvedValueOnce(apiOk({ slots: [slot(3)] }))
     const store = useAdminAccountsStore()

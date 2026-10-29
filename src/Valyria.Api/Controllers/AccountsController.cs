@@ -136,6 +136,30 @@ public class AccountsController : ControllerBase
         }
     }
 
+    [HttpPut("{id}/hold")]
+    [Authorize(Policy = Policies.ManageProgram)]
+    public async Task<IActionResult> HoldAccount(int id)
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(HoldAccount)} method...");
+
+        try
+        {
+            await _accountsRepository.HoldAccountAsync(id, User.GetAuditName());
+            return Ok();
+        }
+        catch (NotFoundException e)
+        {
+            _logger.LogWarning(e.Message);
+            return NotFound(e.Message);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(HoldAccount)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> RemoveAccount(int id)
