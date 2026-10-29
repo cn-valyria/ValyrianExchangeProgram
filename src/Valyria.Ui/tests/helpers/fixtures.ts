@@ -106,6 +106,7 @@ export const account = (overrides: Partial<Account> = {}): Account => ({
   allianceName: 'Valyria',
   discord: 'bob',
   discordUniqueId: 111,
+  discordNotificationsEnabled: true,
   uniqueCode: '12345',
   role: 'B',
   activity: 1,

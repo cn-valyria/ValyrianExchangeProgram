@@ -5,6 +5,7 @@ import ActionNeeded from '~/components/account/ActionNeeded.vue'
 import ActiveDeals from '~/components/account/ActiveDeals.vue'
 import DealHealth from '~/components/account/DealHealth.vue'
 import DealHistory from '~/components/account/DealHistory.vue'
+import SettingsDialog from '~/components/account/SettingsDialog.vue'
 import SlotUsage from '~/components/account/SlotUsage.vue'
 import {
   DealActivityState,
@@ -748,5 +749,67 @@ describe('DealHistory', () => {
       color: 'error',
       description: 'Failed to load deal history. Please try again.',
     })
+  })
+})
+
+describe('SettingsDialog', () => {
+  const discordSwitch = () =>
+    document.body.querySelector<HTMLButtonElement>('button[role="switch"]')!
+
+  const openDialog = async (discordNotificationsEnabled = true) => {
+    const onClose = vi.fn()
+    await mountInApp(SettingsDialog, {
+      open: true,
+      onClose,
+      account: account({ id: 1, discordNotificationsEnabled }),
+    })
+    return onClose
+  }
+
+  it('only saves once a setting has changed', async () => {
+    const updateSettings = vi
+      .spyOn(useAccountStore(), 'updateSettings')
+      .mockResolvedValue()
+    const onClose = await openDialog(true)
+
+    expect(discordSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(button('Save').disabled).toBe(true)
+
+    await click(discordSwitch())
+    await click(button('Save'))
+
+    expect(updateSettings).toHaveBeenCalledWith(1, {
+      discordNotificationsEnabled: false,
+    })
+    expect(toasts()[0]).toMatchObject({ color: 'success' })
+    expect(onClose).toHaveBeenCalledWith(true)
+  })
+
+  it('turns notifications back on', async () => {
+    const updateSettings = vi
+      .spyOn(useAccountStore(), 'updateSettings')
+      .mockResolvedValue()
+    await openDialog(false)
+
+    expect(discordSwitch().getAttribute('aria-checked')).toBe('false')
+    await click(discordSwitch())
+    await click(button('Save'))
+
+    expect(updateSettings).toHaveBeenCalledWith(1, {
+      discordNotificationsEnabled: true,
+    })
+  })
+
+  it('stays open with an error when saving fails', async () => {
+    vi.spyOn(useAccountStore(), 'updateSettings').mockRejectedValue(
+      new Error('down'),
+    )
+    const onClose = await openDialog(true)
+
+    await click(discordSwitch())
+    await click(button('Save'))
+
+    expect(toasts()[0]).toMatchObject({ color: 'error' })
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

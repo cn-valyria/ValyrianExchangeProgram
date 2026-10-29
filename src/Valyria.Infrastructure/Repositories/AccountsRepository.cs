@@ -20,6 +20,7 @@ select 	account.id as Id,
     coalesce(nation.ruler_name, deleted_nation.ruler_name) as RulerName,
     account.discord as Discord,
     account.discord_id as DiscordUniqueId,
+    account.discord_notifications_enabled as DiscordNotificationsEnabled,
     account.psw as UniqueCode,
     account.va as Role,
     alliance.name as AllianceName,
@@ -180,6 +181,17 @@ where s.account_id = @accountId
             transaction);
 
         await transaction.CommitAsync();
+    }
+
+    public async Task UpdateAccountSettingsAsync(int accountId, AccountSettings settings)
+    {
+        if (!await AccountExists(accountId))
+            throw new NotFoundException($"Unable to find an account to update settings for by ID {accountId}.");
+
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.ExecuteAsync(
+            "update account set discord_notifications_enabled = @discordNotificationsEnabled where id = @accountId",
+            new { accountId, discordNotificationsEnabled = settings.DiscordNotificationsEnabled });
     }
 
     public async Task RemoveAccountAsync(int accountId)

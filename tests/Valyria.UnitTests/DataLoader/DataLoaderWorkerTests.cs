@@ -70,14 +70,15 @@ public class DataLoaderWorkerTests : IDisposable
             Messages =
             [
                 new MassMessage { Code = MassMessageCode.SendAid, Name = "Send Aid", Recipients = [Recipient(333), Recipient(0), Recipient(444)] },
-                new MassMessage { Code = MassMessageCode.AcceptAid, Name = "Accept Aid", Recipients = [Recipient(555)] },
+                new MassMessage { Code = MassMessageCode.AcceptAid, Name = "Accept Aid", Recipients = [Recipient(555), Recipient(777, discordNotificationsEnabled: false)] },
                 new MassMessage { Code = MassMessageCode.Overdue, Name = "Overdue" },
                 new MassMessage { Code = MassMessageCode.FinalWarning, Name = "Final Warning", Recipients = [Recipient(666)] },
             ]
         });
     }
 
-    private static MassMessageRecipient Recipient(long discordId) => new() { DiscordUniqueId = discordId };
+    private static MassMessageRecipient Recipient(long discordId, bool discordNotificationsEnabled = true) =>
+        new() { DiscordUniqueId = discordId, DiscordNotificationsEnabled = discordNotificationsEnabled };
 
     public void Dispose() => Environment.ExitCode = _originalExitCode;
 
@@ -132,7 +133,7 @@ public class DataLoaderWorkerTests : IDisposable
     }
 
     [Fact]
-    public async Task PingsEachMassMessagesRecipients_WhenANewAidFileIsImported()
+    public async Task PingsEachMassMessagesRecipients_WhoHaveNotOptedOut_WhenANewAidFileIsImported()
     {
         await RunWorker();
 

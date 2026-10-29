@@ -12,6 +12,7 @@ export interface Account {
   allianceName: string
   discord: string
   discordUniqueId: number
+  discordNotificationsEnabled: boolean
   uniqueCode: string
   role: string
   activity: RecentActivity
@@ -22,6 +23,12 @@ export interface Account {
   hasForeignMinistry: boolean
   hasFederalAidCommission: boolean
   hasDisasterReliefAgency: boolean
+}
+
+// The settings members can change on their own account (Valyria.Core.DTOs.AccountSettings)
+export interface AccountSettings {
+  // False stops the data loader pinging the account on Discord
+  discordNotificationsEnabled: boolean
 }
 
 export interface AccountSimplified extends NationSimplified {
@@ -199,6 +206,24 @@ export const useAccountStore = defineStore('account', {
 
       if (data.value) {
         this.account = data.value as Account
+      }
+    },
+
+    async updateSettings(accountId: number, settings: AccountSettings) {
+      const { apiFetch } = useApiClient()
+
+      const { error } = await apiFetch<null>(
+        `/api/accounts/${accountId}/settings`,
+        { method: 'PUT', body: settings },
+      )
+
+      if (error.value) {
+        console.error('Failed to update account settings:', error.value)
+        throw error.value
+      }
+
+      if (this.account.id === accountId) {
+        Object.assign(this.account, settings)
       }
     },
 

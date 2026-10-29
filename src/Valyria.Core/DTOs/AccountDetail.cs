@@ -11,6 +11,8 @@ public class AccountDetail
     public string AllianceName { get; set; }
     public string Discord { get; set; }
     public long DiscordUniqueId { get; set; }
+    // Set by the member from their account page (see AccountSettings)
+    public bool DiscordNotificationsEnabled { get; set; }
     public string UniqueCode { get; set; }
     public char Role { get; set; }
     public RecentActivity Activity { get; set; }

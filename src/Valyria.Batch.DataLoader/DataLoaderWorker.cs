@@ -280,12 +280,13 @@ public class DataLoaderWorker : BackgroundService
         foreach (var message in summary.Messages)
         {
             var discordIds = message.Recipients
+                .Where(r => r.DiscordNotificationsEnabled)
                 .Select(r => r.DiscordUniqueId)
                 .Where(id => id != 0)
                 .Distinct()
                 .ToList();
 
-            _logger.LogInformation("{messageName} mass message: {recipientCount} recipients, {discordCount} with a Discord ID.",
+            _logger.LogInformation("{messageName} mass message: {recipientCount} recipients, {discordCount} to ping on Discord.",
                 message.Name, message.Recipients.Count, discordIds.Count);
 
             await _discordWebhookService.SendMassMessageNotificationAsync(message.Code, discordIds);

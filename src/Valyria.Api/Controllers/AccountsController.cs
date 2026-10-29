@@ -160,6 +160,33 @@ public class AccountsController : ControllerBase
         }
     }
 
+    // Members change their own settings. Admins don't need this: AccountUpdateRequest covers what they manage
+    [HttpPut("{id}/settings")]
+    public async Task<IActionResult> UpdateAccountSettings(int id, [FromBody] AccountSettings settings)
+    {
+        if (User.GetAccountId() != id)
+            return Forbid();
+
+        _logger.LogInformation($"Beginning execution for {nameof(UpdateAccountSettings)} method...");
+
+        try
+        {
+            await _accountsRepository.UpdateAccountSettingsAsync(id, settings);
+            return Ok();
+        }
+        catch (NotFoundException e)
+        {
+            _logger.LogWarning(e.Message);
+            return NotFound(e.Message);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(UpdateAccountSettings)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Policy = Policies.ManageProgram)]
     public async Task<IActionResult> RemoveAccount(int id)

@@ -22,6 +22,8 @@ public interface IAccountsRepository
     /// </summary>
     Task HoldAccountAsync(int accountId, string heldBy);
 
+    Task UpdateAccountSettingsAsync(int accountId, AccountSettings settings);
+
     Task RemoveAccountAsync(int accountId);
 
     Task<ProspectAccount> FindProspectAccountAsync(int nationId);

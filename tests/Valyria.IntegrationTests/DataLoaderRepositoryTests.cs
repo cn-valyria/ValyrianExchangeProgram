@@ -196,6 +196,19 @@ public class DataLoaderRepositoryTests(MySqlFixture fixture) : RepositoryTestBas
     }
 
     [Fact]
+    public async Task MatchDeals_LeavesOutAccountsThatOptedOutOfDiscordNotifications()
+    {
+        await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
+        var sue = await Data.MemberAsync(200, "Sue", 'S', discordId: 222);
+        await Data.ExecuteAsync("update account set discord_notifications_enabled = false where id = @sue", new { sue });
+
+        var result = await VepRepository.MatchDealsAsync();
+
+        Assert.True(result.DealsCreated > 0);
+        Assert.Equal([111L], result.NewPartnerDiscordIds);
+    }
+
+    [Fact]
     public async Task MatchDeals_LeavesOutAccountsWithoutADiscordId_AndOnlyReportsNewDeals()
     {
         await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
