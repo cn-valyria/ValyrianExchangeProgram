@@ -144,27 +144,7 @@
       </div>
 
       <!-- Why, and what happens next -->
-      <dl class="space-y-3 text-sm">
-        <div>
-          <dt class="font-semibold text-gray-900 dark:text-white">Flagged</dt>
-          <dd class="text-gray-600 dark:text-gray-300">
-            {{ formatDate(flag.flaggedOn) }} · {{ getFlagReasonLabel(flag) }}
-          </dd>
-        </div>
-        <div>
-          <dt class="font-semibold text-gray-900 dark:text-white">Expected</dt>
-          <dd class="text-gray-600 dark:text-gray-300">
-            {{ describeExpectation(flag) }}
-          </dd>
-        </div>
-        <div>
-          <dt class="font-semibold text-gray-900 dark:text-white">
-            What happened
-          </dt>
-          <dd class="text-gray-600 dark:text-gray-300">
-            {{ describeWhatHappened(flag) }}
-          </dd>
-        </div>
+      <FlagWhy :flag="flag">
         <UAlert
           :color="outlook.color"
           variant="subtle"
@@ -184,7 +164,7 @@
             {{ flag.cancellationReason }}
           </dd>
         </div>
-      </dl>
+      </FlagWhy>
 
       <UButton
         :label="showEvidence ? 'Hide aid details' : 'Show aid details'"
@@ -213,8 +193,6 @@ import {
   type BadgeColor,
 } from '~/infrastructure/deals'
 import {
-  describeExpectation,
-  describeWhatHappened,
   getAccountName,
   getDealStatusInfo,
   getFlagOutlook,
@@ -225,7 +203,8 @@ import {
 } from '~/infrastructure/flags'
 import type { SlotDetail } from '~/stores/account'
 import type { DealFlag } from '~/stores/adminDeals'
-import FlagEvidence from '~/components/admin/FlagEvidence.vue'
+import FlagEvidence from '~/components/flag/FlagEvidence.vue'
+import FlagWhy from '~/components/flag/FlagWhy.vue'
 
 const props = defineProps<{
   flag: DealFlag
@@ -276,6 +255,4 @@ const parties = computed(
     },
   ],
 )
-
-const formatDate = (date: string): string => date.split('T')[0]
 </script>

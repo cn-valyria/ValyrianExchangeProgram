@@ -118,6 +118,41 @@ public class DealsController : ControllerBase
     }
 
     /// <summary>
+    /// Get the open warning against an account on one of its deals, and the aid behind it
+    /// </summary>
+    [HttpGet("{id}/flag")]
+    public async Task<IActionResult> GetAccountDealFlag(int id, [FromQuery] int accountId)
+    {
+        if (!User.CanAccessAccount(accountId))
+            return Forbid();
+
+        _logger.LogInformation("Beginning execution for {MethodName} with dealId={DealId}, accountId={AccountId}",
+            nameof(GetAccountDealFlag), id, accountId);
+
+        try
+        {
+            var result = await _dealsRepository.GetAccountDealFlagAsync(id, accountId);
+
+            if (result == null)
+            {
+                _logger.LogWarning("No open flag on dealId={DealId} for accountId={AccountId}", id, accountId);
+                return NotFound(new { error = $"No open flag on deal {id} for this account" });
+            }
+
+            _logger.LogInformation("{MethodName} execution complete. Found flag with id={FlagId}",
+                nameof(GetAccountDealFlag), result.Flag.Id);
+
+            return Ok(result);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetAccountDealFlag)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    /// <summary>
     /// Get details for a specific deal by ID
     /// </summary>
     [HttpGet("{id}")]

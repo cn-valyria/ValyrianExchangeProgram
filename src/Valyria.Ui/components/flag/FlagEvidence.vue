@@ -47,7 +47,7 @@
 
       <section class="space-y-2">
         <h4 class="font-semibold text-gray-900 dark:text-white">
-          {{ flaggedName }}'s aid slots {{ slotsWhen }}
+          {{ flaggedPossessive }} aid slots {{ slotsWhen }}
         </h4>
         <p class="text-gray-600 dark:text-gray-400">
           {{ slotSummary }}
@@ -103,24 +103,39 @@ import {
   getLegOutcomeInfo,
   getSlotAidKind,
   isOnActiveDeal,
+  type FlagVoice,
 } from '~/infrastructure/flags'
 import {
   useAdminDealsStore,
   type DealFlag,
+  type DealFlagEvidence,
   type FlagSlotAid,
 } from '~/stores/adminDeals'
 
-const props = defineProps<{
-  flag: DealFlag
-}>()
+const props = withDefaults(
+  defineProps<{
+    flag: DealFlag
+    // Already loaded, as on the account page. Otherwise it's loaded from the admin API
+    evidence?: DealFlagEvidence
+    voice?: FlagVoice
+  }>(),
+  { evidence: undefined, voice: 'admin' },
+)
 
 const adminDealsStore = useAdminDealsStore()
 const { flagEvidence } = storeToRefs(adminDealsStore)
 
 const loading = ref<boolean>(false)
 
-const evidence = computed(() => flagEvidence.value[props.flag.id])
-const flaggedName = computed(() => getAccountName(props.flag.flaggedAccount))
+const evidence = computed(
+  () => props.evidence ?? flagEvidence.value[props.flag.id],
+)
+const flaggedName = computed(() =>
+  props.voice === 'flagged' ? 'You' : getAccountName(props.flag.flaggedAccount),
+)
+const flaggedPossessive = computed(() =>
+  props.voice === 'flagged' ? 'Your' : `${flaggedName.value}'s`,
+)
 const partnerName = computed(() => getAccountName(props.flag.innocentAccount))
 
 const formatDate = (date: string): string => date.split('T')[0]

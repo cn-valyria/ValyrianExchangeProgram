@@ -929,6 +929,33 @@ public class DealsRepository : IDealsRepository
         };
     }
 
+    public async Task<AccountDealFlag> GetAccountDealFlagAsync(int dealId, int accountId)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+
+        // The same warning GetAccountDealsAsync reports as the deal's FlaggedOn: the oldest, and flags come newest first
+        var flag = (await QueryOpenFlagsAsync(connection, @"
+                df.deal_id = @dealId
+                AND df.flagged_account_id = @accountId
+                AND df.flag_type = '1_day_inactive'
+                AND d.status = 'active'",
+            new { dealId, accountId })).LastOrDefault();
+
+        if (flag == null)
+        {
+            return null;
+        }
+
+        // Notes are written for other admins, not the account
+        flag.AdminNotes = null;
+
+        return new AccountDealFlag
+        {
+            Flag = flag,
+            Evidence = await GetDealFlagEvidenceAsync(flag.Id)
+        };
+    }
+
     private class ExtensionBase
     {
         public int LegsCounted { get; set; }

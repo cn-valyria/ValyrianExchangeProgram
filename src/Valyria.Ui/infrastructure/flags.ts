@@ -43,6 +43,59 @@ export interface LabelInfo {
   color: BadgeColor
 }
 
+// Who flag text is written for: admins, who see the flagged account by name, or the flagged account itself, as "you"
+export type FlagVoice = 'admin' | 'flagged'
+
+// How flag text refers to the flagged account. Names keep their own case, so sentence starts get their own words
+interface FlaggedWords {
+  // "Ruler1 didn't send it" / "You didn't send it"
+  name: string
+  // "to Ruler1" / "to you"
+  nameMid: string
+  // "Ruler1's aid slots" / "Your aid slots"
+  possessive: string
+  // "on Ruler1's side" / "on your side"
+  possessiveMid: string
+  // "They've held up" / "You've held up"
+  pronoun: string
+  // "so they couldn't" / "so you couldn't"
+  pronounMid: string
+  // "send to them" / "send to you"
+  objectPronoun: string
+  // "Their last aid" / "Your last aid"
+  possessivePronoun: string
+  // "Ruler1 was" / "You were"
+  was: string
+}
+
+function getFlaggedWords(flag: DealFlag, voice: FlagVoice): FlaggedWords {
+  if (voice === 'flagged') {
+    return {
+      name: 'You',
+      nameMid: 'you',
+      possessive: 'Your',
+      possessiveMid: 'your',
+      pronoun: 'You',
+      pronounMid: 'you',
+      objectPronoun: 'you',
+      possessivePronoun: 'Your',
+      was: 'were',
+    }
+  }
+  const name = getAccountName(flag.flaggedAccount)
+  return {
+    name,
+    nameMid: name,
+    possessive: `${name}'s`,
+    possessiveMid: `${name}'s`,
+    pronoun: 'They',
+    pronounMid: 'they',
+    objectPronoun: 'them',
+    possessivePronoun: 'Their',
+    was: 'was',
+  }
+}
+
 // Column layout of a flag row from md up, shared by the rows and their header on the flags page
 export const FLAG_ROW_GRID =
   'md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_6rem] md:gap-x-4'
@@ -102,10 +155,15 @@ export function getFlagTypeInfo(flag: DealFlag): LabelInfo {
   }
 }
 
-export function getFlagReasonLabel(flag: DealFlag): string {
+export function getFlagReasonLabel(
+  flag: DealFlag,
+  voice: FlagVoice = 'admin',
+): string {
   switch (flag.flagReason) {
     case DealFlagReason.AwaitingSend:
-      return "Didn't send on their turn"
+      return voice === 'flagged'
+        ? "Didn't send on your turn"
+        : "Didn't send on their turn"
     case DealFlagReason.SenderSlotsFull:
       return 'Slots full (sender)'
     case DealFlagReason.ReceiverSlotsFull:
@@ -137,21 +195,24 @@ export function getDealStatusInfo(flag: DealFlag): LabelInfo {
 }
 
 // What VEP expected of the flagged account
-export function describeExpectation(flag: DealFlag): string {
-  const flagged = getAccountName(flag.flaggedAccount)
+export function describeExpectation(
+  flag: DealFlag,
+  voice: FlagVoice = 'admin',
+): string {
+  const flagged = getFlaggedWords(flag, voice)
   const partner = getAccountName(flag.innocentAccount)
   const theirLeg = describeLeg(flag.flaggedSlot)
   const partnerLeg = describeLeg(flag.innocentSlot)
 
   switch (flag.flagReason) {
     case DealFlagReason.AwaitingSend:
-      return `It was ${flagged}'s turn to send ${theirLeg} to ${partner}, and both nations had a free aid slot.`
+      return `It was ${flagged.possessiveMid} turn to send ${theirLeg} to ${partner}, and both nations had a free aid slot.`
     case DealFlagReason.SenderSlotsFull:
-      return `It was ${flagged}'s turn to send ${theirLeg} to ${partner}, which needs a free aid slot on ${flagged}'s side.`
+      return `It was ${flagged.possessiveMid} turn to send ${theirLeg} to ${partner}, which needs a free aid slot on ${flagged.possessiveMid} side.`
     case DealFlagReason.ReceiverSlotsFull:
-      return `It was ${partner}'s turn to send ${partnerLeg} to ${flagged}, which needs a free aid slot on ${flagged}'s side.`
+      return `It was ${partner}'s turn to send ${partnerLeg} to ${flagged.nameMid}, which needs a free aid slot on ${flagged.possessiveMid} side.`
     case DealFlagReason.OutOfSequenceAid:
-      return `It was ${partner}'s turn to send ${partnerLeg}. ${flagged} was expected to wait for it, since two nations can only have one aid offer between them at a time.`
+      return `It was ${partner}'s turn to send ${partnerLeg}. ${flagged.name} ${flagged.was} expected to wait for it, since two nations can only have one aid offer between them at a time.`
     case DealFlagReason.AidCancelled:
     case DealFlagReason.AidExpired:
       return `Each aid offer in the deal had to be accepted within 10 days of being sent, and not cancelled.`
@@ -161,37 +222,40 @@ export function describeExpectation(flag: DealFlag): string {
 }
 
 // What the flagged account did instead
-export function describeWhatHappened(flag: DealFlag): string {
-  const flagged = getAccountName(flag.flaggedAccount)
+export function describeWhatHappened(
+  flag: DealFlag,
+  voice: FlagVoice = 'admin',
+): string {
+  const flagged = getFlaggedWords(flag, voice)
   const partner = getAccountName(flag.innocentAccount)
   const lastSent = flag.flaggedLastSentOn
-    ? `Their last aid counted in this deal was sent on ${formatDate(flag.flaggedLastSentOn)}.`
-    : "They haven't had any aid counted in this deal yet."
+    ? `${flagged.possessivePronoun} last aid counted in this deal was sent on ${formatDate(flag.flaggedLastSentOn)}.`
+    : `${flagged.pronoun} haven't had any aid counted in this deal yet.`
   const heldUpFor =
     isStillHoldingUpDeal(flag) && flag.daysResponsible !== null
-      ? ` They've held up the deal for ${plural(flag.daysResponsible, 'day')}.`
+      ? ` ${flagged.pronoun}'ve held up the deal for ${plural(flag.daysResponsible, 'day')}.`
       : ''
 
   switch (flag.flagReason) {
     case DealFlagReason.AwaitingSend:
-      return `${flagged} didn't send it. ${lastSent}${heldUpFor}`
+      return `${flagged.name} didn't send it. ${lastSent}${heldUpFor}`
     case DealFlagReason.SenderSlotsFull:
-      return `${flagged}'s aid slots were all taken, at least one by aid outside VEP sent after the deal started, so they couldn't send it. ${lastSent}${heldUpFor}`
+      return `${flagged.possessive} aid slots were all taken, at least one by aid outside VEP sent after the deal started, so ${flagged.pronounMid} couldn't send it. ${lastSent}${heldUpFor}`
     case DealFlagReason.ReceiverSlotsFull:
-      return `${flagged}'s aid slots were all taken, at least one by aid outside VEP sent after the deal started, so ${partner} couldn't send to them.${heldUpFor}`
+      return `${flagged.possessive} aid slots were all taken, at least one by aid outside VEP sent after the deal started, so ${partner} couldn't send to ${flagged.objectPronoun}.${heldUpFor}`
     case DealFlagReason.OutOfSequenceAid: {
       const until =
         flag.blockedUntil !== null
           ? `, which blocks ${partner} until ${formatDate(flag.blockedUntil)}`
           : ''
-      return `${flagged} sent aid to ${partner} out of turn${until}.${heldUpFor}`
+      return `${flagged.name} sent aid to ${partner} out of turn${until}.${heldUpFor}`
     }
     case DealFlagReason.AidCancelled:
-      return `An offer between ${flagged} and ${partner} was cancelled before it was accepted. VEP can't tell which side caused it, so it flagged both accounts and cancelled the deal.`
+      return `An offer between ${flagged.nameMid} and ${partner} was cancelled before it was accepted. VEP can't tell which side caused it, so it flagged both accounts and cancelled the deal.`
     case DealFlagReason.AidExpired:
-      return `An offer between ${flagged} and ${partner} expired without being accepted. VEP can't tell which side caused it, so it flagged both accounts and cancelled the deal.`
+      return `An offer between ${flagged.nameMid} and ${partner} expired without being accepted. VEP can't tell which side caused it, so it flagged both accounts and cancelled the deal.`
     default:
-      return `${flagged} was flagged on ${formatDate(flag.flaggedOn)}.`
+      return `${flagged.name} ${flagged.was} flagged on ${formatDate(flag.flaggedOn)}.`
   }
 }
 

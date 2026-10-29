@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { NationalWarStatus, RecentActivity } from './shared/enums'
 import type { NationSimplified } from './shared/nationSimplified'
+import type { DealFlag, DealFlagEvidence } from './adminDeals'
 import type { Team } from '~/infrastructure/teamEvents'
 
 export interface Account {
@@ -160,6 +161,12 @@ export interface DealActivity {
   outcome: DealLegOutcome
 }
 
+// The account's open warning on one of its deals, as the account sees it (no admin notes)
+export interface AccountDealFlag {
+  flag: DealFlag
+  evidence: DealFlagEvidence
+}
+
 export const useAccountStore = defineStore('account', {
   state: () => ({
     account: {} as Account,
@@ -174,6 +181,7 @@ export const useAccountStore = defineStore('account', {
     } as AccountDealsSummary,
     dealHistory: { totalCount: 0, results: [] } as DealHistoryPage,
     dealActivity: {} as Record<number, DealActivity[]>,
+    dealFlags: {} as Record<number, AccountDealFlag>,
   }),
 
   actions: {
@@ -248,6 +256,23 @@ export const useAccountStore = defineStore('account', {
 
       if (data.value) {
         this.dealActivity[dealId] = data.value as DealActivity[]
+      }
+    },
+
+    async loadDealFlag(accountId: number, dealId: number) {
+      const { apiFetch } = useApiClient()
+
+      const { data, error } = await apiFetch<AccountDealFlag>(
+        `/api/deals/${dealId}/flag?accountId=${accountId}`,
+      )
+
+      if (error.value) {
+        console.error('Failed to load deal flag:', error.value)
+        throw error.value
+      }
+
+      if (data.value) {
+        this.dealFlags[dealId] = data.value as AccountDealFlag
       }
     },
   },

@@ -11,12 +11,15 @@ import {
   DealBlockedReason,
   DealLegOutcome,
   DealStatus,
+  useAccountStore,
   type DealHistoryItem,
 } from '~/stores/account'
+import { DealFlagReason } from '~/stores/adminDeals'
 import {
   account,
   accountSimplified,
   dealDetail,
+  dealFlag,
   teamBonusSlot,
 } from '../helpers/fixtures'
 import {
@@ -320,6 +323,84 @@ describe('ActionNeeded', () => {
     expect(wrapper.text()).toContain(
       '1 of your deals is flagged for inactivity',
     )
+  })
+
+  it('explains a flag, with the aid holding the slots, when Flagged is clicked', async () => {
+    const store = useAccountStore()
+    const loadDealFlag = vi
+      .spyOn(store, 'loadDealFlag')
+      .mockImplementation(async (_accountId, dealId) => {
+        store.dealFlags[dealId] = {
+          flag: dealFlag({
+            dealId,
+            flagReason: DealFlagReason.SenderSlotsFull,
+          }),
+          evidence: {
+            legs: [],
+            slotsAsOf: '2026-10-10T00:00:00',
+            flaggedSlotsTotal: 4,
+            flaggedSlotAid: [
+              {
+                aidId: 2,
+                sentOn: '2026-10-08T12:00:00',
+                isOutgoing: true,
+                status: 2,
+                money: 3_000_000,
+                technology: 0,
+                soldiers: 0,
+                reason: 'War aid',
+                dealId: null,
+                sentBeforeDeal: false,
+                otherNation: {
+                  nationId: 500,
+                  nationName: 'Farland',
+                  rulerName: 'Faraway',
+                  allianceName: 'Other',
+                },
+              },
+            ],
+          },
+        }
+      })
+    const wrapper = await mountInApp(ActionNeeded, {
+      deals: [dealDetail({ id: 3, ...flagged })],
+      myNationId: 101,
+      accountId: 1,
+    })
+    expect(wrapper.text()).not.toContain('What happened')
+
+    await click(button('Flagged', wrapper.element))
+
+    expect(loadDealFlag).toHaveBeenCalledWith(1, 3)
+    expect(wrapper.text()).toContain('Slots full (sender)')
+    expect(wrapper.text()).toContain(
+      'Your aid slots were all taken, at least one by aid outside VEP',
+    )
+    expect(wrapper.text()).toContain('Your aid slots right now')
+    expect(wrapper.text()).not.toContain('Ruler1')
+    expect(wrapper.text()).toContain('Sent to Faraway (Farland)')
+    expect(wrapper.text()).toContain('Outside VEP')
+
+    await click(button('Flagged', wrapper.element))
+    expect(wrapper.text()).not.toContain('What happened')
+  })
+
+  it('offers a retry when the flag fails to load', async () => {
+    const store = useAccountStore()
+    const loadDealFlag = vi
+      .spyOn(store, 'loadDealFlag')
+      .mockRejectedValue(new Error('boom'))
+    const wrapper = await mountInApp(ActionNeeded, {
+      deals: [dealDetail(flagged)],
+      myNationId: 101,
+      accountId: 1,
+    })
+
+    await click(button('Flagged', wrapper.element))
+    expect(wrapper.text()).toContain("Couldn't load why this deal was flagged.")
+
+    await click(button('Try Again', wrapper.element))
+    expect(loadDealFlag).toHaveBeenCalledTimes(2)
   })
 })
 

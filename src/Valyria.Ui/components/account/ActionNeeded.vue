@@ -37,85 +37,116 @@
         variant="subtle"
         icon="i-heroicons-flag"
         :title="`${flaggedCount} of your deals ${flaggedCount === 1 ? 'is' : 'are'} flagged for inactivity`"
-        description="You won't be matched with new partners while any of your deals are flagged. Flagged deals are cancelled 5 days after you start holding them up."
+        description="You won't be matched with new partners while any of your deals are flagged. Flagged deals are cancelled 5 days after you start holding them up. Tap Flagged on a deal to see why."
       />
 
       <ul class="divide-y divide-gray-200 dark:divide-gray-700">
         <li
           v-for="action in actions"
           :key="action.deal.id"
-          class="flex flex-col sm:flex-row sm:items-center gap-3 py-4 first:pt-0 last:pb-0"
+          class="py-4 first:pt-0 last:pb-0"
         >
-          <div
-            class="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
-            :class="iconClass(action)"
-          >
-            <UIcon :name="ACTION_ICONS[action.kind]" class="w-5 h-5" />
-          </div>
-
-          <div class="flex-1 min-w-0 space-y-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="font-semibold text-gray-900 dark:text-white">
-                {{ action.title }} {{ action.preposition }}
-                <a
-                  :href="getNationLink(action.deal.partnerSlot.account)"
-                  target="_blank"
-                  class="text-fg-brand hover:underline"
-                  >{{ action.deal.partnerSlot.account.rulerName }} of
-                  {{ action.deal.partnerSlot.account.nationName }}</a
-                >
-              </span>
-              <ChipAllianceAcronym
-                :alliance-name="action.deal.partnerSlot.account.allianceName"
-              />
-              <UBadge
-                v-if="action.flagged"
-                color="error"
-                variant="solid"
-                size="sm"
-                icon="i-heroicons-flag"
-              >
-                Flagged
-              </UBadge>
-            </div>
-            <p
-              class="text-sm"
-              :class="
-                action.flagged
-                  ? 'text-red-700 dark:text-red-300 font-medium'
-                  : 'text-gray-600 dark:text-gray-400'
-              "
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div
+              class="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+              :class="iconClass(action)"
             >
-              {{ action.detail }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-500">
-              Slot #{{ action.deal.mySlot.slotNumber }}
-              <template v-if="action.deal.partnerDiscord">
-                · Discord: {{ action.deal.partnerDiscord }}</template
+              <UIcon :name="ACTION_ICONS[action.kind]" class="w-5 h-5" />
+            </div>
+
+            <div class="flex-1 min-w-0 space-y-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-semibold text-gray-900 dark:text-white">
+                  {{ action.title }} {{ action.preposition }}
+                  <a
+                    :href="getNationLink(action.deal.partnerSlot.account)"
+                    target="_blank"
+                    class="text-fg-brand hover:underline"
+                    >{{ action.deal.partnerSlot.account.rulerName }} of
+                    {{ action.deal.partnerSlot.account.nationName }}</a
+                  >
+                </span>
+                <ChipAllianceAcronym
+                  :alliance-name="action.deal.partnerSlot.account.allianceName"
+                />
+                <UButton
+                  v-if="action.flagged"
+                  color="error"
+                  variant="solid"
+                  size="xs"
+                  icon="i-heroicons-flag"
+                  :trailing-icon="
+                    expandedDealId === action.deal.id
+                      ? 'i-heroicons-chevron-up'
+                      : 'i-heroicons-chevron-down'
+                  "
+                  label="Flagged"
+                  :aria-expanded="expandedDealId === action.deal.id"
+                  :aria-label="
+                    expandedDealId === action.deal.id
+                      ? 'Hide why this deal was flagged'
+                      : 'Show why this deal was flagged'
+                  "
+                  @click="toggleFlag(action.deal.id)"
+                />
+              </div>
+              <p
+                class="text-sm"
+                :class="
+                  action.flagged
+                    ? 'text-red-700 dark:text-red-300 font-medium'
+                    : 'text-gray-600 dark:text-gray-400'
+                "
               >
-            </p>
+                {{ action.detail }}
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-500">
+                Slot #{{ action.deal.mySlot.slotNumber }}
+                <template v-if="action.deal.partnerDiscord">
+                  · Discord: {{ action.deal.partnerDiscord }}</template
+                >
+              </p>
+            </div>
+
+            <UButton
+              v-if="action.kind === 'send'"
+              :to="
+                getAidFormLink(
+                  action.deal.partnerSlot.account,
+                  props.myNationId,
+                )
+              "
+              target="_blank"
+              :color="action.flagged ? 'error' : 'primary'"
+              icon="i-heroicons-paper-airplane"
+              label="Open Aid Form"
+              class="shrink-0 self-start sm:self-center"
+            />
+            <UButton
+              v-else-if="action.kind === 'accept'"
+              :to="AID_INFORMATION_LINK"
+              target="_blank"
+              :color="action.flagged ? 'error' : 'primary'"
+              icon="i-heroicons-inbox-arrow-down"
+              label="Accept Aid"
+              class="shrink-0 self-start sm:self-center"
+            />
           </div>
 
-          <UButton
-            v-if="action.kind === 'send'"
-            :to="
-              getAidFormLink(action.deal.partnerSlot.account, props.myNationId)
-            "
-            target="_blank"
-            :color="action.flagged ? 'error' : 'primary'"
-            icon="i-heroicons-paper-airplane"
-            label="Open Aid Form"
-            class="shrink-0 self-start sm:self-center"
-          />
-          <UButton
-            v-else-if="action.kind === 'accept'"
-            :to="AID_INFORMATION_LINK"
-            target="_blank"
-            :color="action.flagged ? 'error' : 'primary'"
-            icon="i-heroicons-inbox-arrow-down"
-            label="Accept Aid"
-            class="shrink-0 self-start sm:self-center"
-          />
+          <!-- Why it was flagged, lined up with the text beside the icon -->
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 -translate-y-1"
+            leave-active-class="transition duration-100 ease-in"
+            leave-to-class="opacity-0 -translate-y-1"
+          >
+            <DealFlagDetails
+              v-if="action.flagged && expandedDealId === action.deal.id"
+              :account-id="props.accountId"
+              :deal-id="action.deal.id"
+              class="mt-3 sm:ml-13 rounded-md bg-red-50/60 dark:bg-red-950/20 ring-1 ring-red-200 dark:ring-red-900/50 p-4"
+            />
+          </Transition>
         </li>
       </ul>
     </div>
@@ -123,6 +154,7 @@
 </template>
 
 <script setup lang="ts">
+import DealFlagDetails from '~/components/account/DealFlagDetails.vue'
 import {
   AID_INFORMATION_LINK,
   getAidFormLink,
@@ -136,11 +168,13 @@ import type { DealDetail } from '~/stores/account'
 interface Props {
   deals: DealDetail[]
   myNationId: number
+  accountId: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   deals: () => [],
   myNationId: 0,
+  accountId: 0,
 })
 
 const ACTION_ICONS: Record<DealActionKind, string> = {
@@ -151,11 +185,18 @@ const ACTION_ICONS: Record<DealActionKind, string> = {
   outOfTurn: 'i-heroicons-arrows-right-left',
 }
 
+// One deal's flag details open at a time
+const expandedDealId = ref<number | null>(null)
+
 const actions = computed(() => getDealActions(props.deals))
 
 const flaggedCount = computed(
   () => actions.value.filter((action) => action.flagged).length,
 )
+
+const toggleFlag = (dealId: number): void => {
+  expandedDealId.value = expandedDealId.value === dealId ? null : dealId
+}
 
 const iconClass = (action: DealAction): string => {
   if (action.flagged)

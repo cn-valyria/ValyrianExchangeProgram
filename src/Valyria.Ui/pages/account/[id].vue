@@ -65,6 +65,7 @@
         <AccountActionNeeded
           :deals="dealsSummary.activeDeals"
           :my-nation-id="account.nationId"
+          :account-id="accountId"
         />
 
         <!-- Active Deals Card -->

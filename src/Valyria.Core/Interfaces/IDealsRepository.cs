@@ -65,6 +65,12 @@ public interface IDealsRepository
     Task<DealFlagEvidence> GetDealFlagEvidenceAsync(int flagId);
 
     /// <summary>
+    /// The open warning against an account on one of its active deals, with the aid behind it, so the account can see
+    /// why it was flagged. Returns null if the account has no open warning on the deal.
+    /// </summary>
+    Task<AccountDealFlag> GetAccountDealFlagAsync(int dealId, int accountId);
+
+    /// <summary>
     /// Resolve a deal flag (admin action)
     /// </summary>
     Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes);
@@ -214,6 +220,15 @@ public class DealFlagDetail
         && SlotsStillMatch
         && !FlaggedSlot.IsInactiveTeamBonus
         && !InnocentSlot.IsInactiveTeamBonus;
+}
+
+/// <summary>
+/// A warning as the flagged account sees it. AdminNotes is always null
+/// </summary>
+public class AccountDealFlag
+{
+    public DealFlagDetail Flag { get; set; }
+    public DealFlagEvidence Evidence { get; set; }
 }
 
 public enum DealExtendResult

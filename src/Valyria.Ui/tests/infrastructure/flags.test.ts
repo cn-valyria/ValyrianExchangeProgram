@@ -9,6 +9,7 @@ import {
   getCnToday,
   getDealStatusInfo,
   getFlagOutlook,
+  getFlagReasonLabel,
   getLegOutcomeInfo,
   getResolutionOptions,
   getRestoreBlocker,
@@ -166,6 +167,69 @@ describe('describeExpectation and describeWhatHappened', () => {
     const flag = dealFlag({ flagReason: null })
     expect(describeExpectation(flag)).toContain('before VEP 3.0')
     expect(describeWhatHappened(flag)).toBe('Ruler1 was flagged on 2026-10-09.')
+  })
+
+  describe('written for the flagged account', () => {
+    it('says what they should have sent, and when they last did', () => {
+      const flag = dealFlag()
+      expect(getFlagReasonLabel(flag, 'flagged')).toBe(
+        "Didn't send on your turn",
+      )
+      expect(describeExpectation(flag, 'flagged')).toBe(
+        'It was your turn to send $9M to Ruler2, and both nations had a free aid slot.',
+      )
+      expect(describeWhatHappened(flag, 'flagged')).toBe(
+        "You didn't send it. Your last aid counted in this deal was sent on 2026-09-28. You've held up the deal for 2 days.",
+      )
+      expect(
+        describeWhatHappened(dealFlag({ flaggedLastSentOn: null }), 'flagged'),
+      ).toContain("You haven't had any aid counted in this deal yet.")
+    })
+
+    it('explains full slots on either side', () => {
+      const sender = dealFlag({ flagReason: DealFlagReason.SenderSlotsFull })
+      expect(describeExpectation(sender, 'flagged')).toBe(
+        'It was your turn to send $9M to Ruler2, which needs a free aid slot on your side.',
+      )
+      expect(describeWhatHappened(sender, 'flagged')).toContain(
+        "Your aid slots were all taken, at least one by aid outside VEP sent after the deal started, so you couldn't send it.",
+      )
+
+      const receiver = dealFlag({
+        flagReason: DealFlagReason.ReceiverSlotsFull,
+      })
+      expect(describeExpectation(receiver, 'flagged')).toBe(
+        "It was Ruler2's turn to send 100 tech to you, which needs a free aid slot on your side.",
+      )
+      expect(describeWhatHappened(receiver, 'flagged')).toContain(
+        "so Ruler2 couldn't send to you.",
+      )
+    })
+
+    it('explains out-of-turn aid, failed aid, and flags without a reason', () => {
+      const outOfTurn = dealFlag({
+        flagReason: DealFlagReason.OutOfSequenceAid,
+        blockedUntil: '2026-10-17T00:00:00',
+      })
+      expect(describeExpectation(outOfTurn, 'flagged')).toContain(
+        'You were expected to wait for it',
+      )
+      expect(describeWhatHappened(outOfTurn, 'flagged')).toContain(
+        'You sent aid to Ruler2 out of turn, which blocks Ruler2 until 2026-10-17.',
+      )
+      expect(
+        describeWhatHappened(
+          cancelledDealFlag({
+            flagType: DealFlagType.AidFailed,
+            flagReason: DealFlagReason.AidCancelled,
+          }),
+          'flagged',
+        ),
+      ).toContain('An offer between you and Ruler2 was cancelled')
+      expect(
+        describeWhatHappened(dealFlag({ flagReason: null }), 'flagged'),
+      ).toBe('You were flagged on 2026-10-09.')
+    })
   })
 })
 

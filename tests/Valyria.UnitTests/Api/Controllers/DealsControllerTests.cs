@@ -38,6 +38,7 @@ public class DealsControllerTests
         Assert.IsType<ForbidResult>(await controller.GetAccountDeals(7));
         Assert.IsType<ForbidResult>(await controller.GetAccountDealHistory(7, null, null));
         Assert.IsType<ForbidResult>(await controller.GetDealActivity(3, 7));
+        Assert.IsType<ForbidResult>(await controller.GetAccountDealFlag(3, 7));
         Assert.Empty(_repository.ReceivedCalls());
     }
 
@@ -49,11 +50,13 @@ public class DealsControllerTests
         _repository.GetAccountDealsAsync(7).Returns(new AccountDealsSummary());
         _repository.GetAccountDealHistoryAsync(7, 10, 0).Returns(new DealHistoryPage());
         _repository.GetDealActivityAsync(3, 7).Returns([]);
+        _repository.GetAccountDealFlagAsync(3, 7).Returns(new AccountDealFlag { Flag = new DealFlagDetail() });
         var controller = CreateController("Admin", 1, adminRole);
 
         Assert.IsType<OkObjectResult>(await controller.GetAccountDeals(7));
         Assert.IsType<OkObjectResult>(await controller.GetAccountDealHistory(7, null, null));
         Assert.IsType<OkObjectResult>(await controller.GetDealActivity(3, 7));
+        Assert.IsType<OkObjectResult>(await controller.GetAccountDealFlag(3, 7));
     }
 
     [Fact]
@@ -128,6 +131,31 @@ public class DealsControllerTests
         _repository.GetDealActivityAsync(3, 7).ThrowsAsync(new Exception("boom"));
 
         AssertServerError(await CreateController().GetDealActivity(3, 7), "boom");
+    }
+
+    [Fact]
+    public async Task GetAccountDealFlag_ReturnsTheFlag()
+    {
+        var flag = new AccountDealFlag { Flag = new DealFlagDetail { Id = 9 }, Evidence = new DealFlagEvidence() };
+        _repository.GetAccountDealFlagAsync(3, 7).Returns(flag);
+
+        Assert.Same(flag, AssertOk<AccountDealFlag>(await CreateController().GetAccountDealFlag(3, 7)));
+    }
+
+    [Fact]
+    public async Task GetAccountDealFlag_Returns404_WhenTheAccountHasNoOpenFlagOnTheDeal()
+    {
+        _repository.GetAccountDealFlagAsync(3, 7).Returns((AccountDealFlag)null!);
+
+        Assert.IsType<NotFoundObjectResult>(await CreateController().GetAccountDealFlag(3, 7));
+    }
+
+    [Fact]
+    public async Task GetAccountDealFlag_Returns500_OnError()
+    {
+        _repository.GetAccountDealFlagAsync(3, 7).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await CreateController().GetAccountDealFlag(3, 7), "boom");
     }
 
     [Fact]

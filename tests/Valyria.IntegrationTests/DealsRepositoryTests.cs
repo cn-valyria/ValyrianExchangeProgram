@@ -646,6 +646,28 @@ public class DealsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
     }
 
     [Fact]
+    public async Task AccountDealFlag_IsTheAccountsOwnOpenWarning_WithItsEvidence_AndNoAdminNotes()
+    {
+        var (bob, sue, deal) = await SeedPairAsync();
+        var cnToday = await Data.CnTodayAsync();
+        await Data.AidAsync(801, BobNation, 500, cnToday.AddDays(-1).AddHours(12), money: 2_000_000, reason: "Outside VEP");
+        await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, "awaiting_send", resolvedOn: DateTime.UtcNow);
+        var flagId = await Data.DealFlagAsync(deal, "1_day_inactive", bob, sue, "sender_slots_full");
+        await Data.ExecuteAsync("update vep_db.deal_flag set admin_notes = 'Talked to Bob' where id = @flagId", new { flagId });
+
+        var result = await Repository.GetAccountDealFlagAsync(deal, bob);
+
+        Assert.Equal((flagId, DealFlagReason.SenderSlotsFull), (result.Flag.Id, result.Flag.FlagReason));
+        Assert.Null(result.Flag.AdminNotes);
+        Assert.Equal([801], result.Evidence.FlaggedSlotAid.Select(a => a.AidId));
+
+        // Sue isn't flagged, and nobody is once the warning is resolved
+        Assert.Null(await Repository.GetAccountDealFlagAsync(deal, sue));
+        await Data.ExecuteAsync("update vep_db.deal_flag set resolved_on = utc_timestamp() where id = @flagId", new { flagId });
+        Assert.Null(await Repository.GetAccountDealFlagAsync(deal, bob));
+    }
+
+    [Fact]
     public async Task RestoreFlaggedDeal_PutsTheDealBack_WithAFreshClock_AndResolvesItsFlags()
     {
         var (bob, sue, deal) = await SeedPairAsync();

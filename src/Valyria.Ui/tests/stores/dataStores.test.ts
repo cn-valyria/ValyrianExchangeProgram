@@ -87,11 +87,22 @@ describe('account store', () => {
     expect(store.dealActivity[7]).toEqual([{ id: 1 }])
   })
 
+  it("keeps each deal's flag separately", async () => {
+    apiFetch.mockResolvedValue(apiOk({ flag: { id: 5 }, evidence: {} }))
+    const store = useAccountStore()
+
+    await store.loadDealFlag(1, 7)
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/deals/7/flag?accountId=1')
+    expect(store.dealFlags[7]?.flag.id).toBe(5)
+  })
+
   it.each([
     ['loadAccount', [1]],
     ['loadDealsSummary', [1]],
     ['loadDealHistory', [1]],
     ['loadDealActivity', [1, 7]],
+    ['loadDealFlag', [1, 7]],
   ])('%s throws on failure and keeps what it had', async (action, args) => {
     apiFetch.mockResolvedValue(apiError(failure))
     const store = useAccountStore()
