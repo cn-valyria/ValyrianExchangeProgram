@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Valyria.Core.DTOs;
 using Valyria.Core.Interfaces;
 using Valyria.Api.Auth;
 
@@ -240,6 +241,86 @@ public class AdminController : ControllerBase
         catch (Exception e)
         {
             var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(DeleteAdminAccess)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    [HttpGet("settings/team-events")]
+    public async Task<IActionResult> GetTeamEvents()
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(GetTeamEvents)} method...");
+
+        try
+        {
+            var results = await _adminRepository.GetTeamEventsAsync();
+
+            _logger.LogInformation("GetTeamEvents execution complete");
+
+            return Ok(results);
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(GetTeamEvents)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    [HttpPost("settings/team-events")]
+    [Authorize(Policy = Policies.ManageProgram)]
+    public async Task<IActionResult> CreateTeamEvent([FromBody] TeamEventCreateRequest request)
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(CreateTeamEvent)} method...");
+
+        try
+        {
+            var result = await _adminRepository.CreateTeamEventAsync(request, User.GetAuditName());
+
+            switch (result)
+            {
+                case TeamEventCreateResult.InvalidTeam:
+                    return BadRequest(new { error = "Team events can only be added for one of the 12 colored teams." });
+                case TeamEventCreateResult.ApprovedInFuture:
+                    return BadRequest(new { error = "The approval date can't be in the future. Add the event once the senate has passed it." });
+                case TeamEventCreateResult.Overlaps:
+                    return Conflict(new { error = "This team already has a +1 aid slot event during those 30 days." });
+            }
+
+            _logger.LogInformation("CreateTeamEvent execution complete");
+
+            return Ok(new { success = true });
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(CreateTeamEvent)}", e);
+            _logger.LogError(e, wrapperException.Message);
+            return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
+        }
+    }
+
+    [HttpDelete("settings/team-events/{teamEventId}")]
+    [Authorize(Policy = Policies.ManageProgram)]
+    public async Task<IActionResult> DeleteTeamEvent(int teamEventId)
+    {
+        _logger.LogInformation($"Beginning execution for {nameof(DeleteTeamEvent)} method...");
+
+        try
+        {
+            var deleted = await _adminRepository.DeleteTeamEventAsync(teamEventId, User.GetAuditName());
+
+            if (!deleted)
+            {
+                return NotFound(new { error = $"Team event with id {teamEventId} not found" });
+            }
+
+            _logger.LogInformation("DeleteTeamEvent execution complete");
+
+            return NoContent();
+        }
+        catch (Exception e)
+        {
+            var wrapperException = new Exception($"Unexpected error occurred while executing {nameof(DeleteTeamEvent)}", e);
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }

@@ -65,6 +65,13 @@
         </template>
 
         <div class="space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            While a team's +1 aid slot event is in effect, every nation on the
+            team gets a bonus aid slot, which VEP can match into a temporary
+            deal. The slot and its deal end 30 days after the senate approves
+            the event, or when the nation leaves the team.
+          </p>
+
           <!-- Search -->
           <UInput
             v-model="teamEventSearchQuery"
@@ -78,7 +85,6 @@
             :data="filteredTeamEvents"
             :columns="teamEventColumns"
             :loading="teamEventLoading"
-            :sort="{ column: 'team', direction: 'asc' }"
           />
         </div>
       </UCard>
@@ -94,7 +100,18 @@ import {
 } from '~/stores/adminAccess'
 import AdminAccessSettingsDialog from '~/components/admin/AdminAccessSettingsDialog.vue'
 import AdminTeamEventDialog from '~/components/admin/AdminTeamEventDialog.vue'
-import type { TeamEvent } from '~/stores/shared/teamEvent'
+import {
+  useAdminTeamEventsStore,
+  type TeamEvent,
+} from '~/stores/adminTeamEvents'
+import { ERROR_MESSAGES } from '~/infrastructure/constants'
+import {
+  cnToday,
+  daysBetween,
+  formatCnDate,
+  teamName,
+  teamSwatch,
+} from '~/infrastructure/teamEvents'
 
 const toast = useToast()
 const overlay = useOverlay()
@@ -103,6 +120,7 @@ const adminAccessModal = overlay.create(AdminAccessSettingsDialog)
 const teamEventModal = overlay.create(AdminTeamEventDialog)
 
 const adminAccessStore = useAdminAccessStore()
+const teamEventsStore = useAdminTeamEventsStore()
 
 // Admin Access state
 const adminSearchQuery = ref<string>('')
@@ -110,23 +128,16 @@ const adminLoading = computed(() => adminAccessStore.loading)
 const adminAccessList = computed(() => adminAccessStore.adminAccessSettings)
 
 // Team Events state
-const teamEventLoading = ref<boolean>(false)
+const teamEventLoading = computed(() => teamEventsStore.loading)
 const teamEventSearchQuery = ref<string>('')
-const teamEventsList = ref<TeamEvent[]>([
-  {
-    id: 1,
-    team: 'Aqua',
-    eventType: '+1 Aid Slot',
-    eventName: 'Tournament bonus',
-  },
-  {
-    id: 2,
-    team: 'Red',
-    eventType: '-1 Aid Slot',
-    eventName: 'Penalty for violation',
-  },
-  { id: 3, team: 'Green', eventType: '+1 Aid Slot', eventName: 'Event reward' },
-])
+// Deleting cancels the event's bonus deals, so it takes a second click to confirm
+const pendingDeleteId = ref<number | null>(null)
+// Events in effect first, then newest first (the API's order)
+const teamEventsList = computed(() =>
+  [...teamEventsStore.teamEvents].sort(
+    (a, b) => Number(b.isActive) - Number(a.isActive),
+  ),
+)
 
 // Admin Access columns
 const adminColumns: TableColumn<AdminAccessSetting>[] = [
@@ -175,75 +186,90 @@ const teamEventColumns: TableColumn<TeamEvent>[] = [
   {
     accessorKey: 'team',
     header: 'Team',
-    cell: ({ row }) => {
-      const teamColors: Record<string, string> = {
-        Aqua: 'bg-cyan-500',
-        White: 'bg-gray-100 border border-gray-300',
-        Red: 'bg-red-500',
-        Green: 'bg-green-500',
-        Brown: 'bg-amber-700',
-        Blue: 'bg-blue-500',
-        Purple: 'bg-purple-500',
-        Orange: 'bg-orange-500',
-        Maroon: 'bg-red-900',
-        Black: 'bg-gray-900',
-        Yellow: 'bg-yellow-400',
-        Pink: 'bg-pink-500',
-        'None (Grey)': 'bg-gray-400',
-      }
-      const team = row.original.team
-      const colorClass = teamColors[team] || 'bg-gray-400'
-      return h('div', { class: 'flex items-center gap-2' }, [
-        h('div', { class: `w-4 h-4 rounded ${colorClass}` }),
-        h('span', { class: 'font-medium text-gray-900 dark:text-white' }, team),
-      ])
-    },
+    cell: ({ row }) =>
+      h('div', { class: 'flex items-center gap-2' }, [
+        h('div', { class: `w-4 h-4 rounded ${teamSwatch(row.original.team)}` }),
+        h(
+          'span',
+          { class: 'font-medium text-gray-900 dark:text-white' },
+          teamName(row.original.team),
+        ),
+      ]),
   },
   {
-    accessorKey: 'eventType',
-    header: 'Event Type',
+    accessorKey: 'approvedOn',
+    header: 'Approved',
+    cell: ({ row }) => formatCnDate(row.original.approvedOn),
+  },
+  {
+    accessorKey: 'endsOn',
+    header: 'In Effect Through',
+    cell: ({ row }) => formatCnDate(row.original.endsOn),
+  },
+  {
+    accessorKey: 'isActive',
+    header: 'Status',
     cell: ({ row }) => {
-      const eventType = row.original.eventType
-      const color = eventType === '+1 Aid Slot' ? 'success' : 'error'
+      const event = row.original
+      const daysLeft = daysBetween(cnToday(), event.endsOn) + 1
       return h(
         resolveComponent('UBadge'),
-        {
-          color: color,
-          variant: 'subtle',
-        },
-        () => eventType,
+        { color: event.isActive ? 'success' : 'neutral', variant: 'subtle' },
+        () =>
+          event.isActive
+            ? `Active, ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
+            : 'Expired',
       )
     },
   },
   {
-    accessorKey: 'eventName',
-    header: 'Event Name',
-    cell: ({ row }) =>
-      h(
-        'span',
-        { class: 'text-gray-900 dark:text-white' },
-        row.original.eventName || '-',
-      ),
+    accessorKey: 'accountsWithBonusSlot',
+    header: 'Bonus Slots',
+    cell: ({ row }) => {
+      const event = row.original
+      if (!event.isActive) return '-'
+      return `${event.accountsWithBonusSlot} account${event.accountsWithBonusSlot === 1 ? '' : 's'}, ${event.activeBonusDeals} in deals`
+    },
+  },
+  {
+    accessorKey: 'createdBy',
+    header: 'Added By',
   },
   {
     accessorKey: 'id',
     header: 'Actions',
     cell: ({ row }) => {
       const event = row.original
-      return h('div', { class: 'flex gap-2' }, [
-        h(resolveComponent('UButton'), {
-          label: 'Edit',
-          color: 'primary',
-          variant: 'soft',
-          size: 'xs',
-          onClick: () => editTeamEvent(event),
-        }),
-        h(resolveComponent('UButton'), {
+      if (pendingDeleteId.value !== event.id) {
+        return h(resolveComponent('UButton'), {
           label: 'Delete',
           color: 'error',
           variant: 'soft',
           size: 'xs',
+          onClick: () => (pendingDeleteId.value = event.id),
+        })
+      }
+
+      return h('div', { class: 'flex items-center gap-2' }, [
+        h(
+          'span',
+          { class: 'text-xs text-gray-600 dark:text-gray-400' },
+          event.activeBonusDeals > 0
+            ? `Cancels ${event.activeBonusDeals} deal${event.activeBonusDeals === 1 ? '' : 's'}.`
+            : 'Delete this event?',
+        ),
+        h(resolveComponent('UButton'), {
+          label: 'Confirm Delete',
+          color: 'error',
+          size: 'xs',
           onClick: () => deleteTeamEvent(event.id),
+        }),
+        h(resolveComponent('UButton'), {
+          label: 'Keep',
+          color: 'neutral',
+          variant: 'soft',
+          size: 'xs',
+          onClick: () => (pendingDeleteId.value = null),
         }),
       ])
     },
@@ -272,9 +298,9 @@ const filteredTeamEvents = computed(() => {
   }
 
   const query = teamEventSearchQuery.value.toLowerCase()
-  return teamEventsList.value.filter((event) => {
-    return event.team?.toLowerCase().includes(query)
-  })
+  return teamEventsList.value.filter((event) =>
+    teamName(event.team).toLowerCase().includes(query),
+  )
 })
 
 // Admin Access functions
@@ -314,31 +340,31 @@ const removeAdminAccess = async (
 
 // Team Events functions
 const addTeamEvent = (): void => {
-  teamEventModal.open({
-    editingTeamEvent: {},
-  })
+  teamEventModal.open()
 }
 
-const editTeamEvent = (event: TeamEvent): void => {
-  teamEventModal.open({
-    editingTeamEvent: { ...event },
-  })
-}
-
-const deleteTeamEvent = (eventId: number): void => {
-  const index = teamEventsList.value.findIndex((e) => e.id === eventId)
-  if (index !== -1) {
-    teamEventsList.value.splice(index, 1)
+const deleteTeamEvent = async (eventId: number): Promise<void> => {
+  pendingDeleteId.value = null
+  try {
+    await teamEventsStore.deleteTeamEvent(eventId)
+  } catch {
     toast.add({
-      color: 'success',
-      title: 'Success',
-      description: 'Team event deleted successfully.',
-      duration: 3000,
+      color: 'error',
+      title: 'Error',
+      description: ERROR_MESSAGES.default,
+      duration: 5000,
     })
+    return
   }
+
+  toast.add({
+    color: 'success',
+    title: 'Success',
+    description: 'Team event deleted, and its bonus deals cancelled.',
+    duration: 3000,
+  })
 }
 
-// Check admin access on mount
 onMounted(async () => {
   // Load admin access data from backend API
   try {
@@ -353,7 +379,15 @@ onMounted(async () => {
     })
   }
 
-  // TODO: Load team events data from backend API
-  teamEventLoading.value = false
+  try {
+    await teamEventsStore.loadTeamEvents()
+  } catch {
+    toast.add({
+      color: 'error',
+      title: 'Error',
+      description: 'Failed to load team events.',
+      duration: 5000,
+    })
+  }
 })
 </script>

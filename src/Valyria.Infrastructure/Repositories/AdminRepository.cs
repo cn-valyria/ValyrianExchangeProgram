@@ -8,6 +8,7 @@ using Dapper;
 using Microsoft.Extensions.Logging;
 using MySql.Data.MySqlClient;
 using Valyria.Core.DTOs;
+using Valyria.Core.DTOs.CN;
 
 namespace Valyria.Infrastructure.Repositories;
 
@@ -88,6 +89,9 @@ left join (
 left join (
     select distinct flagged_account_id as account_id from deal_flag where resolved_on is null
 ) flagged on flagged.account_id = slot.account_id
+-- A team bonus slot counts only while its event is in effect
+left join team_bonus_slot on team_bonus_slot.slot_id = slot.id
+where not slot.is_team_bonus or team_bonus_slot.slot_id is not null
 group by {(byAlliance ? "AllianceName, AllianceAccounts, " : "")}slot.tech_sent_cycles, slot.tech_received_cycles, slot.cash_sent_cycles, slot.cash_received_cycles
 order by {(byAlliance ? "AllianceName, " : "")}TotalSlots desc, TechSentCycles, TechReceivedCycles, CashSentCycles, CashReceivedCycles;";
     }
@@ -228,5 +232,103 @@ where account_id = @AccountId and role_id = @AdminRoleId;";
 
         var rowsAffected = await sqlConnection.ExecuteAsync(query, new { AccountId = accountId, AdminRoleId = adminRoleId });
         return rowsAffected > 0;
+    }
+
+    public async Task<List<TeamEvent>> GetTeamEventsAsync()
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        // Bonus slots record the event they're in effect for, so counts are per event rather than per team
+        const string query = @"
+select
+    team_event.id as Id,
+    team_event.team as Team,
+    team_event.approved_on as ApprovedOn,
+    team_event.ends_on as EndsOn,
+    active_team_event.id is not null as IsActive,
+    (select count(1) from team_bonus_slot where team_bonus_slot.team_event_id = team_event.id) as AccountsWithBonusSlot,
+    (select count(distinct deal.id)
+        from team_bonus_slot
+        join deal on team_bonus_slot.slot_id in (deal.slot_1_id, deal.slot_2_id)
+        where team_bonus_slot.team_event_id = team_event.id and deal.status = 'active') as ActiveBonusDeals,
+    team_event.created_on as CreatedOn,
+    team_event.created_by as CreatedBy
+from team_event
+left join active_team_event on active_team_event.id = team_event.id
+where team_event.deleted_on is null
+order by team_event.approved_on desc, team_event.id desc;";
+
+        return (await sqlConnection.QueryAsync<TeamEvent>(query)).ToList();
+    }
+
+    public async Task<TeamEventCreateResult> CreateTeamEventAsync(TeamEventCreateRequest request, string createdBy)
+    {
+        // None (Grey) has no senate to pass events
+        if (request.Team < Team.Aqua || request.Team > Team.Pink)
+            return TeamEventCreateResult.InvalidTeam;
+
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.OpenAsync();
+        using var transaction = await sqlConnection.BeginTransactionAsync();
+
+        var approvedOn = request.ApprovedOn.Date;
+        var today = await sqlConnection.QuerySingleAsync<System.DateTime>($"select {CnToday}", transaction: transaction);
+        if (approvedOn > today)
+            return TeamEventCreateResult.ApprovedInFuture;
+
+        // Locks the team's events so two admins can't add overlapping ones at once
+        const string overlapQuery = @"
+select count(1)
+from team_event
+where team = @Team
+    and deleted_on is null
+    and approved_on <= @ApprovedOn + interval 30 day
+    and ends_on >= @ApprovedOn
+for update;";
+
+        var overlapping = await sqlConnection.QuerySingleAsync<int>(overlapQuery,
+            new { Team = (int)request.Team, ApprovedOn = approvedOn }, transaction);
+        if (overlapping > 0)
+            return TeamEventCreateResult.Overlaps;
+
+        await sqlConnection.ExecuteAsync(@"
+insert into team_event (team, approved_on, created_by)
+values (@Team, @ApprovedOn, @CreatedBy);",
+            new { Team = (int)request.Team, ApprovedOn = approvedOn, CreatedBy = createdBy }, transaction);
+
+        await transaction.CommitAsync();
+
+        // Gives the team's accounts their bonus slot now, rather than at the next loader run
+        await SyncTeamEventSlotsAsync(sqlConnection);
+
+        return TeamEventCreateResult.Created;
+    }
+
+    public async Task<bool> DeleteTeamEventAsync(int teamEventId, string deletedBy)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.OpenAsync();
+
+        var rowsAffected = await sqlConnection.ExecuteAsync(@"
+update team_event
+set deleted_on = current_timestamp,
+    deleted_by = @DeletedBy
+where id = @Id and deleted_on is null;",
+            new { Id = teamEventId, DeletedBy = deletedBy });
+
+        if (rowsAffected == 0)
+            return false;
+
+        // Cancels deals on the event's bonus slots straight away
+        await SyncTeamEventSlotsAsync(sqlConnection);
+
+        return true;
+    }
+
+    private static Task SyncTeamEventSlotsAsync(MySqlConnection sqlConnection)
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("p_deals_cancelled", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+        return sqlConnection.ExecuteAsync("sync_team_event_slots", parameters, commandType: CommandType.StoredProcedure);
     }
 }

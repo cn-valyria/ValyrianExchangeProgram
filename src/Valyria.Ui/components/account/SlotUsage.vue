@@ -28,19 +28,38 @@
     <div class="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
       {{ description }}
     </div>
+
+    <!-- Team event bonus slot -->
+    <UBadge
+      v-if="teamBonus"
+      color="warning"
+      variant="subtle"
+      icon="i-heroicons-sparkles"
+      class="max-w-xs whitespace-normal text-center"
+    >
+      {{ teamBonus }}
+    </UBadge>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ACCOUNT_ROLE_CODES } from '@/infrastructure/constants'
+import { cnToday, formatCnDate, teamName } from '@/infrastructure/teamEvents'
+import type { AccountTeamEvent } from '~/stores/account'
 
 interface Props {
   slotsUsed: number
   slotsTotal: number
   role: string | undefined
+  teamEvent?: AccountTeamEvent | null
+  // Whether the bonus slot is already in a deal
+  bonusSlotInDeal?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  teamEvent: null,
+  bonusSlotInDeal: false,
+})
 
 const isOnHold = computed(() => props.role === ACCOUNT_ROLE_CODES.onHold)
 
@@ -74,5 +93,20 @@ const description = computed(() => {
     return 'All of your slots are in active deals. Keep your deals active by exchanging aid with your partners.'
   }
   return `You have ${slotsOpen.value} open slot${slotsOpen.value === 1 ? '' : 's'}. VEP matches open slots with new partners daily, so check back tomorrow.`
+})
+
+const teamBonus = computed(() => {
+  const event = props.teamEvent
+  if (isOnHold.value || !event) return null
+
+  const base = `Includes 1 bonus slot from the ${teamName(event.team)} team's event, in effect through ${formatCnDate(event.endsOn)}.`
+  if (props.bonusSlotInDeal) {
+    return `${base} The deal using it is temporary and ends with the event.`
+  }
+  // Matching stops early so every aid offer in the deal fits before the event ends
+  if (event.bonusSlotMatchableUntil.split('T')[0] < cnToday()) {
+    return `${base} It's too close to the end of the event for VEP to start a new deal in it.`
+  }
+  return `${base} VEP can match it into a temporary deal until ${formatCnDate(event.bonusSlotMatchableUntil)}.`
 })
 </script>

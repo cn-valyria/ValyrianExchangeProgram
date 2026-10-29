@@ -8,6 +8,8 @@ import {
   type SlotDetail,
 } from '~/stores/account'
 import type { AdminAccount } from '~/stores/adminAccounts'
+import type { TeamEvent } from '~/stores/adminTeamEvents'
+import { Team } from '~/infrastructure/teamEvents'
 import {
   DealFlagReason,
   DealFlagType,
@@ -47,8 +49,27 @@ export const slot = (
   cashReceivedCycles: 0,
   hasActiveDeal: true,
   account: accountSimplified(id),
+  isTeamBonus: false,
+  teamBonusEndsOn: null,
+  teamBonusMatchableUntil: null,
+  isInactiveTeamBonus: false,
   ...overrides,
 })
+
+// Slot 7, the extra slot while a team event is in effect
+export const teamBonusSlot = (
+  id: number,
+  endsOn: string,
+  sends: { tech?: number; cash?: number } = {},
+  overrides: Partial<SlotDetail> = {},
+): SlotDetail =>
+  slot(id, sends, {
+    slotNumber: 7,
+    isTeamBonus: true,
+    teamBonusEndsOn: endsOn,
+    teamBonusMatchableUntil: endsOn,
+    ...overrides,
+  })
 
 // A buyer's deal with a seller: the buyer (me) sends $9M, the seller sends 100 tech
 export const dealDetail = (
@@ -73,6 +94,7 @@ export const dealDetail = (
   inFlightAccepted: false,
   blockedUntil: null,
   flaggedOn: null,
+  teamBonusEndsOn: null,
   ...overrides,
 })
 
@@ -144,6 +166,21 @@ export const adminDeal = (overrides: Partial<AdminDeal> = {}): AdminDeal => ({
   hasOpenFlag: false,
   slot1: slot(1, { cash: 1 }),
   slot2: slot(2, { tech: 1 }),
+  teamBonusEndsOn: null,
+  ...overrides,
+})
+
+// Aqua's +1 aid slot event, approved 10/6/2026 and in effect through 11/5/2026
+export const teamEvent = (overrides: Partial<TeamEvent> = {}): TeamEvent => ({
+  id: 1,
+  team: Team.Aqua,
+  approvedOn: '2026-10-06T00:00:00',
+  endsOn: '2026-11-05T00:00:00',
+  isActive: true,
+  accountsWithBonusSlot: 12,
+  activeBonusDeals: 3,
+  createdOn: '2026-10-06T12:00:00',
+  createdBy: 'lilweirdward',
   ...overrides,
 })
 

@@ -35,6 +35,14 @@
           >
             {{ slot.hasActiveDeal ? 'In a deal' : 'Open' }}
           </UBadge>
+          <UBadge
+            v-if="slot.isTeamBonus && slot.teamBonusEndsOn"
+            color="warning"
+            variant="subtle"
+            size="sm"
+          >
+            Team bonus, ends {{ formatCnDate(slot.teamBonusEndsOn) }}
+          </UBadge>
         </div>
         <UButton
           label="Save"
@@ -74,6 +82,7 @@
 
 <script setup lang="ts">
 import { ERROR_MESSAGES } from '~/infrastructure/constants'
+import { formatCnDate } from '~/infrastructure/teamEvents'
 import type { SlotDetail } from '~/stores/account'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
 

@@ -171,8 +171,8 @@ public class DealFlagDetail
     public System.DateTime? FlaggedLastSentOn { get; set; }
 
     /// <summary>
-    /// Other active deals holding either slot, or between the same two accounts. Any of these, or either
-    /// account being on hold, stops the deal being restored
+    /// Other active deals holding either slot, or between the same two accounts. Any of these, either
+    /// account being on hold, or either slot being a team bonus slot that has ended, stops the deal being restored
     /// </summary>
     public int? FlaggedSlotOtherDealId { get; set; }
     public int? InnocentSlotOtherDealId { get; set; }
@@ -211,7 +211,9 @@ public class DealFlagDetail
         && PairOtherDealId == null
         && !FlaggedAccountOnHold
         && !InnocentAccountOnHold
-        && SlotsStillMatch;
+        && SlotsStillMatch
+        && !FlaggedSlot.IsInactiveTeamBonus
+        && !InnocentSlot.IsInactiveTeamBonus;
 }
 
 public enum DealExtendResult

@@ -50,6 +50,7 @@ describe('account page', () => {
             slotsTotal: 4,
             slotsAvailable: 3,
             slotsFull: false,
+            teamEvent: null,
             activeDeals: [dealDetail({ isMyTurnToSend: true })],
             notifications: [],
           }

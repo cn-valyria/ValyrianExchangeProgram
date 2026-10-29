@@ -247,8 +247,8 @@ public class DataLoaderWorker : BackgroundService
             _logger.LogInformation("No new aid file this run, so skipping the inactivity check. Tracking activity...");
 
         var result = await _vepDataLoaderRepository.UpdateDealStateAsync(checkInactivity: aidFileImported);
-        _logger.LogInformation("Deals updated. {activityTracked} aid records linked to deals, {accountsHeld} accounts put on hold for deleted nations.",
-            result.ActivityTracked, result.AccountsHeld);
+        _logger.LogInformation("Deals updated. {activityTracked} aid records linked to deals, {accountsHeld} accounts put on hold for deleted nations, {teamBonusDealsCancelled} team bonus deals cancelled.",
+            result.ActivityTracked, result.AccountsHeld, result.TeamBonusDealsCancelled);
     }
 
     private async Task<bool> TryMatchDealsAsync()
