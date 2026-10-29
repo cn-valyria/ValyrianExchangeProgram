@@ -19,10 +19,21 @@
         <div class="flex flex-col gap-6">
           <!-- Top Section: Account Info (Centered) -->
           <div class="flex flex-col items-center text-center space-y-3">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-              <span class="font-extrabold">{{ account.rulerName }}</span> of
-              {{ account.nationName }}
-            </h1>
+            <div class="flex items-center gap-2">
+              <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                <span class="font-extrabold">{{ account.rulerName }}</span> of
+                {{ account.nationName }}
+              </h1>
+              <UTooltip text="VEP Settings">
+                <UButton
+                  icon="i-heroicons-cog-6-tooth"
+                  color="neutral"
+                  variant="ghost"
+                  aria-label="VEP Settings"
+                  @click="settingsModal.open({ account })"
+                />
+              </UTooltip>
+            </div>
             <div class="flex flex-wrap gap-2 justify-center">
               <ChipAccountRole :code="account.role" />
               <ChipAllianceAcronym :alliance-name="account.allianceName" />
@@ -84,12 +95,16 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import AccountSettingsDialog from '~/components/account/SettingsDialog.vue'
 import { useAccountStore } from '~/stores/account'
 import { useAuthStore } from '~/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const overlay = useOverlay()
+
+const settingsModal = overlay.create(AccountSettingsDialog)
 
 const accountStore = useAccountStore()
 const authStore = useAuthStore()

@@ -44,6 +44,31 @@ describe('account store', () => {
     expect(store.account.rulerName).toBe('Bob')
   })
 
+  it('saves settings, and keeps them on the loaded account', async () => {
+    apiFetch.mockResolvedValue(apiOk(null))
+    const store = useAccountStore()
+    store.account = account({ id: 1 })
+
+    await store.updateSettings(1, { discordNotificationsEnabled: false })
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/accounts/1/settings', {
+      method: 'PUT',
+      body: { discordNotificationsEnabled: false },
+    })
+    expect(store.account.discordNotificationsEnabled).toBe(false)
+  })
+
+  it('throws, and leaves the account alone, when saving settings fails', async () => {
+    apiFetch.mockResolvedValue(apiError(failure))
+    const store = useAccountStore()
+    store.account = account({ id: 1 })
+
+    await expect(
+      store.updateSettings(1, { discordNotificationsEnabled: false }),
+    ).rejects.toEqual(failure)
+    expect(store.account.discordNotificationsEnabled).toBe(true)
+  })
+
   it('loads the deals summary', async () => {
     const summary = {
       slotsUsed: 1,

@@ -163,6 +163,39 @@ public class AccountsControllerTests
     }
 
     [Fact]
+    public async Task UpdateAccountSettings_ReturnsOk()
+    {
+        var settings = new AccountSettings { DiscordNotificationsEnabled = false };
+
+        Assert.IsType<OkResult>(await _controller.UpdateAccountSettings(5, settings));
+        await _repository.Received(1).UpdateAccountSettingsAsync(5, settings);
+    }
+
+    [Fact]
+    public async Task UpdateAccountSettings_ForbidsOtherMembers_AndAdmins()
+    {
+        Assert.IsType<ForbidResult>(await CreateController(accountId: 6).UpdateAccountSettings(5, new AccountSettings()));
+        Assert.IsType<ForbidResult>(await CreateController(accountId: 6, AdminRoles.SuperAdmin).UpdateAccountSettings(5, new AccountSettings()));
+        await _repository.DidNotReceiveWithAnyArgs().UpdateAccountSettingsAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task UpdateAccountSettings_Returns404_WhenTheAccountIsNotFound()
+    {
+        _repository.UpdateAccountSettingsAsync(5, Arg.Any<AccountSettings>()).ThrowsAsync(new NotFoundException("missing"));
+
+        Assert.IsType<NotFoundObjectResult>(await _controller.UpdateAccountSettings(5, new AccountSettings()));
+    }
+
+    [Fact]
+    public async Task UpdateAccountSettings_Returns500_OnError()
+    {
+        _repository.UpdateAccountSettingsAsync(5, Arg.Any<AccountSettings>()).ThrowsAsync(new Exception("boom"));
+
+        AssertServerError(await _controller.UpdateAccountSettings(5, new AccountSettings()), "boom");
+    }
+
+    [Fact]
     public async Task RemoveAccount_ReturnsOk()
     {
         Assert.IsType<OkResult>(await _controller.RemoveAccount(3));

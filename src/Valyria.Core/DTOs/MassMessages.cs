@@ -42,6 +42,10 @@ public class MassMessageRecipient
     /// Used by the data loader to ping the recipient on Discord. 0 if the account has no Discord ID
     /// </summary>
     public long DiscordUniqueId { get; set; }
+    /// <summary>
+    /// False if the recipient opted out of Discord pings. They still get the CN message
+    /// </summary>
+    public bool DiscordNotificationsEnabled { get; set; }
     public int SendCount { get; set; }
     public int AcceptCount { get; set; }
     /// <summary>

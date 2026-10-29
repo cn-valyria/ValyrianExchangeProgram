@@ -93,6 +93,7 @@ select  a.id as AccountId,
         al.name as AllianceName,
         a.discord as Discord,
         a.discord_id as DiscordUniqueId,
+        a.discord_notifications_enabled as DiscordNotificationsEnabled,
         sum(x.kind = 'send') as SendCount,
         sum(x.kind = 'accept') as AcceptCount,
         sum(x.kind = 'blocked') as BlockedCount,
@@ -103,7 +104,7 @@ from deal_actions x
 join account a on a.id = x.account_id
 join cybernations_db.nation n on a.nation_id = n.id
 left join cybernations_db.alliance al on n.alliance_id = al.id
-group by a.id, n.id, n.ruler_name, n.nation_name, al.name, a.discord, a.discord_id
+group by a.id, n.id, n.ruler_name, n.nation_name, al.name, a.discord, a.discord_id, a.discord_notifications_enabled
 order by n.ruler_name";
 
     public MassMessagesRepository(string connectionString) => _connectionString = connectionString;

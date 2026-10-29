@@ -54,6 +54,8 @@ public class MassMessagesRepositoryTests(MySqlFixture fixture) : RepositoryTestB
         await Data.DealStateAsync(acceptDeal, "in_flight", dana, carl, inFlightAidId: 901, inFlightUntil: cnToday.AddDays(10));
         var (_, _, danaSendDeal) = await PairAsync(100, "Bob", 400, "Dana", slot: 1);
         await Data.DealStateAsync(danaSendDeal, "awaiting_send", dana, bob, responsible: dana, responsibleSince: cnToday);
+        // Opting out of Discord pings doesn't take Dana off the list
+        await Data.ExecuteAsync("update account set discord_notifications_enabled = false where id = @dana", new { dana });
 
         // A leg linked late counts as accepted, so Sue has nothing to accept
         var (_, _, lateDeal) = await PairAsync(300, "Carl", 200, "Sue", slot: 2);
@@ -83,10 +85,12 @@ public class MassMessagesRepositoryTests(MySqlFixture fixture) : RepositoryTestB
         Assert.Equal((bob, "Bob", "Bobland", "bob", 1, 0, 0, 0), (bobRecipient.AccountId, bobRecipient.RulerName, bobRecipient.NationName,
             bobRecipient.Discord, bobRecipient.SendCount, bobRecipient.AcceptCount, bobRecipient.BlockedCount, bobRecipient.FlaggedCount));
         Assert.Equal(123456789012345678, bobRecipient.DiscordUniqueId);
+        Assert.True(bobRecipient.DiscordNotificationsEnabled);
         Assert.Null(bobRecipient.DaysOverdue);
 
         var danaRecipient = Assert.Single(byCode[MassMessageCode.AcceptAid]);
         Assert.Equal((dana, 1, 1), (danaRecipient.AccountId, danaRecipient.SendCount, danaRecipient.AcceptCount));
+        Assert.False(danaRecipient.DiscordNotificationsEnabled);
 
         var eveRecipient = Assert.Single(byCode[MassMessageCode.Overdue]);
         Assert.Equal((eve, 1, 2, cnToday.AddDays(3)), (eveRecipient.AccountId, eveRecipient.FlaggedCount, eveRecipient.DaysOverdue!.Value, eveRecipient.CancelsOn!.Value));

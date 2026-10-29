@@ -253,7 +253,7 @@ public class DataLoaderRepository : IDataLoaderRepository
             commandType: CommandType.StoredProcedure,
             commandTimeout: DealProcedureTimeoutSeconds);
 
-        // Discord IDs of everyone who picked up a new partner, for the notification
+        // Discord IDs of everyone who picked up a new partner and hasn't opted out, for the notification
         const string newDealDiscordIdsQuery = @"
 select distinct a.discord_id
 from deal d
@@ -261,7 +261,8 @@ join slot s on s.id in (d.slot_1_id, d.slot_2_id)
 join account a on s.account_id = a.id
 where d.id > @lastDealIdBeforeMatch
     and d.status = 'active'
-    and a.discord_id <> 0";
+    and a.discord_id <> 0
+    and a.discord_notifications_enabled";
 
         var discordIds = await sqlConnection.QueryAsync<long>(newDealDiscordIdsQuery, new { lastDealIdBeforeMatch });
 

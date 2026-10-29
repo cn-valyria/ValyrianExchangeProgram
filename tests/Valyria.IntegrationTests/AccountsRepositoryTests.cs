@@ -176,9 +176,27 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
     }
 
     [Fact]
+    public async Task UpdateAccountSettings_TurnsDiscordNotificationsOffAndOn()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B');
+        var sue = await Data.MemberAsync(200, "Sue", 'S');
+        Assert.True((await Repository.GetAccountByIdAsync(bob)).DiscordNotificationsEnabled);
+
+        await Repository.UpdateAccountSettingsAsync(bob, new AccountSettings { DiscordNotificationsEnabled = false });
+
+        Assert.False((await Repository.GetAccountByIdAsync(bob)).DiscordNotificationsEnabled);
+        Assert.True((await Repository.GetAccountByIdAsync(sue)).DiscordNotificationsEnabled);
+
+        await Repository.UpdateAccountSettingsAsync(bob, new AccountSettings { DiscordNotificationsEnabled = true });
+
+        Assert.True((await Repository.GetAccountByIdAsync(bob)).DiscordNotificationsEnabled);
+    }
+
+    [Fact]
     public async Task UpdateAndRemove_ThrowNotFound_ForAMissingAccount()
     {
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.HoldAccountAsync(12345, "admin"));
+        await Assert.ThrowsAsync<NotFoundException>(() => Repository.UpdateAccountSettingsAsync(12345, new AccountSettings()));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.UpdateAccountAsync(new AccountUpdateRequest { Id = 12345 }));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.RemoveAccountAsync(12345));
     }

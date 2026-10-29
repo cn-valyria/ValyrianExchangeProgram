@@ -77,6 +77,20 @@ describe('account page', () => {
     expect(wrapper.find('.animate-spin').exists()).toBe(false)
   })
 
+  it('opens the VEP settings from the gear next to the header', async () => {
+    signIn(1)
+    stubLoads()
+
+    await mountInApp(AccountPage, {}, { route: '/account/1' })
+    await click(
+      document.body.querySelector<HTMLButtonElement>(
+        'button[aria-label="VEP Settings"]',
+      )!,
+    )
+
+    expect(document.body.textContent).toContain('Discord notifications')
+  })
+
   it("sends members away from someone else's account", async () => {
     signIn(1)
     const loads = stubLoads()

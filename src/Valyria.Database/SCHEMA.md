@@ -154,6 +154,11 @@ Admins record a team's event (`team_event`, new) once a majority of its senators
 - `sync_team_event_slots()` (new, run by the data loader after `hold_deleted_nation_accounts`, and by the admin API whenever an event is added or deleted) adds bonus slots and cancels deals on ones that have ended (event ended, nation left the team, or event deleted). It also deletes ended bonus slots that never had a deal
 - `regenerate_slots_for_account()` (rewritten) leaves the bonus slot alone when fm/dra change
 
+### [V18__account_settings.sql](migrations/V18__account_settings.sql)
+**VEP 3.0: Account settings members can change themselves**
+
+`account.discord_notifications_enabled` (new, default true) lets a member opt out of the data loader's Discord pings, both for new deals and the daily mass messages. Mass message recipients still include them, since the CN messages go out regardless.
+
 ## Database Architecture
 
 ### Two-Database Design
