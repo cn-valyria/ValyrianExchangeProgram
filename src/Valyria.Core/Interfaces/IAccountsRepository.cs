@@ -29,4 +29,9 @@ public interface IAccountsRepository
     Task<ProspectAccount> FindProspectAccountAsync(int nationId);
 
     Task<IEnumerable<TopScorerAccount>> GetTopScorerAccountsAsync();
+
+    /// <summary>
+    /// Accounts whose discord_id is the given Discord user ID, for the Discord bot
+    /// </summary>
+    Task<IEnumerable<DiscordAccount>> GetAccountsByDiscordIdAsync(long discordId);
 }

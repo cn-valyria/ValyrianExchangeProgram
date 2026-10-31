@@ -302,4 +302,20 @@ limit 10";
 
         return rankedResults;
     }
+
+    public async Task<IEnumerable<DiscordAccount>> GetAccountsByDiscordIdAsync(long discordId)
+    {
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        const string query = @"
+select account.nation_id as NationId,
+    nation.nation_name as NationName,
+    nation.ruler_name as RulerName,
+    account.psw as UniqueCode
+from vep_db.account account
+left join cybernations_db.nation nation on account.nation_id = nation.id
+where account.discord_id = @discordId
+order by account.nation_id";
+
+        return await sqlConnection.QueryAsync<DiscordAccount>(query, new { discordId });
+    }
 }

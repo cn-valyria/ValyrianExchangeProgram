@@ -44,6 +44,11 @@ public static class Policies
     /// </summary>
     public const string SendMassMessages = nameof(SendMassMessages);
 
+    /// <summary>
+    /// The Discord bot, authenticated by its API key (see <see cref="ApiKeyAuthenticationHandler"/>). JWTs don't satisfy it
+    /// </summary>
+    public const string DiscordBot = nameof(DiscordBot);
+
     public static AuthorizationOptions AddValyriaPolicies(this AuthorizationOptions options)
     {
         options.AddPolicy(ViewAdminPortal, policy => policy.RequireRole(AdminRoles.CanViewAdminPortal));
@@ -51,6 +56,9 @@ public static class Policies
         options.AddPolicy(ManageAdminAccess, policy => policy.RequireRole(AdminRoles.SuperAdmin));
         options.AddPolicy(ViewMassMessages, policy => policy.RequireRole(AdminRoles.SuperAdmin, AdminRoles.Lists, AdminRoles.ReadOnly));
         options.AddPolicy(SendMassMessages, policy => policy.RequireRole(AdminRoles.SuperAdmin, AdminRoles.Lists));
+        options.AddPolicy(DiscordBot, policy => policy
+            .AddAuthenticationSchemes(ApiKeyAuthenticationHandler.SchemeName)
+            .RequireAuthenticatedUser());
         return options;
     }
 }

@@ -37,6 +37,7 @@ public class ApiPipelineTests : IDisposable
         {
             builder.UseSetting("JwtSecret", TokenProviderTests.Secret);
             builder.UseSetting("VepDbConnectionString", "Server=unused-in-tests");
+            builder.UseSetting(ApiKeyAuthenticationHandler.ConfigurationKey, DiscordBotApiKey);
             builder.ConfigureTestServices(services =>
             {
                 services.AddSingleton(AuthorizationRepository);
@@ -49,6 +50,9 @@ public class ApiPipelineTests : IDisposable
     }
 
     private const int BobAccountId = 42;
+    private const string DiscordBotApiKey = "test-discord-bot-api-key";
+    private const long BobDiscordId = 123456789012345678;
+    private const string BobDiscordAccountsPath = "/api/discord/users/123456789012345678/accounts";
 
     private readonly ValyriaApiFactory _factory = new();
     private readonly HttpClient _client;
@@ -303,6 +307,75 @@ public class ApiPipelineTests : IDisposable
         Assert.Equal("One or more validation errors occurred.", body.GetProperty("title").GetString());
         Assert.Equal(400, body.GetProperty("status").GetInt32());
         Assert.True(body.GetProperty("errors").GetArrayLength() > 0);
+    }
+
+    private async Task<HttpResponseMessage> SendWithApiKey(string path, string? apiKey, string? token = null,
+        HttpClient? client = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, path);
+        if (apiKey != null)
+            request.Headers.Add(ApiKeyAuthenticationHandler.HeaderName, apiKey);
+        if (token != null)
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await (client ?? _client).SendAsync(request);
+    }
+
+    [Fact]
+    public async Task DiscordAccounts_ReturnsTheLinkedAccounts_ForTheBotsApiKey()
+    {
+        _factory.AccountsRepository.GetAccountsByDiscordIdAsync(BobDiscordId)
+            .Returns([new DiscordAccount { NationId = 123, NationName = "Bobland", RulerName = "Bob", UniqueCode = "ABCDE" }]);
+
+        var response = await SendWithApiKey(BobDiscordAccountsPath, DiscordBotApiKey);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var accounts = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(123, accounts[0].GetProperty("nationId").GetInt32());
+        Assert.Equal("Bobland", accounts[0].GetProperty("nationName").GetString());
+        Assert.Equal("ABCDE", accounts[0].GetProperty("uniqueCode").GetString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("wrong-key")]
+    [InlineData("test-discord-bot-api-key-but-longer")]
+    public async Task DiscordAccounts_Returns401_WithoutTheRightApiKey(string? apiKey)
+    {
+        var response = await SendWithApiKey(BobDiscordAccountsPath, apiKey);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Empty(_factory.AccountsRepository.ReceivedCalls());
+    }
+
+    [Fact]
+    public async Task DiscordAccounts_Returns401_ForAUsersToken_EvenASuperAdmins()
+    {
+        BobInDatabase(Bob(AdminRoles.SuperAdmin));
+
+        var response = await SendWithApiKey(BobDiscordAccountsPath, apiKey: null, CreateToken(Bob(AdminRoles.SuperAdmin)));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Empty(_factory.AccountsRepository.ReceivedCalls());
+    }
+
+    [Fact]
+    public async Task DiscordAccounts_Returns401_WhenNoApiKeyIsConfigured()
+    {
+        using var unconfigured = _factory.WithWebHostBuilder(builder =>
+            builder.UseSetting(ApiKeyAuthenticationHandler.ConfigurationKey, ""));
+        using var client = unconfigured.CreateClient();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendWithApiKey(BobDiscordAccountsPath, "", client: client)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await SendWithApiKey(BobDiscordAccountsPath, "anything", client: client)).StatusCode);
+    }
+
+    [Fact]
+    public async Task TheBotsApiKey_DoesNotGrantAccessToUserEndpoints()
+    {
+        var response = await SendWithApiKey("/api/accounts/topScorers", DiscordBotApiKey);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
