@@ -65,8 +65,8 @@ It's protected by the `DiscordBot` authorization policy, which only accepts the 
 | `scripts/serve-local.js`       | Serves the handler locally (`deno task serve`)                                              |
 | `tests/`                       | Deno tests                                                                                  |
 
-Discord IDs are bigger than 2^53, so the bot keeps them as strings (never JavaScript numbers) and the API binds them as a
-`long`.
+Discord IDs are bigger than 2^53, so the bot keeps them as strings (never JavaScript numbers) and the API binds them as
+a `long`.
 
 ## Deployment
 
@@ -95,11 +95,11 @@ It's independent of the Aspire deploy, so a failure in one doesn't block the oth
 Set these on the val (left sidebar → Environment variables). They're only read at runtime, never committed, and changes
 apply on the next request without a redeploy.
 
-| Name                 | Value                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| `DISCORD_PUBLIC_KEY` | Public key from the Discord Developer Portal's General Information page               |
-| `VEP_API_URL`        | The API's base URL, e.g. `https://valyria-api.<env>.azurecontainerapps.io`            |
-| `VEP_API_KEY`        | The shared API key: the same value as the API's `DiscordBotApiKey` setting            |
+| Name                 | Value                                                                      |
+| -------------------- | -------------------------------------------------------------------------- |
+| `DISCORD_PUBLIC_KEY` | Public key from the Discord Developer Portal's General Information page    |
+| `VEP_API_URL`        | The API's base URL, e.g. `https://valyria-api.<env>.azurecontainerapps.io` |
+| `VEP_API_KEY`        | The shared API key: the same value as the API's `DiscordBotApiKey` setting |
 
 ## One-time setup
 
