@@ -18,6 +18,8 @@ env:
   NODE_VERSION: 22.x
   FLYWAY_IMAGE: flyway/flyway:11.20.3
   ASPIRE_CLI_VERSION: 13.6.1
+  DENO_VERSION: v2.x
+  VT_CLI_VERSION: 0.1.59
 
 jobs:
   dotnet-tests:
@@ -47,6 +49,19 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run lint
       - run: npx vitest run
+
+  discord-bot-tests:
+    name: Discord bot lint and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: discord-bot
+    steps:
+      - uses: actions/checkout@v5
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      - run: deno task check
 
   # The integration tests apply the migrations with the mysql client, so this checks they also go through Flyway itself
   # (file naming, DELIMITER parsing, checksums) before Flyway ever runs them against production
@@ -158,3 +173,39 @@ jobs:
           Parameters__CnDbConnectionString: ${{ secrets.CN_DB_CONNECTION_STRING }}
           Parameters__DiscordWebhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: aspire deploy --non-interactive
+
+  # The Discord bot is a Val Town val, deployed separately from the Aspire app. See discord-bot/README.md
+  deploy-discord-bot:
+    name: Deploy Discord bot to Val Town
+    needs: [discord-bot-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-discord-bot
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      - run: deno install --global --allow-all --force "jsr:@valtown/vt@$VT_CLI_VERSION"
+
+      # Clone the val for its .vt state, mirror discord-bot/val/ into it, and push. vt push overwrites the val's
+      # files and deletes any that aren't in the repo, so the repo is the source of truth for the code
+      - name: vt push
+        env:
+          VAL_TOWN_API_KEY: ${{ secrets.VAL_TOWN_API_KEY }}
+          VAL_TOWN_VAL: ${{ vars.VAL_TOWN_VAL }}
+        run: |
+          vt clone "$VAL_TOWN_VAL" "$RUNNER_TEMP/val" --no-editor-files
+          rsync -a --delete --exclude .vt --exclude .vtignore discord-bot/val/ "$RUNNER_TEMP/val/"
+          cd "$RUNNER_TEMP/val"
+          vt push
+
+      - name: Register slash commands
+        working-directory: discord-bot
+        env:
+          DISCORD_APPLICATION_ID: ${{ vars.DISCORD_APPLICATION_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: deno task register

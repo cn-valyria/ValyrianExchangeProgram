@@ -1,0 +1,17 @@
+{
+  "tasks": {
+    "check": "deno fmt --check && deno lint && deno test",
+    "register": "deno run --allow-env --allow-net=discord.com scripts/register-commands.js",
+    "serve": "deno run --allow-net --allow-env --allow-read --allow-sys scripts/serve-local.js"
+  },
+  "fmt": {
+    "lineWidth": 120
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  }
+}
