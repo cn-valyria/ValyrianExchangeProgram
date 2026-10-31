@@ -64,6 +64,8 @@ Valyria.Aspire/
 │       ├── infrastructure/       # Utilities
 │       └── Dockerfile            # Container configuration
 │
+├── discord-bot/                  # Val Town Discord bot (JavaScript/Deno, not part of Aspire)
+│
 ├── .env.example                  # Environment variables template
 └── Valyria.Aspire.sln           # Solution file
 ```
@@ -101,6 +103,10 @@ Valyria.Aspire/
 3. **Service**: Repository pattern with dependency injection
 4. **Data**: Dapper ORM + MySQL database
 5. **Cross-cutting**: Aspire service defaults (telemetry, health checks, service discovery)
+
+## Discord Bot
+
+[`discord-bot/`](discord-bot/README.md) is a small Discord bot hosted on [Val Town](https://www.val.town), separate from the Aspire app. Members run `/uniquecode` to privately get the unique code for the VEP account(s) linked to their Discord ID. CI deploys it to Val Town on every merge to `main`; see its [README](discord-bot/README.md) for setup and configuration.
 
 ## API Endpoints
 
