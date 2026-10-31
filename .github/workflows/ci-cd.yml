@@ -172,6 +172,7 @@ jobs:
           Parameters__VepDbConnectionString: ${{ secrets.VEP_DB_CONNECTION_STRING }}
           Parameters__CnDbConnectionString: ${{ secrets.CN_DB_CONNECTION_STRING }}
           Parameters__DiscordWebhookUrl: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          Parameters__DiscordBotApiKey: ${{ secrets.DISCORD_BOT_API_KEY }}
         run: aspire deploy --non-interactive
 
   # The Discord bot is a Val Town val, deployed separately from the Aspire app. See discord-bot/README.md

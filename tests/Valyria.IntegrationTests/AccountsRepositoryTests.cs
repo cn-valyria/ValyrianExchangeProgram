@@ -254,4 +254,31 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
         Assert.Equal(1.5m, scorers[0].AvgDaysToClearDebt);
         Assert.Equal("Valyria", scorers[0].AllianceName);
     }
+
+    [Fact]
+    public async Task GetAccountsByDiscordId_ReturnsEveryAccountLinkedToTheDiscordUser()
+    {
+        // Discord IDs are snowflakes above 2^53, so these two only differ past a double's precision
+        const long discordId = 123456789012345678;
+        await Data.MemberAsync(200, "Bob", discordId: discordId, psw: "QWERT");
+        await Data.MemberAsync(100, "Bob", discordId: discordId, psw: "ABCDE");
+        await Data.MemberAsync(300, "Sue", discordId: discordId + 1, psw: "ZXCVB");
+        await Data.AccountAsync(400, psw: "POIUY", discordId: discordId);
+
+        var accounts = (await Repository.GetAccountsByDiscordIdAsync(discordId)).ToList();
+
+        Assert.Equal([100, 200, 400], accounts.Select(a => a.NationId));
+        Assert.Equal(["ABCDE", "QWERT", "POIUY"], accounts.Select(a => a.UniqueCode));
+        Assert.Equal(("Bobland", "Bob"), (accounts[0].NationName, accounts[0].RulerName));
+        // No nation row (e.g. CN deleted it)
+        Assert.Null(accounts[2].NationName);
+    }
+
+    [Fact]
+    public async Task GetAccountsByDiscordId_ReturnsNothing_ForAnUnregisteredDiscordUser()
+    {
+        await Data.MemberAsync(100, "Bob", discordId: 111);
+
+        Assert.Empty(await Repository.GetAccountsByDiscordIdAsync(222));
+    }
 }

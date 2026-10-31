@@ -4,7 +4,8 @@ A Discord bot, hosted on [Val Town](https://www.val.town), that lets members pri
 unique code.
 
 It's deliberately separate from the .NET Aspire app: it's a small JavaScript (Deno) HTTP handler that Val Town runs for
-free, and it reads straight from the VEP MySQL database.
+free. It has no database access of its own. It looks accounts up through a VEP API endpoint that only accepts its API
+key.
 
 ## Commands
 
@@ -22,19 +23,33 @@ POSTs to the bot's **Interactions Endpoint URL**, which points at the val's HTTP
 or always-on process.
 
 ```
-Discord ──POST /──► Val Town (main.http.js) ──SELECT──► Azure MySQL (vep_db.account + cybernations_db.nation)
+Discord ──POST /──► Val Town (main.http.js) ──GET + X-Api-Key──► VEP API (/api/discord/...) ──► MySQL
         ◄─ephemeral reply──
 ```
 
 1. `main.http.js` verifies the request's Ed25519 signature against `DISCORD_PUBLIC_KEY` (Discord requires this and
    probes the endpoint with bad signatures) and rejects anything unsigned with a 401.
 2. Discord's `PING` gets a `PONG`, which is how Discord validates the endpoint URL.
-3. `/uniquecode` takes the invoking user's ID (`member.user.id` in a server, `user.id` in a DM), queries the database,
-   and responds with an ephemeral message.
+3. `/uniquecode` takes the invoking user's ID (`member.user.id` in a server, `user.id` in a DM), calls
+   `GET {VEP_API_URL}/api/discord/users/{discordId}/accounts` with the `X-Api-Key: {VEP_API_KEY}` header, and responds
+   with an ephemeral message.
 
-Discord gives up on an interaction after 3 seconds, so the database connection times out after 2.5 seconds and the bot
-replies with a "try again" message if the lookup fails. The connection pool is kept between requests while Val Town
-keeps the val warm.
+Discord gives up on an interaction after 3 seconds, so the API call times out after 2.5 seconds and the bot replies with
+a "try again" message if the lookup fails (including a 401 from a wrong or missing API key).
+
+### The API endpoint
+
+`GET /api/discord/users/{discordId}/accounts` lives in
+[`DiscordController`](../src/Valyria.Api/Controllers/DiscordController.cs) and returns
+`[{ nationId, nationName, rulerName, uniqueCode }]` for every `vep_db.account` row with that `discord_id` (an empty list
+if there are none).
+
+It's protected by the `DiscordBot` authorization policy, which only accepts the `DiscordBotApiKey` authentication scheme
+([`ApiKeyAuthenticationHandler`](../src/Valyria.Api/Auth/ApiKeyAuthenticationHandler.cs)):
+
+- The request's `X-Api-Key` header has to match the API's `DiscordBotApiKey` setting (compared in constant time).
+- Members' and admins' JWTs aren't accepted, and the API key doesn't work on any other endpoint.
+- If `DiscordBotApiKey` isn't set, every request gets a 401, so the endpoint is closed until the key is configured.
 
 ### Layout
 
@@ -43,15 +58,15 @@ keeps the val warm.
 | `val/`                         | Everything deployed to Val Town (mirrored to the val on every deploy)                       |
 | `val/main.http.js`             | The val's HTTP trigger. The `http` in the file name is what makes Val Town create it as one |
 | `val/interactions.js`          | Signature check, interaction routing, and reply formatting                                  |
-| `val/accounts.js`              | The MySQL lookup (`npm:mysql2`)                                                             |
+| `val/accounts.js`              | The VEP API call                                                                            |
 | `val/signature.js`             | Ed25519 request verification with Web Crypto                                                |
 | `val/commands.js`              | Slash command definitions                                                                   |
 | `scripts/register-commands.js` | Registers `val/commands.js` with Discord (bulk overwrite, safe to rerun)                    |
 | `scripts/serve-local.js`       | Serves the handler locally (`deno task serve`)                                              |
 | `tests/`                       | Deno tests                                                                                  |
 
-Discord IDs are bigger than 2^53, so they're always handled as strings and cast to an integer in SQL rather than
-compared as doubles.
+Discord IDs are bigger than 2^53, so the bot keeps them as strings (never JavaScript numbers) and the API binds them as a
+`long`.
 
 ## Deployment
 
@@ -73,6 +88,7 @@ It's independent of the Aspire deploy, so a failure in one doesn't block the oth
 | `VAL_TOWN_VAL`           | variable | The val as `username/valName`, e.g. `lilweirdward/vepDiscordBot`                                              |
 | `DISCORD_APPLICATION_ID` | variable | Application ID from the Discord Developer Portal's General Information page                                   |
 | `DISCORD_BOT_TOKEN`      | secret   | Bot token from the Discord Developer Portal's Bot page                                                        |
+| `DISCORD_BOT_API_KEY`    | secret   | The shared API key. The Aspire deploy passes it to the API as the `DiscordBotApiKey` parameter                |
 
 ### Val Town environment variables
 
@@ -82,11 +98,8 @@ apply on the next request without a redeploy.
 | Name                 | Value                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------- |
 | `DISCORD_PUBLIC_KEY` | Public key from the Discord Developer Portal's General Information page               |
-| `VEP_DB_HOST`        | MySQL host, e.g. `<server>.mysql.database.azure.com`                                  |
-| `VEP_DB_PORT`        | Optional, defaults to `3306`                                                          |
-| `VEP_DB_USER`        | The bot's read-only database user (see below)                                         |
-| `VEP_DB_PASSWORD`    | That user's password                                                                  |
-| `VEP_DB_SSL`         | Optional. TLS is on by default (Azure requires it); `false` only for a local database |
+| `VEP_API_URL`        | The API's base URL, e.g. `https://valyria-api.<env>.azurecontainerapps.io`            |
+| `VEP_API_KEY`        | The shared API key: the same value as the API's `DiscordBotApiKey` setting            |
 
 ## One-time setup
 
@@ -96,25 +109,17 @@ apply on the next request without a redeploy.
 2. **Create the val** at [val.town](https://www.val.town) (or `vt create vepDiscordBot`). It can start empty; the first
    deploy adds the files. Free accounts can only create public vals. That's fine here, since the code is already public
    in this repo and environment variables are never visible to others.
-3. **Create a read-only database user** that can only see the columns the bot needs:
-   ```sql
-   CREATE USER 'vep_discord_bot'@'%' IDENTIFIED BY '<strong password>';
-   GRANT SELECT (nation_id, discord_id, psw) ON vep_db.account TO 'vep_discord_bot'@'%';
-   GRANT SELECT (id, nation_name, ruler_name) ON cybernations_db.nation TO 'vep_discord_bot'@'%';
-   ```
-4. **Allow Val Town through the MySQL firewall.** Val Town's
-   [outbound IP ranges](https://docs.val.town/reference/runtime/) are `74.220.50.0/24` and `74.220.58.0/24`:
-   ```bash
-   az mysql flexible-server firewall-rule create --resource-group <rg> --name <server> \
-     --rule-name val-town-1 --start-ip-address 74.220.50.0 --end-ip-address 74.220.50.255
-   az mysql flexible-server firewall-rule create --resource-group <rg> --name <server> \
-     --rule-name val-town-2 --start-ip-address 74.220.58.0 --end-ip-address 74.220.58.255
-   ```
-   These ranges are shared by every val on Val Town, so the database password and the column-limited grants above are
-   what actually protect the data.
-5. **Set the GitHub and Val Town configuration** from the tables above, then merge to `main` (or run the CI/CD workflow
-   manually) to deploy.
-6. **Point Discord at the val:** copy the val's HTTP endpoint URL (e.g. `https://<username>--<id>.web.val.run`) into
+3. **Generate the shared API key**, e.g. `openssl rand -base64 32`, and set it in three places:
+   - GitHub: the `DISCORD_BOT_API_KEY` secret, which the Aspire deploy passes to the API as its `DiscordBotApiKey`
+     parameter.
+   - Val Town: the `VEP_API_KEY` environment variable.
+   - Locally (only if you want to call the endpoint from a local Aspire run):
+     `dotnet user-secrets set Parameters:DiscordBotApiKey <key> --project src/Valyria.AppHost`.
+
+   To rotate it, update all three and redeploy the API.
+4. **Set the rest of the GitHub and Val Town configuration** from the tables above, then merge to `main` (or run the
+   CI/CD workflow manually) to deploy.
+5. **Point Discord at the val:** copy the val's HTTP endpoint URL (e.g. `https://<username>--<id>.web.val.run`) into
    **Interactions Endpoint URL** on the Developer Portal's General Information page and save. Discord sends a signed
    `PING` to check it, so this only succeeds once the val is deployed and `DISCORD_PUBLIC_KEY` is set.
 
@@ -132,10 +137,10 @@ deno test            # tests only
 DISCORD_APPLICATION_ID=... DISCORD_BOT_TOKEN=... deno task register
 ```
 
-To serve the handler locally against a database (e.g. a local MySQL with `VEP_DB_SSL=false`):
+To serve the handler locally against a running API (e.g. the Aspire app, with `DiscordBotApiKey` set):
 
 ```bash
-VEP_DB_HOST=127.0.0.1 VEP_DB_USER=... VEP_DB_PASSWORD=... VEP_DB_SSL=false DISCORD_PUBLIC_KEY=... deno task serve
+VEP_API_URL=https://localhost:<api port> VEP_API_KEY=... DISCORD_PUBLIC_KEY=... deno task serve
 ```
 
 Discord can only reach a public URL, so end-to-end testing against Discord is easiest on a

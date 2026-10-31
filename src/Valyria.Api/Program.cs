@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
@@ -104,7 +105,8 @@ builder.Services.AddAuthentication(options =>
         RoleClaimType = TokenClaims.AdminRole
     };
     options.Events = new CustomJwtBearerEvents();
-});
+})
+.AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, null);
 
 builder.Services.AddAuthorization(options => options.AddValyriaPolicies());
 

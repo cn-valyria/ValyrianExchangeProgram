@@ -106,7 +106,7 @@ Valyria.Aspire/
 
 ## Discord Bot
 
-[`discord-bot/`](discord-bot/README.md) is a small Discord bot hosted on [Val Town](https://www.val.town), separate from the Aspire app. Members run `/uniquecode` to privately get the unique code for the VEP account(s) linked to their Discord ID. CI deploys it to Val Town on every merge to `main`; see its [README](discord-bot/README.md) for setup and configuration.
+[`discord-bot/`](discord-bot/README.md) is a small Discord bot hosted on [Val Town](https://www.val.town), separate from the Aspire app. Members run `/uniquecode` to privately get the unique code for the VEP account(s) linked to their Discord ID. The bot has no database access; it calls the API's `/api/discord` endpoint with the shared `DiscordBotApiKey`. CI deploys it to Val Town on every merge to `main`; see its [README](discord-bot/README.md) for setup and configuration.
 
 ## API Endpoints
 
@@ -121,6 +121,10 @@ Valyria.Aspire/
 - `DELETE /api/accounts/{id}` - Delete account
 - `GET /api/accounts/prospect` - Find prospective accounts
 - `GET /api/accounts/topScorers` - Get top performing accounts
+
+### Discord bot (`/api/discord`)
+Authenticated with the `X-Api-Key` header (the `DiscordBotApiKey` setting), not a JWT. See [discord-bot/README.md](discord-bot/README.md).
+- `GET /api/discord/users/{discordId}/accounts` - Accounts (with unique codes) linked to a Discord user ID
 
 ### Deals (`/api/deals`)
 - `GET /api/deals/{id}` - Get deal details
@@ -183,6 +187,11 @@ The application requires two environment variables:
    openssl rand -hex 32
    ```
 
+3. **`DiscordBotApiKey`** - API key the [Discord bot](discord-bot/README.md) sends to `/api/discord`. Production uses the same value as the bot's `VEP_API_KEY` on Val Town; locally, any random value works unless you're testing the bot
+   ```bash
+   openssl rand -base64 32
+   ```
+
 #### Configuration Methods
 
 Choose ONE of the following methods:
@@ -198,6 +207,9 @@ dotnet user-secrets set "VepDbConnectionString" "server=localhost;database=vep_d
 
 # Set the JWT secret (generate a random key first)
 dotnet user-secrets set "JwtSecret" "$(openssl rand -hex 32)"
+
+# Set the Discord bot's API key
+dotnet user-secrets set "Parameters:DiscordBotApiKey" "$(openssl rand -base64 32)"
 ```
 
 ##### Option B: Environment Variables
@@ -425,6 +437,7 @@ Example migration script location: `src/Valyria.Infrastructure/Migrations/`
 ## Security Considerations
 
 - **JWT Tokens**: Ensure `JwtSecret` is strong (32+ characters) and kept secure
+- **Discord bot API key**: `DiscordBotApiKey` only opens `/api/discord`; keep it random (`openssl rand -base64 32`) and rotate it in GitHub and Val Town together
 - **HTTPS**: In production, enable HTTPS redirection (currently disabled in development)
 - **CORS**: Configure CORS policy in [Program.cs](src/Valyria.Api/Program.cs#L85-L93) for production
 - **Database**: Use strong passwords and restrict database access

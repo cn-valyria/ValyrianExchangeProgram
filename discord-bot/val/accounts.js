@@ -1,37 +1,32 @@
-import mysql from "npm:mysql2@3/promise";
+// Discord gives up on an interaction after 3 seconds, so leave time to reply if the API is slow
+const API_TIMEOUT_MS = 2500;
 
-let pool;
+/**
+ * Looks up the VEP accounts linked to a Discord user through the VEP API, authenticated with the API key that's also
+ * the API's DiscordBotApiKey setting.
+ *
+ * Discord IDs are snowflakes larger than 2^53, so they stay strings and go straight into the URL.
+ */
+export async function findAccountsByDiscordId(discordId, {
+  apiUrl = Deno.env.get("VEP_API_URL"),
+  apiKey = Deno.env.get("VEP_API_KEY"),
+  fetch = globalThis.fetch,
+} = {}) {
+  if (!/^\d{1,19}$/.test(discordId)) return [];
+  if (!apiUrl || !apiKey) throw new Error("VEP_API_URL and VEP_API_KEY must be set");
 
-function getPool() {
-  pool ??= mysql.createPool({
-    host: Deno.env.get("VEP_DB_HOST"),
-    port: Number(Deno.env.get("VEP_DB_PORT") ?? 3306),
-    user: Deno.env.get("VEP_DB_USER"),
-    password: Deno.env.get("VEP_DB_PASSWORD"),
-    // Azure Database for MySQL requires TLS; set VEP_DB_SSL=false only for a local database
-    ssl: Deno.env.get("VEP_DB_SSL") === "false" ? undefined : { rejectUnauthorized: true },
-    connectionLimit: 2,
-    connectTimeout: 2500, // Discord gives up on an interaction after 3 seconds
-    supportBigNumbers: true,
-    bigNumberStrings: true,
+  const url = new URL(`api/discord/users/${discordId}/accounts`, apiUrl.endsWith("/") ? apiUrl : `${apiUrl}/`);
+  const response = await fetch(url, {
+    headers: { "X-Api-Key": apiKey, Accept: "application/json" },
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
-  return pool;
-}
+  if (!response.ok) throw new Error(`VEP API returned ${response.status} for the Discord account lookup`);
 
-// Discord IDs are snowflakes larger than 2^53, so the ID is passed as a string and cast to an
-// integer in MySQL rather than letting a string-to-bigint comparison fall back to doubles
-const FIND_ACCOUNTS_BY_DISCORD_ID = `
-select account.nation_id as nationId,
-    nation.nation_name as nationName,
-    nation.ruler_name as rulerName,
-    account.psw as uniqueCode
-from vep_db.account
-left join cybernations_db.nation on nation.id = account.nation_id
-where account.discord_id = cast(? as unsigned)
-order by account.nation_id`;
-
-export async function findAccountsByDiscordId(discordId) {
-  if (!/^\d{1,20}$/.test(discordId)) return [];
-  const [rows] = await getPool().query(FIND_ACCOUNTS_BY_DISCORD_ID, [discordId]);
-  return rows.map((row) => ({ ...row, nationId: String(row.nationId) }));
+  const accounts = await response.json();
+  return accounts.map(({ nationId, nationName, rulerName, uniqueCode }) => ({
+    nationId: String(nationId),
+    nationName,
+    rulerName,
+    uniqueCode,
+  }));
 }

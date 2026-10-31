@@ -7,6 +7,8 @@ var jwtSecret = builder.AddParameter("JwtSecret");
 var vepDbConnectionString = builder.AddParameter("VepDbConnectionString");
 var cnDbConnectionString = builder.AddParameter("CnDbConnectionString");
 var discordWebhookUrl = builder.AddParameter("DiscordWebhookUrl");
+// Shared with the Discord bot on Val Town (its VEP_API_KEY), see discord-bot/README.md
+var discordBotApiKey = builder.AddParameter("DiscordBotApiKey", secret: true);
 
 // Database migrations are not an AppHost resource: local runs point at the production database, so they
 // would migrate prod from whatever branch is checked out. The deploy workflow (.github/workflows/ci-cd.yml)
@@ -16,7 +18,8 @@ var discordWebhookUrl = builder.AddParameter("DiscordWebhookUrl");
 var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
     .WithExternalHttpEndpoints()
     .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
-    .WithEnvironment("JwtSecret", jwtSecret);
+    .WithEnvironment("JwtSecret", jwtSecret)
+    .WithEnvironment("DiscordBotApiKey", discordBotApiKey);
 
 var storage = builder.AddAzureStorage("valyria-storage").RunAsEmulator();
 var nationBlob = storage.AddBlobContainer("nation");
