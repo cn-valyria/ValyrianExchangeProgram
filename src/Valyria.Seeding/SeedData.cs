@@ -1,12 +1,13 @@
 using Dapper;
 using MySql.Data.MySqlClient;
 
-namespace Valyria.IntegrationTests;
+namespace Valyria.Seeding;
 
 /// <summary>
-/// Seeds rows for repository tests. Columns the tests don't care about get neutral defaults.
+/// Inserts rows with raw SQL, for the repository tests and the local dev seed. Columns the caller doesn't care about
+/// get neutral defaults.
 /// </summary>
-public sealed class TestData(string connectionString)
+public sealed class SeedData(string connectionString)
 {
     public async Task<T> ScalarAsync<T>(string sql, object? param = null)
     {

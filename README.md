@@ -154,7 +154,7 @@ API documentation is available via Swagger at `/swagger` when running.
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (for AppHost)
 - [Node.js 20+](https://nodejs.org/) (LTS recommended)
-- [MySQL 8.0+](https://dev.mysql.com/downloads/mysql/)
+- [Docker](https://www.docker.com/) (the local MySQL database, Flyway and the Azure Storage emulator run as containers)
 - [.NET Aspire Workload](https://learn.microsoft.com/en-us/dotnet/aspire/fundamentals/setup-tooling)
 
 ### Install .NET Aspire Workload
@@ -168,7 +168,25 @@ dotnet workload install aspire
 
 ### 1. Database Setup
 
-Currently, the app only has a single MySql Production database. It's on the wishlist to make this part of the local environment.
+Nothing to set up: a local run creates its own MySQL database, with meaningful data dated to today. On every `aspire run`:
+
+1. **`mysql`** starts MySQL 8.0 with a persistent data volume (`valyria-local-mysql`) and production's `sql_mode` (production isn't strict, so over-long CN values are truncated rather than failing the import)
+2. **`db-migrations`** runs the Flyway migrations in [src/Valyria.Database/migrations](src/Valyria.Database/migrations), with the same image and settings as CI
+3. **`valyria-batch-dataloader`** imports today's real CN files from cybernations.net (a few MB), the same way production does
+4. **`db-seed`** ([Valyria.Seeding](src/Valyria.Seeding/DevDataSeeder.cs)) fills an empty `vep_db` with about 35 accounts on real nations, with deals in every state (in flight on real aid offers, awaiting send, 1-day warning, extended, final warning, blocked, pending start, cancelled), a team event, admins of each kind, and accounts on hold. The real procedures then work out deal states and flags and match the open slots. Its log lists every seeded account
+
+Every seeded account logs in with its ruler name (or nation ID) and the unique code `LOCAL`. Seeded accounts have no Discord ID, so the data loader never pings anyone. To test the pings or the Discord bot, put your own ID on the seeded Super Admin:
+
+```bash
+cd src/Valyria.AppHost
+dotnet user-secrets set "Seed:DevDiscordId" "<your Discord user ID>"
+```
+
+The data is kept between runs, and the data loader keeps the CN data current, but the seeded deals age like real ones (warnings turn into cancellations after a few days). Use the **Reset & reseed** command on `db-seed` in the dashboard to delete all VEP data and seed it again with dates from today. To start completely fresh, stop the app and delete the `valyria-local-mysql` Docker volume.
+
+**Offline, or CN is down:** set `CnFileSource=Local` (for example `dotnet user-secrets set "CnFileSource" "Local"` in the AppHost) to import the saved set in [src/Valyria.Database/local/cn-files](src/Valyria.Database/local/cn-files) instead. The aid dates are moved forward so the newest aid is dated today.
+
+**Production:** use the `https-prod` launch profile, or set `UseProductionDb=true`, to point the API and data loader at the production database instead (this needs `VepDbConnectionString` and `CnDbConnectionString`, below). Against production, migrations never run, and the data loader only runs when you start it from the dashboard.
 
 ### 2. Environment Variables
 
@@ -176,10 +194,7 @@ The application requires two environment variables:
 
 #### Required Variables
 
-1. **`VepDbConnectionString`** - MySQL connection string
-   ```
-   Given the above note about a single database, you'll need to get the connection string from LWW or Devo for now.
-   ```
+1. **`VepDbConnectionString`** and **`CnDbConnectionString`** - production MySQL connection strings, only needed with `UseProductionDb` (see above). Get them from LWW or Devo
 
 2. **`JwtSecret`** - Secret key for JWT token signing (minimum 32 characters)
    ```bash
@@ -458,7 +473,7 @@ dotnet user-secrets set "JwtSecret" "$(openssl rand -hex 32)"
 
 #### "Unable to connect to database"
 
-Verify your MySQL server is running and the connection string is correct:
+For a local run, check that Docker is running and the `mysql` and `db-migrations` resources are healthy in the dashboard. With `UseProductionDb`, verify the connection string is correct:
 
 ```bash
 mysql -u vep_user -p -e "SELECT 1;"
