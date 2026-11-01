@@ -1,6 +1,7 @@
 using Dapper;
 using MySql.Data.MySqlClient;
 using Testcontainers.MySql;
+using Valyria.Seeding;
 
 namespace Valyria.IntegrationTests;
 
@@ -88,7 +89,7 @@ public abstract class RepositoryTestBase(MySqlFixture fixture) : IAsyncLifetime
 {
     protected MySqlFixture Fixture { get; } = fixture;
 
-    protected TestData Data { get; } = new(fixture.VepConnectionString);
+    protected SeedData Data { get; } = new(fixture.VepConnectionString);
 
     public Task InitializeAsync() => Fixture.ResetAsync();
 

@@ -1,24 +1,28 @@
+using Microsoft.Extensions.Configuration;
+using Valyria.AppHost;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddAzureContainerAppEnvironment("env");
 
+// Local runs get their own MySQL, migrated and seeded on startup (see README.md). Set UseProductionDb=true (or use
+// the https-prod launch profile) to point at the production database instead. Publishing always uses production
+var useProductionDb = builder.ExecutionContext.IsPublishMode || builder.Configuration.GetValue<bool>("UseProductionDb");
+
 // Get secrets from environment variables or user secrets
 var jwtSecret = builder.AddParameter("JwtSecret");
-var vepDbConnectionString = builder.AddParameter("VepDbConnectionString");
-var cnDbConnectionString = builder.AddParameter("CnDbConnectionString");
+var vepDbConnectionString = useProductionDb ? builder.AddParameter("VepDbConnectionString") : null;
+var cnDbConnectionString = useProductionDb ? builder.AddParameter("CnDbConnectionString") : null;
 var discordWebhookUrl = builder.AddParameter("DiscordWebhookUrl");
 // Shared with the Discord bot on Val Town (its VEP_API_KEY), see discord-bot/README.md
 var discordBotApiKey = builder.AddParameter("DiscordBotApiKey", secret: true);
 
-// Database migrations are not an AppHost resource: local runs point at the production database, so they
-// would migrate prod from whatever branch is checked out. The deploy workflow (.github/workflows/ci-cd.yml)
-// runs Flyway against prod right before `aspire deploy`.
-
 // Add the API project with HTTP and HTTPS endpoints
 var api = builder.AddProject<Projects.Valyria_Api>("valyria-api")
-    .WithExternalHttpEndpoints()
-    .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
-    .WithEnvironment("JwtSecret", jwtSecret)
+    .WithExternalHttpEndpoints();
+if (vepDbConnectionString is not null)
+    api.WithEnvironment("VepDbConnectionString", vepDbConnectionString);
+api.WithEnvironment("JwtSecret", jwtSecret)
     .WithEnvironment("DiscordBotApiKey", discordBotApiKey);
 
 var storage = builder.AddAzureStorage("valyria-storage").RunAsEmulator();
@@ -29,16 +33,33 @@ var warBlob = storage.AddBlobContainer("war");
 
 // Add the batch job that runs on a schedule (1:30 PM UTC daily)
 #pragma warning disable ASPIREAZURE002
-builder.AddProject<Projects.Valyria_Batch_DataLoader>("valyria-batch-dataloader")
+var dataLoader = builder.AddProject<Projects.Valyria_Batch_DataLoader>("valyria-batch-dataloader")
     .WithReference(nationBlob).WaitFor(nationBlob)
     .WithReference(allianceBlob).WaitFor(allianceBlob)
     .WithReference(aidBlob).WaitFor(aidBlob)
-    .WithReference(warBlob).WaitFor(warBlob)
-    .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
-    .WithEnvironment("CybernationsDbConnectionString", cnDbConnectionString)
+    .WithReference(warBlob).WaitFor(warBlob);
+if (vepDbConnectionString is not null && cnDbConnectionString is not null)
+    dataLoader
+        .WithEnvironment("VepDbConnectionString", vepDbConnectionString)
+        .WithEnvironment("CybernationsDbConnectionString", cnDbConnectionString);
+dataLoader
     .WithEnvironment("DiscordWebhookUrl", discordWebhookUrl)
     .PublishAsScheduledAzureContainerAppJob(cronExpression: "0/5 0-2,12-14 * * *");
 #pragma warning restore ASPIREAZURE002
+
+if (useProductionDb)
+{
+    // Database migrations are not an AppHost resource against production: they would migrate prod from whatever
+    // branch is checked out. The deploy workflow (.github/workflows/ci-cd.yml) runs Flyway against prod right
+    // before `aspire deploy`. For the same reason, a local run only imports into prod when the loader is started
+    // by hand from the dashboard
+    if (builder.ExecutionContext.IsRunMode)
+        dataLoader.WithExplicitStart();
+}
+else
+{
+    builder.AddLocalDatabase(api, dataLoader);
+}
 
 var domainName = builder.AddParameter("customDomain");
 var certificateName = builder.AddParameter("certificateName");
