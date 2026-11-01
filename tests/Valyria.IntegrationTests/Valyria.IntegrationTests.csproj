@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Valyria.Infrastructure/Valyria.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Valyria.Seeding/Valyria.Seeding.csproj" />
   </ItemGroup>
 
   <ItemGroup>

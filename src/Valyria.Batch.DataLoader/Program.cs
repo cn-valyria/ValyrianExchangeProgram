@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Valyria.Batch.DataLoader;
 using Valyria.Core.Interfaces;
 using Valyria.Infrastructure.Repositories;
@@ -19,11 +20,22 @@ var vepDbConnectionString = builder.Configuration["VepDbConnectionString"]
     ?? throw new InvalidOperationException("VepDbConnectionString is not configured");
 var cnDbConnectionString = builder.Configuration["CybernationsDbConnectionString"]
     ?? throw new InvalidOperationException("CybernationsDbConnectionString is not configured");
-var discordWebhookUrl = builder.Configuration["DiscordWebhookUrl"]
-    ?? throw new InvalidOperationException("DiscordWebhookUrl is not configured");
+// Without a webhook URL the Discord pings are skipped (logged as a warning), which is fine for local runs
+var discordWebhookUrl = builder.Configuration["DiscordWebhookUrl"] ?? string.Empty;
 
-// Register CN file import services
-builder.Services.AddSingleton<ICnFileGrabber, CnFileGrabber>();
+// Register CN file import services. Local runs can serve a saved set of files instead of downloading
+// today's (CnFileSource=Local, set by the AppHost), for working offline or when CN is down
+if (string.Equals(builder.Configuration["CnFileSource"], "Local", StringComparison.OrdinalIgnoreCase))
+{
+    var savedFilesPath = builder.Configuration["CnSavedFilesPath"]
+        ?? throw new InvalidOperationException("CnSavedFilesPath is not configured");
+    builder.Services.AddSingleton<ICnFileGrabber>(services =>
+        new LocalCnFileGrabber(savedFilesPath, services.GetRequiredService<ILogger<LocalCnFileGrabber>>()));
+}
+else
+{
+    builder.Services.AddSingleton<ICnFileGrabber, CnFileGrabber>();
+}
 builder.Services.AddSingleton<ICnFileParser, CnFileParser>();
 
 // Register repositories
