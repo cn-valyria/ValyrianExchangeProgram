@@ -1069,7 +1069,7 @@ describe('admin flags page', () => {
     await click(dialog().querySelectorAll<HTMLElement>('[role="radio"]')[2])
     await click(button('Clear Flag', dialog()))
 
-    expect(resolveFlag).toHaveBeenCalledWith(5, '')
+    expect(resolveFlag).toHaveBeenCalledWith(5, '', false)
     expect(loadFlags).toHaveBeenCalled()
   })
 
@@ -1088,7 +1088,7 @@ describe('admin flags page', () => {
     await click(dialog().querySelectorAll<HTMLElement>('[role="radio"]')[0])
     await click(button('Restore Deal', dialog()))
 
-    expect(restore).toHaveBeenCalledWith(7, '')
+    expect(restore).toHaveBeenCalledWith(7, '', true)
   })
 
   it('lets read-only admins look but not resolve', async () => {

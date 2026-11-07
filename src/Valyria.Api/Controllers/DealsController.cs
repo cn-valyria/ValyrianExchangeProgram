@@ -420,7 +420,7 @@ public class DealsController : ControllerBase
 
         try
         {
-            var result = await _dealsRepository.RestoreFlaggedDealAsync(flagId, User.GetAuditName(), request.AdminNotes);
+            var result = await _dealsRepository.RestoreFlaggedDealAsync(flagId, User.GetAuditName(), request.AdminNotes, request.Excused);
 
             switch (result)
             {
@@ -455,7 +455,7 @@ public class DealsController : ControllerBase
 
         try
         {
-            await _dealsRepository.ResolveDealFlagAsync(flagId, User.GetAuditName(), request.AdminNotes);
+            await _dealsRepository.ResolveDealFlagAsync(flagId, User.GetAuditName(), request.AdminNotes, request.Excused);
 
             _logger.LogInformation("{MethodName} execution complete for flagId={FlagId}", nameof(ResolveDealFlag), flagId);
 
@@ -478,6 +478,11 @@ public class CancelDealRequest
 public class ResolveFlagRequest
 {
     public string? AdminNotes { get; set; }
+
+    /// <summary>
+    /// The flagged account wasn't at fault, so the flag doesn't count against them on the leaderboard
+    /// </summary>
+    public bool Excused { get; set; }
 }
 
 public class ExtendFlagRequest

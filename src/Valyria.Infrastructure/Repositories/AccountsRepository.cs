@@ -1,6 +1,7 @@
 using Valyria.Core.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using MySql.Data.MySqlClient;
@@ -280,39 +281,105 @@ where nation.id = @nation_id";
             new { id = accountId });
     }
 
-    public async Task<IEnumerable<TopScorerAccount>> GetTopScorerAccountsAsync()
+    public const int LeaderboardWindowDays = 90;
+    public const int LeaderboardMinimumOutgoingLegs = 5;
+    public const int LeaderboardTopRanks = 10;
+
+    public async Task<Leaderboard> GetLeaderboardAsync(int accountId)
     {
         using var sqlConnection = new MySqlConnection(_connectionString);
+        // Outgoing legs are the legs each account was the expected sender of. Failed offers only count once an admin
+        // excuses them, since otherwise the aid_failed flag would be counted against a leg that never happened
         const string query = @"
-select 	account.id as Id,
+with cn as (
+    select date(convert_tz(utc_timestamp(), '+00:00', '-05:00')) - interval (@windowDays - 1) day as window_start
+),
+legs as (
+    select account.id as account_id, count(1) as outgoing_legs
+    from deal_activity activity
+    join deal_participants participants on activity.deal_id = participants.deal_id
+    join account on account.id in (participants.account_1_id, participants.account_2_id)
+        and account.nation_id = activity.expected_sender_nation_id
+    cross join cn
+    where activity.activity_date >= cn.window_start
+      and (activity.failed_on is null or activity.failure_excused)
+    group by account.id
+),
+flags as (
+    select flag.flagged_account_id as account_id, count(1) as flags,
+        min(date(convert_tz(flag.flagged_on, '+00:00', '-05:00'))) as oldest_flag_on
+    from deal_flag flag
+    cross join cn
+    where not flag.excused
+      and date(convert_tz(flag.flagged_on, '+00:00', '-05:00')) >= cn.window_start
+    group by flag.flagged_account_id
+)
+select account.id as AccountId,
     nation.id as NationId,
     nation.nation_name as NationName,
     nation.ruler_name as RulerName,
-    alliance.name as AllianceName,
-    coalesce(outgoing_perf.times_in_list, 0) as TotalTimesInDebt,
-    coalesce(outgoing_perf.average_days_until_removed, 0.0) as AvgDaysToClearDebt
-from vep_db.account account
+    coalesce(alliance.name, 'None') as AllianceName,
+    coalesce(legs.outgoing_legs, 0) as OutgoingLegs,
+    coalesce(flags.flags, 0) as Flags,
+    flags.oldest_flag_on + interval @windowDays day as NextFlagDropsOn
+from account
 join cybernations_db.nation nation on account.nation_id = nation.id
-join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
-left join (
-    select account_id, count(1) as times_in_list, avg(days_until_removed) as average_days_until_removed
-    from account_list_performance
-    where list_id in (1, 3)
-    group by account_id
-) outgoing_perf on account.id = outgoing_perf.account_id
+left join cybernations_db.alliance alliance on nation.alliance_id = alliance.id
+left join legs on account.id = legs.account_id
+left join flags on account.id = flags.account_id
 where account.va <> 'H'
-  and coalesce(outgoing_perf.times_in_list, 0) > 0
-order by AvgDaysToClearDebt asc
-limit 10";
+  and (legs.account_id is not null or account.id = @accountId);
 
-        var results = await sqlConnection.QueryAsync<TopScorerAccount>(query);
-        var rankedResults = results.Select((account, index) =>
+select date(convert_tz(utc_timestamp(), '+00:00', '-05:00')) - interval (@windowDays - 1) day;";
+
+        using var results = await sqlConnection.QueryMultipleAsync(query,
+            new { accountId, windowDays = LeaderboardWindowDays });
+        var standings = (await results.ReadAsync<LeaderboardStanding>()).ToList();
+        var windowStart = await results.ReadSingleAsync<DateTime>();
+
+        var ranked = RankLeaderboard(standings);
+
+        return new Leaderboard
         {
-            account.Rank = index + 1;
-            return account;
-        });
+            WindowDays = LeaderboardWindowDays,
+            MinimumOutgoingLegs = LeaderboardMinimumOutgoingLegs,
+            WindowStart = windowStart,
+            RankedAccounts = ranked.Count,
+            Top = ranked.TakeWhile(standing => standing.Rank <= LeaderboardTopRanks).ToList(),
+            Mine = standings.SingleOrDefault(standing => standing.AccountId == accountId),
+        };
+    }
 
-        return rankedResults;
+    /// <summary>
+    /// Ranks the accounts with enough outgoing legs by fewest flags per outgoing leg, then most outgoing legs. Exact
+    /// ties share a rank
+    /// </summary>
+    private static List<LeaderboardStanding> RankLeaderboard(List<LeaderboardStanding> standings)
+    {
+        foreach (var standing in standings)
+        {
+            standing.LegsToQualify = Math.Max(0, LeaderboardMinimumOutgoingLegs - standing.OutgoingLegs);
+        }
+
+        // Compares flags/legs by cross-multiplying, so equal rates compare equal without rounding
+        var ranked = standings
+            .Where(standing => standing.LegsToQualify == 0)
+            .OrderBy(standing => standing, Comparer<LeaderboardStanding>.Create(CompareStandings))
+            .ThenBy(standing => standing.RulerName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        for (var i = 0; i < ranked.Count; i++)
+        {
+            ranked[i].Rank = i > 0 && CompareStandings(ranked[i - 1], ranked[i]) == 0 ? ranked[i - 1].Rank : i + 1;
+        }
+
+        return ranked;
+    }
+
+    private static int CompareStandings(LeaderboardStanding a, LeaderboardStanding b)
+    {
+        var byRate = ((long)a.Flags * b.OutgoingLegs).CompareTo((long)b.Flags * a.OutgoingLegs);
+        return byRate != 0 ? byRate : b.OutgoingLegs.CompareTo(a.OutgoingLegs);
     }
 
     public async Task<IEnumerable<DiscordAccount>> GetAccountsByDiscordIdAsync(long discordId)

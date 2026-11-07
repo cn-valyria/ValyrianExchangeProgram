@@ -27,31 +27,15 @@
         </p>
       </div>
 
-      <!-- Activity Score Display -->
       <div class="flex-shrink-0">
-        <AccountActivityScore
-          :score="account.avgDaysToClearDebt"
-          :total-times-in-debt="account.totalTimesInDebt"
-          compact
-        />
+        <LeaderboardScore :standing="account" compact />
       </div>
     </div>
   </UCard>
 </template>
 
 <script setup lang="ts">
-interface Props {
-  account: {
-    id: number
-    nationId: number
-    nationName: string
-    rulerName: string
-    allianceName: string
-    totalTimesInDebt: number
-    avgDaysToClearDebt: number
-    rank: number
-  }
-}
+import type { LeaderboardStanding } from '~/stores/leaderboard'
 
-defineProps<Props>()
+defineProps<{ account: LeaderboardStanding }>()
 </script>

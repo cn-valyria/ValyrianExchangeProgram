@@ -120,7 +120,9 @@ Valyria.Aspire/
 - `PUT /api/accounts` - Update account
 - `DELETE /api/accounts/{id}` - Delete account
 - `GET /api/accounts/prospect` - Find prospective accounts
-- `GET /api/accounts/topScorers` - Get top performing accounts
+
+### Leaderboard (`/api/leaderboard`)
+- `GET /api/leaderboard` - Accounts ranked by unexcused flags per outgoing leg over the last 90 CN days (5 outgoing legs to qualify): the top 10 ranks and the signed-in account's own standing
 
 ### Discord bot (`/api/discord`)
 Authenticated with the `X-Api-Key` header (the `DiscordBotApiKey` setting), not a JWT. See [discord-bot/README.md](discord-bot/README.md).

@@ -73,7 +73,7 @@ public interface IDealsRepository
     /// <summary>
     /// Resolve a deal flag (admin action)
     /// </summary>
-    Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes);
+    Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes, bool excused = false);
 
     /// <summary>
     /// Give the account this warning is against more time before its deal is cancelled, and resolve the warning (admin action)
@@ -83,7 +83,7 @@ public interface IDealsRepository
     /// <summary>
     /// Put a deal cancelled by this flag back into effect with a fresh state, and resolve the deal's open flags (admin action)
     /// </summary>
-    Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes);
+    Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes, bool excused = false);
 
     /// <summary>
     /// Get all slots for a specific account (admin view)

@@ -12,11 +12,21 @@
             <h1
               class="text-5xl sm:text-6xl font-bold text-white tracking-tight"
             >
-              Activity Score Leaderboard
+              Deal Partner Leaderboard
             </h1>
           </div>
           <p class="text-xl text-primary-100 max-w-2xl mx-auto">
-            The top 10 VEP accounts ranked by fastest debt clearance
+            The VEP accounts with the fewest flags per outgoing leg over the
+            last {{ leaderboard?.windowDays ?? 90 }} days
+          </p>
+          <p
+            v-if="leaderboard"
+            class="text-sm text-primary-200 max-w-2xl mx-auto"
+          >
+            A flag means aid wasn't sent on the day its slot opened, or went
+            somewhere other than your partner. Accounts need
+            {{ leaderboard.minimumOutgoingLegs }} outgoing legs since
+            {{ leaderboard.windowStart.split('T')[0] }} to be ranked.
           </p>
         </div>
       </div>
@@ -24,23 +34,25 @@
 
     <!-- Main Content -->
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+      <div v-if="!loading && leaderboard?.mine" class="mb-12">
+        <LeaderboardYourStanding
+          :leaderboard="leaderboard"
+          :standing="leaderboard.mine"
+        />
+      </div>
+
       <!-- Top 3 Podium -->
-      <div v-if="!loading && topScorers.length >= 3" class="mb-12">
+      <div v-if="!loading && podium.length === 3" class="mb-12">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
           <!-- 2nd Place -->
           <div class="md:order-1">
-            <LeaderboardPodiumCard
-              :account="topScorers[1]"
-              rank="2"
-              medal-color="silver"
-            />
+            <LeaderboardPodiumCard :account="podium[1]" medal-color="silver" />
           </div>
 
           <!-- 1st Place (Taller) -->
           <div class="md:order-2 transform md:scale-110 md:-mt-8">
             <LeaderboardPodiumCard
-              :account="topScorers[0]"
-              rank="1"
+              :account="podium[0]"
               medal-color="gold"
               :is-champion="true"
             />
@@ -48,23 +60,19 @@
 
           <!-- 3rd Place -->
           <div class="md:order-3">
-            <LeaderboardPodiumCard
-              :account="topScorers[2]"
-              rank="3"
-              medal-color="bronze"
-            />
+            <LeaderboardPodiumCard :account="podium[2]" medal-color="bronze" />
           </div>
         </div>
       </div>
 
       <!-- Remaining Rankings (4-10) -->
-      <div v-if="!loading && topScorers.length > 3" class="space-y-3">
+      <div v-if="!loading && remainingRanks.length > 0" class="space-y-3">
         <h2 class="text-2xl font-bold text-white text-center mb-6">
           Hall of Fame
         </h2>
         <LeaderboardRankCard
           v-for="account in remainingRanks"
-          :key="account.id"
+          :key="account.accountId"
           :account="account"
         />
       </div>
@@ -81,7 +89,7 @@
       </div>
 
       <!-- Empty State -->
-      <div v-if="!loading && topScorers.length === 0" class="text-center py-20">
+      <div v-if="!loading && top.length === 0" class="text-center py-20">
         <UCard>
           <div class="space-y-4">
             <Icon
@@ -92,7 +100,8 @@
               No rankings available yet
             </p>
             <p class="text-gray-600 dark:text-gray-400">
-              Check back soon to see the top performers!
+              No one has sent enough outgoing legs in the last
+              {{ leaderboard?.windowDays ?? 90 }} days to be ranked yet.
             </p>
           </div>
         </UCard>
@@ -102,54 +111,37 @@
 </template>
 
 <script setup lang="ts">
-import type { TopScorerAccount } from '~/stores/shared/topScorerAccount'
+import { ERROR_MESSAGES } from '~/infrastructure/constants'
+import { useLeaderboardStore } from '~/stores/leaderboard'
 
-// Hidden until there's a deal-based ranking to replace the VEP 2.5 Activity Score
-definePageMeta({
-  middleware: () => navigateTo('/'),
-})
-
-const config = useRuntimeConfig()
 const toast = useToast()
-
-const authStore = useAuthStore()
+const leaderboardStore = useLeaderboardStore()
 
 const loading = ref(true)
-const topScorers = ref<TopScorerAccount[]>([])
 
-const remainingRanks = computed(() => topScorers.value.slice(3))
+const leaderboard = computed(() => leaderboardStore.leaderboard)
+const top = computed(() => leaderboard.value?.top ?? [])
 
-const fetchTopScorers = async () => {
-  loading.value = true
+// The podium is for the top 3 when there are at least 3 ranked accounts; otherwise everyone gets a rank card
+const podium = computed(() =>
+  top.value.length >= 3 ? top.value.slice(0, 3) : [],
+)
+const remainingRanks = computed(() =>
+  top.value.length >= 3 ? top.value.slice(3) : top.value,
+)
 
-  const { data, error } = await useFetch(
-    `${config.public.apiUrl}/api/accounts/topScorers`,
-    {
-      headers: {
-        Authorization: `Bearer ${authStore.accessToken}`,
-      },
-    },
-  )
-
-  if (error.value) {
-    console.error('Failed to fetch top scorers:', error)
+onMounted(async () => {
+  try {
+    await leaderboardStore.loadLeaderboard()
+  } catch {
     toast.add({
       color: 'error',
       title: 'Error',
-      description:
-        'VEP encountered an error while setting up the leaderboard. Please try again, or contact @lilweirdward if the error persists.',
+      description: ERROR_MESSAGES.default,
       duration: 3000,
     })
+  } finally {
+    loading.value = false
   }
-
-  if (data.value) {
-    topScorers.value = data.value as TopScorerAccount[]
-  }
-
-  loading.value = false
-}
-
-onMounted(() => {
-  fetchTopScorers()
 })
 </script>

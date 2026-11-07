@@ -464,11 +464,14 @@ public class DealsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
         Assert.Equal((bob, "Valyria", sue, "Rogues"), (flags[1].FlaggedAccount.AccountId, flags[1].FlaggedAccount.AllianceName, flags[1].InnocentAccount.AccountId, flags[1].InnocentAccount.AllianceName));
         Assert.Equal(deal, flags[1].DealId);
 
-        await Repository.ResolveDealFlagAsync(newer, "admin", "partner was on vacation");
+        await Repository.ResolveDealFlagAsync(newer, "admin", "partner was on vacation", excused: true);
 
         Assert.Equal([older], (await Repository.GetFlaggedDealsAsync()).Select(f => f.Id));
-        Assert.Equal(("admin", "partner was on vacation"),
-            (await Data.QueryAsync<(string, string)>("select resolved_by, admin_notes from deal_flag where id = @newer", new { newer })).Single());
+        Assert.Equal(("admin", "partner was on vacation", true),
+            (await Data.QueryAsync<(string, string, bool)>("select resolved_by, admin_notes, excused from deal_flag where id = @newer", new { newer })).Single());
+
+        await Repository.ResolveDealFlagAsync(older, "admin", "sent late");
+        Assert.False(await Data.ScalarAsync<bool>("select excused from deal_flag where id = @older", new { older }));
     }
 
     [Fact]
@@ -682,15 +685,15 @@ public class DealsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
         await Data.DealStateAsync(deal, "awaiting_send", nextSender: bob, nextReceiver: sue, responsible: bob,
             responsibleSince: cnToday.AddDays(-4));
 
-        var result = await Repository.RestoreFlaggedDealAsync(flags[0].Id, "admin", " both were on vacation ");
+        var result = await Repository.RestoreFlaggedDealAsync(flags[0].Id, "admin", " both were on vacation ", excused: true);
 
         Assert.Equal(DealRestoreResult.Restored, result);
         Assert.Empty(await Repository.GetFlaggedDealsAsync());
         Assert.Equal(("active", null, null, null), (await Data.QueryAsync<(string, DateTime?, string?, string?)>(
             "select status, cancelled_on, cancelled_by, cancellation_reason from vep_db.deal where id = @deal", new { deal })).Single());
         Assert.Equal(0, await Data.ScalarAsync<int>("select count(*) from vep_db.deal_state where deal_id = @deal", new { deal }));
-        Assert.All(await Data.QueryAsync<(string, string)>("select resolved_by, admin_notes from vep_db.deal_flag where deal_id = @deal", new { deal }),
-            f => Assert.Equal(("admin", "Deal restored: both were on vacation"), f));
+        Assert.All(await Data.QueryAsync<(string, string, bool)>("select resolved_by, admin_notes, excused from vep_db.deal_flag where deal_id = @deal", new { deal }),
+            f => Assert.Equal(("admin", "Deal restored: both were on vacation", true), f));
 
         // The excused failure doesn't cancel it again
         await Data.ExecuteAsync("call vep_db.check_deal_inactivity()");
@@ -729,6 +732,7 @@ public class DealsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
         Assert.Equal(DealRestoreResult.Restored, await Repository.RestoreFlaggedDealAsync(flag, "admin", "  "));
 
         Assert.Equal("Deal restored", await Data.ScalarAsync<string>("select admin_notes from vep_db.deal_flag where id = @flag", new { flag }));
+        Assert.False(await Data.ScalarAsync<bool>("select excused from vep_db.deal_flag where id = @flag", new { flag }));
         Assert.Equal("active", await Data.ScalarAsync<string>("select status from vep_db.deal where id = @deal", new { deal }));
     }
 

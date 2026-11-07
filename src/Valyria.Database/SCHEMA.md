@@ -164,6 +164,10 @@ Admins record a team's event (`team_event`, new) once a majority of its senators
 
 Accepted aid can't be cancelled in CN, so a nation whose slots are full of accepted aid outside VEP can't free one until that aid is 10 days old. `deal_state` gains `slots_locked` (full-slot block with none of the outside aid still pending), `slot_frees_on` (first CN date one of the blocking nation's slots frees) and `cancel_not_before` (the day after, set once per responsibility stretch). `deal_deadline.cancels_on` is never earlier than `cancel_not_before`, while `clock_since` is unchanged, so the 1-day warning and its matching hold still apply. If any of the outside aid is still pending, the normal 5-day clock applies. Locked deals are left out of the mass message recipients until the slot frees.
 
+### [V20__deal_flag_excused.sql](migrations/V20__deal_flag_excused.sql)
+- `deal_flag.excused`: set when an admin resolves a flag the flagged account wasn't at fault for (both sides of a failed offer, a restored deal, a flag VEP raised by mistake). Backfilled for the flags V9 and V13 resolved under corrected rules and for failed-offer flags on restored deals
+- The leaderboard (`AccountsRepository.GetLeaderboardAsync`) counts unexcused flags per outgoing leg over the last 90 CN days; adds `idx_flagged_account_on` for it
+
 ## Database Architecture
 
 ### Two-Database Design

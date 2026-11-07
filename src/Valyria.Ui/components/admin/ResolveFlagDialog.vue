@@ -48,6 +48,12 @@
             class="w-full"
           />
         </UFormField>
+        <UCheckbox
+          v-if="canExcuse"
+          v-model="excused"
+          :label="excuseLabel"
+          description="Excused flags don't count against them on the leaderboard."
+        />
       </div>
     </template>
 
@@ -80,7 +86,11 @@ import {
 } from '~/infrastructure/flags'
 import { DealExtensionKind } from '~/stores/account'
 import { useAdminAccountsStore } from '~/stores/adminAccounts'
-import { useAdminDealsStore, type DealFlag } from '~/stores/adminDeals'
+import {
+  DealFlagType,
+  useAdminDealsStore,
+  type DealFlag,
+} from '~/stores/adminDeals'
 
 const props = defineProps<{
   flag: DealFlag
@@ -106,6 +116,33 @@ const resolution = ref<FlagResolution | null>(null)
 const notes = ref<string>('')
 const holdAccount = ref<boolean>(false)
 const isSaving = ref<boolean>(false)
+const excused = ref<boolean>(false)
+
+// Clearing a flag or restoring its deal can mean the flagged account wasn't at fault. Extending a deadline or
+// cancelling the deal means they were holding it up
+const canExcuse = computed(
+  () =>
+    resolution.value === 'clear' ||
+    resolution.value === 'clearBoth' ||
+    resolution.value === 'restore',
+)
+
+const excuseLabel = computed(() => {
+  switch (resolution.value) {
+    case 'clearBoth':
+      return 'Excuse both flags: neither side was at fault'
+    case 'restore':
+      return "Excuse the deal's flags: VEP shouldn't have cancelled it"
+    default:
+      return `Excuse this flag: ${flaggedName.value} wasn't at fault`
+  }
+})
+
+// VEP flags both accounts when an offer fails, since it can't tell whose fault it was, so those start excused
+watch(resolution, () => {
+  excused.value =
+    canExcuse.value && props.flag.flagType === DealFlagType.AidFailed
+})
 
 const canHoldAccount = computed(
   () =>
@@ -178,6 +215,7 @@ const resolve = async () => {
   const chosen = resolution.value
   const trimmedNotes = notes.value.trim()
   const held = canHoldAccount.value && holdAccount.value
+  const excuse = canExcuse.value && excused.value
   isSaving.value = true
   try {
     switch (chosen) {
@@ -192,7 +230,11 @@ const resolve = async () => {
         )
         break
       case 'restore':
-        await adminDealsStore.restoreFlaggedDeal(props.flag.id, trimmedNotes)
+        await adminDealsStore.restoreFlaggedDeal(
+          props.flag.id,
+          trimmedNotes,
+          excuse,
+        )
         break
       case 'cancelDeal':
         // Cancelled before the hold so this deal keeps the admin's reason. The flag is
@@ -206,13 +248,17 @@ const resolve = async () => {
         await adminDealsStore.resolveFlag(props.flag.id, trimmedNotes)
         break
       case 'clearBoth':
-        await adminDealsStore.resolveFlag(props.flag.id, trimmedNotes)
+        await adminDealsStore.resolveFlag(props.flag.id, trimmedNotes, excuse)
         if (props.partnerFlag) {
-          await adminDealsStore.resolveFlag(props.partnerFlag.id, trimmedNotes)
+          await adminDealsStore.resolveFlag(
+            props.partnerFlag.id,
+            trimmedNotes,
+            excuse,
+          )
         }
         break
       default:
-        await adminDealsStore.resolveFlag(props.flag.id, trimmedNotes)
+        await adminDealsStore.resolveFlag(props.flag.id, trimmedNotes, excuse)
     }
     toast.add({
       color: 'success',
