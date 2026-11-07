@@ -3,6 +3,9 @@ import {
   createInteractionHandler,
   LOOKUP_FAILED_MESSAGE,
   NOT_REGISTERED_MESSAGE,
+  REGISTER_FAILED_MESSAGE,
+  REGISTER_LINK_LABEL,
+  registerMessage,
   uniqueCodeMessage,
 } from "../val/interactions.js";
 
@@ -20,16 +23,24 @@ async function signedRequest(interaction, { privateKey = keyPair.privateKey, tam
   });
 }
 
-function handler(findAccountsByDiscordId = () => Promise.resolve([])) {
+function handler(
+  findAccountsByDiscordId = () => Promise.resolve([]),
+  createRegisterLink = () => Promise.resolve({ url: "https://vep.example.com/discord/link?token=abc" }),
+) {
   const lookups = [];
+  const registrations = [];
   const handle = createInteractionHandler({
     getPublicKey: () => Promise.resolve(keyPair.publicKey),
     findAccountsByDiscordId: (id) => {
       lookups.push(id);
       return findAccountsByDiscordId(id);
     },
+    createRegisterLink: (user) => {
+      registrations.push(user);
+      return createRegisterLink(user);
+    },
   });
-  return { handle, lookups };
+  return { handle, lookups, registrations };
 }
 
 const command = (user) => ({ type: 2, data: { name: "uniquecode" }, ...user });
@@ -115,4 +126,48 @@ Deno.test("uniqueCodeMessage falls back to the nation ID when the nation isn't l
     uniqueCodeMessage([{ nationId: "7", nationName: null, rulerName: null, uniqueCode: "ZXCVB" }]),
     "Your VEP unique code for **nation 7**: `ZXCVB`",
   );
+});
+
+const register = (user) => ({ type: 2, data: { name: "register" }, ...user });
+const guildRegister = register({ member: { user: { id: "123456789012345678", username: "bob_" } }, guild_id: "1" });
+
+Deno.test("/register in a server replies privately with a link button for the member", async () => {
+  const { handle, registrations, lookups } = handler();
+  const json = await (await handle(await signedRequest(guildRegister))).json();
+
+  assertEquals(registrations, [{ id: "123456789012345678", username: "bob_" }]);
+  assertEquals(lookups, []);
+  assertEquals(json.type, 4);
+  assertEquals(json.data.flags, 64);
+  assertEquals(json.data.content, registerMessage("bob_"));
+  assertStringIncludes(json.data.content, "`bob_`");
+  assertEquals(json.data.components, [{
+    type: 1,
+    components: [{
+      type: 2,
+      style: 5,
+      label: REGISTER_LINK_LABEL,
+      url: "https://vep.example.com/discord/link?token=abc",
+    }],
+  }]);
+});
+
+Deno.test("/register in a DM uses the user", async () => {
+  const { handle, registrations } = handler();
+  await handle(await signedRequest(register({ user: { id: "987654321098765432", username: "sue" } })));
+  assertEquals(registrations, [{ id: "987654321098765432", username: "sue" }]);
+});
+
+Deno.test("/register replies privately when the link can't be created", async () => {
+  const { handle } = handler(undefined, () => Promise.reject(new Error("api down")));
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const json = await (await handle(await signedRequest(guildRegister))).json();
+    assertEquals(json.data.content, REGISTER_FAILED_MESSAGE);
+    assertEquals(json.data.flags, 64);
+    assertEquals(json.data.components, undefined);
+  } finally {
+    console.error = originalError;
+  }
 });

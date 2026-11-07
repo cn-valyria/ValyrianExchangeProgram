@@ -156,6 +156,23 @@ describe('login page', () => {
     expect(routerPush).toHaveBeenLastCalledWith('/account/1')
   })
 
+  it.each(['https://evil.example.com', '//evil.example.com', '/\\evil'])(
+    "won't redirect off the site to %s after logging in",
+    async (redirect) => {
+      vi.spyOn(useAuthStore(), 'login').mockResolvedValue()
+      await mountInApp(
+        LoginPage,
+        {},
+        { route: `/login?redirect=${encodeURIComponent(redirect)}` },
+      )
+
+      await fillIn('101', '12345')
+      await click(button('Log In'))
+
+      expect(routerPush).toHaveBeenLastCalledWith('/')
+    },
+  )
+
   it('says when the credentials are wrong', async () => {
     vi.spyOn(useAuthStore(), 'login').mockRejectedValue(
       new Error('Invalid credentials'),

@@ -24,6 +24,11 @@ public interface IAccountsRepository
 
     Task UpdateAccountSettingsAsync(int accountId, AccountSettings settings);
 
+    /// <summary>
+    /// Sets the account's Discord ID and username (account.discord_id and account.discord), replacing any it had
+    /// </summary>
+    Task LinkDiscordAccountAsync(int accountId, long discordId, string discordUsername);
+
     Task RemoveAccountAsync(int accountId);
 
     Task<ProspectAccount> FindProspectAccountAsync(int nationId);

@@ -13,6 +13,7 @@ public static class DependencyInjection
     {
         return services
             .AddTransient<ITokenProvider, TokenProvider>()
-            .AddTransient<IAuthenticationProvider, AuthenticationProvider>();
+            .AddTransient<IAuthenticationProvider, AuthenticationProvider>()
+            .AddSingleton<IDiscordLinkTokenProvider, DiscordLinkTokenProvider>();
     }
 }

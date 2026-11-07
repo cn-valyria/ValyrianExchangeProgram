@@ -1,7 +1,7 @@
 # VEP Discord bot
 
 A Discord bot, hosted on [Val Town](https://www.val.town), that lets members privately look up their VEP account's
-unique code.
+unique code, and link their Discord account to their VEP account themselves.
 
 It's deliberately separate from the .NET Aspire app: it's a small JavaScript (Deno) HTTP handler that Val Town runs for
 free. It has no database access of its own. It looks accounts up through a VEP API endpoint that only accepts its API
@@ -9,9 +9,10 @@ key.
 
 ## Commands
 
-| Command       | What it does                                                                                                                                                                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/uniquecode` | Looks up every `vep_db.account` row whose `discord_id` matches the Discord user running the command and replies with each account's unique code (`account.psw`). If nothing matches, it says the Discord account isn't registered for any VEP accounts. |
+| Command       | What it does                                                                                                                                                                                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/uniquecode` | Looks up every `vep_db.account` row whose `discord_id` matches the Discord user running the command and replies with each account's unique code (`account.psw`). If nothing matches, it says the Discord account isn't registered for any VEP accounts.                             |
+| `/register`   | Replies with a **Link my VEP account** button that opens the VEP site's `/discord/link` page. Once the member is logged into VEP and approves, their Discord ID and username are saved on their account (`account.discord_id` and `account.discord`). See [`/register`](#register). |
 
 Every reply is [ephemeral](https://support.discord.com/hc/en-us/articles/1500000580222-Ephemeral-Messages-FAQ): only the
 person who ran the command can see it. The command works in any server the bot is in, and in a DM with the bot.
@@ -37,18 +38,45 @@ Discord ──POST /──► Val Town (main.http.js) ──GET + X-Api-Key─�
 Discord gives up on an interaction after 3 seconds, so the API call times out after 2.5 seconds and the bot replies with
 a "try again" message if the lookup fails (including a 401 from a wrong or missing API key).
 
-### The API endpoint
+### `/register`
 
-`GET /api/discord/users/{discordId}/accounts` lives in
-[`DiscordController`](../src/Valyria.Api/Controllers/DiscordController.cs) and returns
+```
+Discord ──/register──► Val Town ──POST /api/discord/link-tokens + X-Api-Key──► VEP API
+        ◄─ephemeral "Link my VEP account" button: {VEP_UI_URL}/discord/link?token=…──
+Browser ──/discord/link (logged into VEP) ──POST /api/discord-link + member JWT──► VEP API ──► account.discord_id
+```
+
+1. The bot asks the API for a link token for the invoking user's ID and username. The API signs it (HMAC, with a key
+   derived from `JwtSecret`) and it expires after 15 minutes.
+2. The bot replies privately with a link button to `{VEP_UI_URL}/discord/link?token=…`.
+3. The page asks the member to log in if they aren't (and brings them back afterwards), shows the Discord username from
+   the token and the VEP account it'd be linked to, and warns if it would replace a different linked Discord account.
+4. **Authorize** sends the token with the member's own JWT to `POST /api/discord-link`, which checks the token and links
+   that Discord account to the logged-in account. The page then says they can close the window, or go to their account.
+
+Why a signed token instead of putting the Discord ID and username in the URL: anyone can edit a URL, so a plain ID would
+let someone link a Discord account that isn't theirs, or show a made-up username on the approval screen. The API only
+accepts Discord IDs it signed for the user who actually ran `/register`, and only ever links them to the account the
+member is logged into, so nobody can link to (or get the unique code of) an account they can't already log into. The
+token is short-lived, and a link token and a login token can't stand in for each other.
+
+The one thing a token can't prove is who opens the link, so the approval screen tells members to only approve links they
+got from running `/register` themselves.
+
+### The API endpoints
+
+`GET /api/discord/users/{discordId}/accounts` and `POST /api/discord/link-tokens` live in
+[`DiscordController`](../src/Valyria.Api/Controllers/DiscordController.cs) and the first returns
 `[{ nationId, nationName, rulerName, uniqueCode }]` for every `vep_db.account` row with that `discord_id` (an empty list
-if there are none).
+if there are none). The second takes `{ discordId, discordUsername }` and returns `{ token, expiresAt }` for
+`/register`.
 
-It's protected by the `DiscordBot` authorization policy, which only accepts the `DiscordBotApiKey` authentication scheme
-([`ApiKeyAuthenticationHandler`](../src/Valyria.Api/Auth/ApiKeyAuthenticationHandler.cs)):
+They're protected by the `DiscordBot` authorization policy, which only accepts the `DiscordBotApiKey` authentication
+scheme ([`ApiKeyAuthenticationHandler`](../src/Valyria.Api/Auth/ApiKeyAuthenticationHandler.cs)):
 
 - The request's `X-Api-Key` header has to match the API's `DiscordBotApiKey` setting (compared in constant time).
-- Members' and admins' JWTs aren't accepted, and the API key doesn't work on any other endpoint.
+- Members' and admins' JWTs aren't accepted, and the API key doesn't work on any other endpoint (including
+  `/api/discord-link`, which needs the member's own login).
 - If `DiscordBotApiKey` isn't set, every request gets a 401, so the endpoint is closed until the key is configured.
 
 ### Layout
@@ -58,7 +86,7 @@ It's protected by the `DiscordBot` authorization policy, which only accepts the 
 | `val/`                         | Everything deployed to Val Town (mirrored to the val on every deploy)                       |
 | `val/main.http.js`             | The val's HTTP trigger. The `http` in the file name is what makes Val Town create it as one |
 | `val/interactions.js`          | Signature check, interaction routing, and reply formatting                                  |
-| `val/accounts.js`              | The VEP API call                                                                            |
+| `val/accounts.js`              | The VEP API calls                                                                           |
 | `val/signature.js`             | Ed25519 request verification with Web Crypto                                                |
 | `val/commands.js`              | Slash command definitions                                                                   |
 | `scripts/register-commands.js` | Registers `val/commands.js` with Discord (bulk overwrite, safe to rerun)                    |
@@ -100,6 +128,7 @@ apply on the next request without a redeploy.
 | `DISCORD_PUBLIC_KEY` | Public key from the Discord Developer Portal's General Information page    |
 | `VEP_API_URL`        | The API's base URL, e.g. `https://valyria-api.<env>.azurecontainerapps.io` |
 | `VEP_API_KEY`        | The shared API key: the same value as the API's `DiscordBotApiKey` setting |
+| `VEP_UI_URL`         | The VEP site's base URL, for `/register` links                             |
 
 ## One-time setup
 
@@ -140,7 +169,7 @@ DISCORD_APPLICATION_ID=... DISCORD_BOT_TOKEN=... deno task register
 To serve the handler locally against a running API (e.g. the Aspire app, with `DiscordBotApiKey` set):
 
 ```bash
-VEP_API_URL=https://localhost:<api port> VEP_API_KEY=... DISCORD_PUBLIC_KEY=... deno task serve
+VEP_API_URL=https://localhost:<api port> VEP_UI_URL=http://localhost:<ui port> VEP_API_KEY=... DISCORD_PUBLIC_KEY=... deno task serve
 ```
 
 Discord can only reach a public URL, so end-to-end testing against Discord is easiest on a

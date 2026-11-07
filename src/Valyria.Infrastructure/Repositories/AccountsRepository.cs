@@ -195,6 +195,17 @@ where s.account_id = @accountId
             new { accountId, discordNotificationsEnabled = settings.DiscordNotificationsEnabled });
     }
 
+    public async Task LinkDiscordAccountAsync(int accountId, long discordId, string discordUsername)
+    {
+        if (!await AccountExists(accountId))
+            throw new NotFoundException($"Unable to find an account to link a Discord account to by ID {accountId}.");
+
+        using var sqlConnection = new MySqlConnection(_connectionString);
+        await sqlConnection.ExecuteAsync(
+            "update account set discord = @discordUsername, discord_id = @discordId where id = @accountId",
+            new { accountId, discordId, discordUsername });
+    }
+
     public async Task RemoveAccountAsync(int accountId)
     {
         if (!await AccountExists(accountId))

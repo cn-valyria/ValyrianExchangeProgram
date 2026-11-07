@@ -378,6 +378,92 @@ public class ApiPipelineTests : IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    private async Task<HttpResponseMessage> Post(string path, object body, string? apiKey = null, string? token = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };
+        if (apiKey != null)
+            request.Headers.Add(ApiKeyAuthenticationHandler.HeaderName, apiKey);
+        if (token != null)
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return await _client.SendAsync(request);
+    }
+
+    private async Task<string> BobsLinkToken()
+    {
+        var response = await Post("/api/discord/link-tokens",
+            new { discordId = "123456789012345678", discordUsername = "bob_" }, apiKey: DiscordBotApiKey);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+    }
+
+    [Fact]
+    public async Task DiscordLink_TheBotsTokenLetsTheSignedInMemberLinkTheirOwnAccount()
+    {
+        BobInDatabase(Bob());
+        var linkToken = await BobsLinkToken();
+        var memberToken = CreateToken(Bob());
+
+        var preview = await Post("/api/discord-link/preview", new { token = linkToken }, token: memberToken);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        var details = await preview.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("123456789012345678", details.GetProperty("discordId").GetString());
+        Assert.Equal("bob_", details.GetProperty("discordUsername").GetString());
+
+        var link = await Post("/api/discord-link", new { token = linkToken }, token: memberToken);
+        Assert.Equal(HttpStatusCode.OK, link.StatusCode);
+        await _factory.AccountsRepository.Received(1).LinkDiscordAccountAsync(BobAccountId, BobDiscordId, "bob_");
+    }
+
+    [Fact]
+    public async Task DiscordLink_RequiresAMembersLogin_NotTheBotsApiKey()
+    {
+        var linkToken = await BobsLinkToken();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/api/discord-link", new { token = linkToken })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await Post("/api/discord-link", new { token = linkToken }, apiKey: DiscordBotApiKey)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await Post("/api/discord-link/preview", new { token = linkToken }, apiKey: DiscordBotApiKey)).StatusCode);
+        // A link token isn't a login
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await Post("/api/discord-link", new { token = linkToken }, token: linkToken)).StatusCode);
+        await _factory.AccountsRepository.DidNotReceiveWithAnyArgs().LinkDiscordAccountAsync(default, default, default!);
+    }
+
+    [Fact]
+    public async Task DiscordLink_Returns400_ForATokenTheApiDidntIssue()
+    {
+        BobInDatabase(Bob());
+        var memberToken = CreateToken(Bob());
+
+        // A member's own login token can't stand in for a link token
+        var response = await Post("/api/discord-link", new { token = memberToken }, token: memberToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await _factory.AccountsRepository.DidNotReceiveWithAnyArgs().LinkDiscordAccountAsync(default, default, default!);
+    }
+
+    [Fact]
+    public async Task DiscordLinkTokens_AreOnlyIssuedToTheBot()
+    {
+        BobInDatabase(Bob(AdminRoles.SuperAdmin));
+        var body = new { discordId = "123456789012345678", discordUsername = "bob_" };
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/api/discord/link-tokens", body)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Post("/api/discord/link-tokens", body, apiKey: "wrong-key")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await Post("/api/discord/link-tokens", body, token: CreateToken(Bob(AdminRoles.SuperAdmin)))).StatusCode);
+    }
+
+    [Fact]
+    public async Task DiscordLinkTokens_Returns400_ForABadRequest()
+    {
+        var response = await Post("/api/discord/link-tokens", new { discordId = "nope", discordUsername = "" },
+            apiKey: DiscordBotApiKey);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Swagger_IsServed()
     {
