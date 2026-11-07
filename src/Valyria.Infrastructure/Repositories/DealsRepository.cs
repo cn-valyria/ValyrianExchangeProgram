@@ -1040,7 +1040,7 @@ public class DealsRepository : IDealsRepository
         return DealExtendResult.Extended;
     }
 
-    public async Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes)
+    public async Task<DealRestoreResult> RestoreFlaggedDealAsync(int flagId, string restoredBy, string? adminNotes, bool excused = false)
     {
         using var connection = new MySqlConnection(_connectionString);
         await connection.OpenAsync();
@@ -1084,9 +1084,10 @@ public class DealsRepository : IDealsRepository
             UPDATE deal_flag
             SET resolved_on = CURRENT_TIMESTAMP,
                 resolved_by = @restoredBy,
-                admin_notes = @notes
+                admin_notes = @notes,
+                excused = @excused
             WHERE deal_id = @dealId AND resolved_on IS NULL;",
-            new { dealId = flag.DealId, restoredBy, notes },
+            new { dealId = flag.DealId, restoredBy, notes, excused },
             transaction);
 
         await transaction.CommitAsync();
@@ -1094,7 +1095,7 @@ public class DealsRepository : IDealsRepository
         return DealRestoreResult.Restored;
     }
 
-    public async Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes)
+    public async Task ResolveDealFlagAsync(int flagId, string resolvedBy, string adminNotes, bool excused = false)
     {
         using var connection = new MySqlConnection(_connectionString);
 
@@ -1102,9 +1103,10 @@ public class DealsRepository : IDealsRepository
             UPDATE deal_flag
             SET resolved_on = CURRENT_TIMESTAMP,
                 resolved_by = @resolvedBy,
-                admin_notes = @adminNotes
+                admin_notes = @adminNotes,
+                excused = @excused
             WHERE id = @flagId",
-            new { flagId, resolvedBy, adminNotes });
+            new { flagId, resolvedBy, adminNotes, excused });
     }
 
     public async Task<AccountSlotsResponse> GetAccountSlotsAsync(int accountId)

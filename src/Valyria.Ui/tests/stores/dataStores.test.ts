@@ -8,11 +8,14 @@ import {
   apiError,
   apiOk,
   dealFlag,
+  leaderboard,
+  leaderboardStanding,
   massMessage,
   slot,
   teamEvent,
 } from '../helpers/fixtures'
 import { Team } from '~/infrastructure/teamEvents'
+import { useLeaderboardStore } from '~/stores/leaderboard'
 
 // The stores are thin wrappers around the API, so these check each one calls the right endpoint,
 // keeps what comes back, and throws (or reports) failures
@@ -399,7 +402,7 @@ describe('admin deals store', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/api/deals/admin/flags/5/resolve', {
       method: 'PUT',
-      body: { adminNotes: 'sorted' },
+      body: { adminNotes: 'sorted', excused: false },
     })
     expect(store.flags.map((f) => f.id)).toEqual([6])
   })
@@ -447,11 +450,11 @@ describe('admin deals store', () => {
       dealFlag({ id: 7, dealId: 11 }),
     ]
 
-    await store.restoreFlaggedDeal(5, 'on vacation')
+    await store.restoreFlaggedDeal(5, 'on vacation', true)
 
     expect(apiFetch).toHaveBeenCalledWith('/api/deals/admin/flags/5/restore', {
       method: 'PUT',
-      body: { adminNotes: 'on vacation' },
+      body: { adminNotes: 'on vacation', excused: true },
     })
     expect(store.flags.map((f) => f.id)).toEqual([7])
   })
@@ -727,5 +730,26 @@ describe('admin aid activity store', () => {
     await store.loadPage(10, 0)
 
     expect(store.currentPage).toEqual({ totalCount: 0, results: [] })
+  })
+})
+
+describe('leaderboard store', () => {
+  it('loads the leaderboard', async () => {
+    const loaded = leaderboard({ top: [leaderboardStanding(1)] })
+    apiFetch.mockResolvedValue(apiOk(loaded))
+    const store = useLeaderboardStore()
+
+    await store.loadLeaderboard()
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/leaderboard')
+    expect(store.leaderboard).toEqual(loaded)
+  })
+
+  it('throws when loading fails', async () => {
+    apiFetch.mockResolvedValue(apiError(failure))
+    const store = useLeaderboardStore()
+
+    await expect(store.loadLeaderboard()).rejects.toEqual(failure)
+    expect(store.leaderboard).toBeNull()
   })
 })

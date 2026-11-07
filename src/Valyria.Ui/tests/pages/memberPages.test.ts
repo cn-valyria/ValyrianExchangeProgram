@@ -2,8 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountPage from '~/pages/account/[id].vue'
 import HowItWorksPage from '~/pages/how-it-works.vue'
 import IndexPage from '~/pages/index.vue'
+import LeaderboardPage from '~/pages/leaderboard.vue'
 import LoginPage from '~/pages/login.vue'
-import { account, dealDetail } from '../helpers/fixtures'
+import { useLeaderboardStore } from '~/stores/leaderboard'
+import {
+  account,
+  dealDetail,
+  leaderboard,
+  leaderboardStanding,
+} from '../helpers/fixtures'
 import {
   button,
   click,
@@ -221,6 +228,91 @@ describe('login page', () => {
       title: 'Logout Successful',
       color: 'success',
     })
+  })
+})
+
+describe('leaderboard page', () => {
+  const stubLoad = (loaded = leaderboard()) =>
+    vi
+      .spyOn(useLeaderboardStore(), 'loadLeaderboard')
+      .mockImplementation(async () => {
+        useLeaderboardStore().leaderboard = loaded
+      })
+
+  it('shows the podium, the rest of the top 10, and your standing', async () => {
+    signIn(7)
+    const top = Array.from({ length: 10 }, (_, i) =>
+      leaderboardStanding(i + 1, {
+        flags: i,
+        flagsPerLeg: i / 10,
+      }),
+    )
+    stubLoad(
+      leaderboard({
+        top,
+        mine: leaderboardStanding(7, {
+          flags: 6,
+          flagsPerLeg: 0.6,
+          nextFlagDropsOn: '2026-12-01T00:00:00',
+        }),
+      }),
+    )
+
+    const wrapper = await mountInApp(
+      LeaderboardPage,
+      {},
+      { route: '/leaderboard' },
+    )
+
+    const text = wrapper.text()
+    expect(text).toContain('Deal Partner Leaderboard')
+    expect(text).toContain('Accounts need 5 outgoing legs since 2026-08-10')
+    expect(text).toContain('Your standing')
+    expect(text).toContain('#7 of 12')
+    expect(text).toContain('Your oldest flag stops counting on 2026-12-01.')
+    expect(text).toContain('Perfect record')
+    expect(text).toContain('0.90 flags per leg')
+    expect(text).toContain('9 flags across 10 outgoing legs')
+    expect(text).toContain('Hall of Fame')
+    expect(text).toContain('Nation10')
+  })
+
+  it('tells an unranked member how many legs they need, when no one is ranked', async () => {
+    signIn(1)
+    stubLoad(
+      leaderboard({
+        rankedAccounts: 0,
+        mine: leaderboardStanding(1, {
+          rank: null,
+          outgoingLegs: 2,
+          legsToQualify: 3,
+        }),
+      }),
+    )
+
+    const wrapper = await mountInApp(
+      LeaderboardPage,
+      {},
+      { route: '/leaderboard' },
+    )
+
+    expect(wrapper.text()).toContain('Not ranked yet')
+    expect(wrapper.text()).toContain(
+      'Send 3 more outgoing legs in the next 90 days',
+    )
+    expect(wrapper.text()).toContain('No rankings available yet')
+    expect(wrapper.text()).not.toContain('Hall of Fame')
+  })
+
+  it('reports a failed load', async () => {
+    signIn(1)
+    vi.spyOn(useLeaderboardStore(), 'loadLeaderboard').mockRejectedValue(
+      new Error('boom'),
+    )
+
+    await mountInApp(LeaderboardPage, {}, { route: '/leaderboard' })
+
+    expect(toasts()[0]).toMatchObject({ color: 'error' })
   })
 })
 

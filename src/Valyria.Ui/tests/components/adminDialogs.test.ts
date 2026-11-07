@@ -145,7 +145,11 @@ describe('ResolveFlagDialog', () => {
     )
     await click(button('Clear Flag'))
 
-    expect(resolveFlag).toHaveBeenCalledWith(5, 'Partner was on vacation')
+    expect(resolveFlag).toHaveBeenCalledWith(
+      5,
+      'Partner was on vacation',
+      false,
+    )
     expect(toasts()[0]).toMatchObject({
       color: 'success',
       description: 'Flag cleared.',
@@ -289,7 +293,7 @@ describe('ResolveFlagDialog', () => {
     await click(radios()[0])
     await click(button('Restore Deal'))
 
-    expect(restore).toHaveBeenCalledWith(5, '')
+    expect(restore).toHaveBeenCalledWith(5, '', false)
     expect(toasts()[0]).toMatchObject({ description: 'Deal #10 restored.' })
     expect(onClose).toHaveBeenCalledWith(true)
   })
@@ -325,9 +329,42 @@ describe('ResolveFlagDialog', () => {
     await click(radios()[2])
     await click(button('Clear Both Flags'))
 
-    expect(resolveFlag).toHaveBeenNthCalledWith(1, 5, '')
-    expect(resolveFlag).toHaveBeenNthCalledWith(2, 6, '')
+    expect(resolveFlag).toHaveBeenNthCalledWith(1, 5, '', true)
+    expect(resolveFlag).toHaveBeenNthCalledWith(2, 6, '', true)
     expect(toasts()[0]).toMatchObject({ description: 'Both flags cleared.' })
+  })
+
+  it('starts failed-aid flags excused, and lets the admin count them instead', async () => {
+    const resolveFlag = vi
+      .spyOn(useAdminDealsStore(), 'resolveFlag')
+      .mockResolvedValue()
+    await openDialog(ResolveFlagDialog, {
+      flag: cancelledDealFlag({ id: 5, flagType: DealFlagType.AidFailed }),
+    })
+
+    await click(radios()[1])
+    expect(bodyText()).toContain("Excuse this flag: Ruler1 wasn't at fault")
+    expect(checkbox()?.getAttribute('aria-checked')).toBe('true')
+    await click(checkbox()!)
+    await click(button('Clear Flag'))
+
+    expect(resolveFlag).toHaveBeenCalledWith(5, '', false)
+  })
+
+  it('lets the admin excuse a warning they clear', async () => {
+    const resolveFlag = vi
+      .spyOn(useAdminDealsStore(), 'resolveFlag')
+      .mockResolvedValue()
+    await openDialog(ResolveFlagDialog, { flag: dealFlag({ id: 5 }) })
+
+    await click(radios()[0])
+    expect(checkbox()).toBeNull()
+    await click(radios()[2])
+    expect(checkbox()?.getAttribute('aria-checked')).toBe('false')
+    await click(checkbox()!)
+    await click(button('Clear Flag'))
+
+    expect(resolveFlag).toHaveBeenCalledWith(5, '', true)
   })
 
   it('stays open with an error when resolving fails', async () => {

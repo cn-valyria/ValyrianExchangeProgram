@@ -41,7 +41,11 @@ describe('NavBar', () => {
   })
 
   it.each([
-    [[], ['My Account'], ['Admin Portal', 'Messages', 'Settings']],
+    [
+      [],
+      ['My Account', 'Leaderboard'],
+      ['Admin Portal', 'Messages', 'Settings'],
+    ],
     [
       ['Admin - Lists'],
       ['My Account', 'Messages'],

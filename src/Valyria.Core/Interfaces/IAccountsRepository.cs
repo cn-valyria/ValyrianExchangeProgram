@@ -33,7 +33,10 @@ public interface IAccountsRepository
 
     Task<ProspectAccount> FindProspectAccountAsync(int nationId);
 
-    Task<IEnumerable<TopScorerAccount>> GetTopScorerAccountsAsync();
+    /// <summary>
+    /// The top of the deal partner leaderboard, and the given account's own standing
+    /// </summary>
+    Task<Leaderboard> GetLeaderboardAsync(int accountId);
 
     /// <summary>
     /// Accounts whose discord_id is the given Discord user ID, for the Discord bot

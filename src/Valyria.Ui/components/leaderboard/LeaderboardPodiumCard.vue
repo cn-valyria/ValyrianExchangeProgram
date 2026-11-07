@@ -16,7 +16,7 @@
           variant="solid"
           class="text-lg font-bold px-4 py-2"
         >
-          #{{ rank }}
+          #{{ account.rank }}
         </UBadge>
       </div>
 
@@ -47,23 +47,16 @@
       <!-- Divider -->
       <div class="border-t border-gray-200 dark:border-gray-700 my-4"></div>
 
-      <!-- Activity Score -->
-      <div class="space-y-2">
-        <AccountActivityScore
-          :score="account.avgDaysToClearDebt"
-          :total-times-in-debt="account.totalTimesInDebt"
-        />
-      </div>
+      <LeaderboardScore :standing="account" />
     </div>
   </UCard>
 </template>
 
 <script setup lang="ts">
-import type { TopScorerAccount } from '~/stores/shared/topScorerAccount'
+import type { LeaderboardStanding } from '~/stores/leaderboard'
 
 interface Props {
-  account: TopScorerAccount
-  rank: string
+  account: LeaderboardStanding
   medalColor: 'gold' | 'silver' | 'bronze'
   isChampion?: boolean
 }
@@ -95,12 +88,12 @@ const medalClasses = computed(() => {
 })
 
 const medalIcon = computed(() => {
-  switch (props.rank) {
-    case '1':
+  switch (props.medalColor) {
+    case 'gold':
       return 'heroicons:trophy'
-    case '2':
+    case 'silver':
       return 'heroicons:star'
-    case '3':
+    case 'bronze':
       return 'heroicons:shield-check'
     default:
       return 'heroicons:star'

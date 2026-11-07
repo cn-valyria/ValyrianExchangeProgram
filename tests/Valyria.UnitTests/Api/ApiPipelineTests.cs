@@ -118,7 +118,7 @@ public class ApiPipelineTests : IDisposable
     /// </summary>
     public static TheoryData<string, string, string?, string> Endpoints => new()
     {
-        { "GET", "/api/accounts/topScorers", null, Member },
+        { "GET", "/api/leaderboard", null, Member },
         { "GET", "/api/accounts", null, View },
         { "POST", "/api/accounts", "{}", Manage },
         { "PUT", "/api/accounts", "{}", Manage },
@@ -191,7 +191,7 @@ public class ApiPipelineTests : IDisposable
     [Fact]
     public async Task ProtectedEndpoint_Returns401_WithoutAToken()
     {
-        var response = await Send(HttpMethod.Get, "/api/accounts/topScorers", token: null);
+        var response = await Send(HttpMethod.Get, "/api/leaderboard", token: null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Empty(_factory.AccountsRepository.ReceivedCalls());
@@ -202,7 +202,7 @@ public class ApiPipelineTests : IDisposable
     {
         BobInDatabase(Bob());
 
-        var response = await Send(HttpMethod.Get, "/api/accounts/topScorers",
+        var response = await Send(HttpMethod.Get, "/api/leaderboard",
             CreateToken(Bob(), "some-other-secret-that-is-long-enough-for-hmac-sha256-signing"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -213,7 +213,7 @@ public class ApiPipelineTests : IDisposable
     {
         BobInDatabase(null);
 
-        var response = await Send(HttpMethod.Get, "/api/accounts/topScorers", CreateToken(Bob()));
+        var response = await Send(HttpMethod.Get, "/api/leaderboard", CreateToken(Bob()));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -373,7 +373,7 @@ public class ApiPipelineTests : IDisposable
     [Fact]
     public async Task TheBotsApiKey_DoesNotGrantAccessToUserEndpoints()
     {
-        var response = await SendWithApiKey("/api/accounts/topScorers", DiscordBotApiKey);
+        var response = await SendWithApiKey("/api/leaderboard", DiscordBotApiKey);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

@@ -280,29 +280,98 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
         Assert.Contains("Bobland", exception.Message);
     }
 
+    /// <summary>
+    /// Seeds an account with a deal against its own partner (which never sends), and the legs it sent in the last
+    /// 80 CN days. Returns the account and its deal
+    /// </summary>
+    private async Task<(int Account, int Deal)> SenderAsync(int nationId, string rulerName, int legs, char role = 'B')
+    {
+        var cnToday = await Data.CnTodayAsync();
+        var account = await Data.MemberAsync(nationId, rulerName, role, allianceId: 1);
+        var partner = await Data.MemberAsync(nationId + 1, $"{rulerName}Partner", allianceId: 1);
+        var deal = await Data.DealAsync((await Data.SlotIdsAsync(account))[0], (await Data.SlotIdsAsync(partner))[0]);
+        for (var leg = 1; leg <= legs; leg++)
+            await Data.DealActivityAsync(deal, leg, nationId, nationId + 1, cnToday.AddDays(-(leg % 80)));
+        return (account, deal);
+    }
+
+    private Task<int> FlagAsync(int deal, int account, DateTime flaggedOn, bool excused = false) => Data.ScalarAsync<int>(@"
+        insert into vep_db.deal_flag (deal_id, flag_type, flag_reason, flagged_account_id, innocent_account_id, flagged_on, excused)
+        select @deal, '1_day_inactive', 'awaiting_send', @account, if(account_1_id = @account, account_2_id, account_1_id), @flaggedOn, @excused
+        from vep_db.deal_participants where deal_id = @deal;
+        select last_insert_id();",
+        new { deal, account, flaggedOn, excused });
+
     [Fact]
-    public async Task GetTopScorers_RanksBySpeedOfClearingOutgoingLists()
+    public async Task GetLeaderboard_RanksByUnexcusedFlagsPerOutgoingLeg_OverTheLast90Days()
     {
         await Data.AllianceAsync(1, "Valyria");
-        var fast = await Data.MemberAsync(100, "Fast", allianceId: 1);
-        var slow = await Data.MemberAsync(200, "Slow", allianceId: 1);
-        var onHold = await Data.MemberAsync(300, "Held", 'H', allianceId: 1);
-        var incomingOnly = await Data.MemberAsync(400, "Incoming", allianceId: 1);
-        await Data.ExecuteAsync(@"
-            insert into account_list_performance (account_id, list_id, day_started, days_until_removed) values
-                (@fast, 1, '2026-01-01', 1), (@fast, 3, '2026-01-05', 2),
-                (@slow, 1, '2026-01-01', 6),
-                (@onHold, 1, '2026-01-01', 0),
-                (@incomingOnly, 2, '2026-01-01', 0)",
-            new { fast, slow, onHold, incomingOnly });
+        var cnToday = await Data.CnTodayAsync();
+        var (ace, aceDeal) = await SenderAsync(100, "Ace", 6);
+        var (bea, beaDeal) = await SenderAsync(200, "Bea", 4);
+        var (cal, calDeal) = await SenderAsync(300, "Cal", 10);
+        var (dee, deeDeal) = await SenderAsync(400, "Dee", 5);
+        var (eve, eveDeal) = await SenderAsync(500, "Eve", 10);
+        var (fay, fayDeal) = await SenderAsync(600, "Fay", 5);
+        var (gus, _) = await SenderAsync(700, "Gus", 4);
+        var (held, heldDeal) = await SenderAsync(800, "Held", 6, role: 'H');
 
-        var scorers = (await Repository.GetTopScorerAccountsAsync()).ToList();
+        // A failed offer only counts as a leg once it's excused, and legs before the window don't count
+        await Data.DealActivityAsync(aceDeal, 7, 100, 101, cnToday, failureReason: "expired", failedOn: cnToday);
+        var excusedLeg = await Data.DealActivityAsync(beaDeal, 5, 200, 201, cnToday, failureReason: "expired", failedOn: cnToday);
+        await Data.ExecuteAsync("update vep_db.deal_activity set failure_excused = true where id = @excusedLeg", new { excusedLeg });
+        await Data.DealActivityAsync(calDeal, 11, 300, 301, cnToday.AddDays(-90));
+        await Data.DealActivityAsync(calDeal, 12, 300, 301, cnToday.AddDays(-89));
 
-        Assert.Equal(["Fast", "Slow"], scorers.Select(s => s.RulerName));
-        Assert.Equal([1, 2], scorers.Select(s => s.Rank));
-        Assert.Equal(2, scorers[0].TotalTimesInDebt);
-        Assert.Equal(1.5m, scorers[0].AvgDaysToClearDebt);
-        Assert.Equal("Valyria", scorers[0].AllianceName);
+        // Excused flags and flags before the window don't count
+        await FlagAsync(calDeal, cal, DateTime.UtcNow.AddDays(-10));
+        await FlagAsync(calDeal, cal, DateTime.UtcNow.AddDays(-5), excused: true);
+        await FlagAsync(calDeal, cal, DateTime.UtcNow.AddDays(-91));
+        await FlagAsync(eveDeal, eve, DateTime.UtcNow.AddDays(-30));
+        await FlagAsync(eveDeal, eve, DateTime.UtcNow.AddDays(-20));
+        await FlagAsync(deeDeal, dee, DateTime.UtcNow);
+        await FlagAsync(fayDeal, fay, DateTime.UtcNow);
+        await FlagAsync(heldDeal, held, DateTime.UtcNow);
+        // Flags raised against the partner, who never sends, don't put it on the leaderboard
+        await FlagAsync(aceDeal, ace + 1, DateTime.UtcNow);
+
+        var leaderboard = await Repository.GetLeaderboardAsync(gus);
+
+        Assert.Equal((90, 5, cnToday.AddDays(-89), 6), (leaderboard.WindowDays, leaderboard.MinimumOutgoingLegs,
+            leaderboard.WindowStart, leaderboard.RankedAccounts));
+        Assert.Equal(
+            [("Ace", 1, 0, 6), ("Bea", 2, 0, 5), ("Cal", 3, 1, 11), ("Eve", 4, 2, 10), ("Dee", 5, 1, 5), ("Fay", 5, 1, 5)],
+            leaderboard.Top.Select(s => (s.RulerName, s.Rank!.Value, s.Flags, s.OutgoingLegs)));
+        var calStanding = leaderboard.Top[2];
+        Assert.Equal((0.0909m, cnToday.AddDays(80), "Valyria", 300), (calStanding.FlagsPerLeg, calStanding.NextFlagDropsOn,
+            calStanding.AllianceName, calStanding.NationId));
+        Assert.Null(leaderboard.Top[0].NextFlagDropsOn);
+
+        // Gus hasn't sent enough legs to be ranked, but still sees his own numbers
+        Assert.Equal((gus, null, 1, 4), (leaderboard.Mine!.AccountId, leaderboard.Mine.Rank, leaderboard.Mine.LegsToQualify,
+            leaderboard.Mine.OutgoingLegs));
+        Assert.Equal(cal, (await Repository.GetLeaderboardAsync(cal)).Mine!.AccountId);
+        Assert.Equal((0, 5), ((await Repository.GetLeaderboardAsync(ace + 1)).Mine!.OutgoingLegs,
+            (await Repository.GetLeaderboardAsync(ace + 1)).Mine!.LegsToQualify));
+        Assert.Null((await Repository.GetLeaderboardAsync(held)).Mine);
+    }
+
+    [Fact]
+    public async Task GetLeaderboard_ShowsTheTop10Ranks()
+    {
+        await Data.AllianceAsync(1, "Valyria");
+        var accounts = new List<(int Account, int Deal)>();
+        for (var i = 0; i < 12; i++)
+            accounts.Add(await SenderAsync(100 + i * 10, $"Sender{i:00}", 5));
+        for (var i = 0; i < 12; i++)
+            for (var flag = 0; flag < i; flag++)
+                await FlagAsync(accounts[i].Deal, accounts[i].Account, DateTime.UtcNow);
+
+        var leaderboard = await Repository.GetLeaderboardAsync(accounts[11].Account);
+
+        Assert.Equal(12, leaderboard.RankedAccounts);
+        Assert.Equal(Enumerable.Range(1, 10), leaderboard.Top.Select(s => s.Rank!.Value));
+        Assert.Equal((12, 11), (leaderboard.Mine!.Rank, leaderboard.Mine.Flags));
     }
 
     [Fact]

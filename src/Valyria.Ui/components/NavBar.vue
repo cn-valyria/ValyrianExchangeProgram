@@ -86,6 +86,12 @@
           >
             My Account
           </NuxtLink>
+          <NuxtLink
+            to="/leaderboard"
+            class="block text-gray-300 hover:text-white px-3 py-2 rounded-md text-base font-medium"
+          >
+            Leaderboard
+          </NuxtLink>
           <template v-if="accountIsAdmin || accountIsReadOnlyAdmin">
             <div
               class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase"
@@ -201,6 +207,11 @@ const accountMenuItems = computed(() => {
         label: 'My Account',
         icon: 'i-heroicons-user-circle',
         to: accountUrl.value,
+      },
+      {
+        label: 'Leaderboard',
+        icon: 'i-heroicons-trophy',
+        to: '/leaderboard',
       },
     ],
   ]

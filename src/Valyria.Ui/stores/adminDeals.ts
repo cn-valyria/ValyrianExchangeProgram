@@ -276,14 +276,14 @@ export const useAdminDealsStore = defineStore('adminDeals', {
       }
     },
 
-    async resolveFlag(flagId: number, adminNotes: string) {
+    async resolveFlag(flagId: number, adminNotes: string, excused = false) {
       const { apiFetch } = useApiClient()
 
       const { error } = await apiFetch<null>(
         `/api/deals/admin/flags/${flagId}/resolve`,
         {
           method: 'PUT',
-          body: { adminNotes },
+          body: { adminNotes, excused },
         },
       )
 
@@ -320,14 +320,18 @@ export const useAdminDealsStore = defineStore('adminDeals', {
     },
 
     // Restoring resolves every open flag on the deal, so they all leave the list
-    async restoreFlaggedDeal(flagId: number, adminNotes: string) {
+    async restoreFlaggedDeal(
+      flagId: number,
+      adminNotes: string,
+      excused = false,
+    ) {
       const { apiFetch } = useApiClient()
 
       const { error } = await apiFetch<null>(
         `/api/deals/admin/flags/${flagId}/restore`,
         {
           method: 'PUT',
-          body: { adminNotes },
+          body: { adminNotes, excused },
         },
       )
 

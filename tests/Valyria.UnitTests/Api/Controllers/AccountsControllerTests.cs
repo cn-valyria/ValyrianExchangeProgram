@@ -251,21 +251,4 @@ public class AccountsControllerTests
 
         AssertServerError(await _controller.FindProspectAccount(123), "boom");
     }
-
-    [Fact]
-    public async Task GetTopScorers_ReturnsTheScorers()
-    {
-        var scorers = new[] { new TopScorerAccount { Id = 1, Rank = 1 } };
-        _repository.GetTopScorerAccountsAsync().Returns(scorers);
-
-        Assert.Same(scorers, AssertOk<IEnumerable<TopScorerAccount>>(await _controller.GetTopScorers()));
-    }
-
-    [Fact]
-    public async Task GetTopScorers_Returns500_OnError()
-    {
-        _repository.GetTopScorerAccountsAsync().ThrowsAsync(new Exception("boom"));
-
-        AssertServerError(await _controller.GetTopScorers(), "boom");
-    }
 }

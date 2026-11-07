@@ -318,9 +318,17 @@ public class DealsControllerTests
     }
 
     [Fact]
+    public async Task ResolveDealFlag_PassesExcusedThrough()
+    {
+        Assert.IsType<NoContentResult>(await CreateController("Bob").ResolveDealFlag(9, new ResolveFlagRequest { AdminNotes = "ok", Excused = true }));
+
+        await _repository.Received(1).ResolveDealFlagAsync(9, "Bob", "ok", true);
+    }
+
+    [Fact]
     public async Task ResolveDealFlag_Returns500_OnError()
     {
-        _repository.ResolveDealFlagAsync(9, Arg.Any<string>(), Arg.Any<string>()).ThrowsAsync(new Exception("boom"));
+        _repository.ResolveDealFlagAsync(9, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>()).ThrowsAsync(new Exception("boom"));
 
         AssertServerError(await CreateController().ResolveDealFlag(9, new ResolveFlagRequest()), "boom");
     }
@@ -364,9 +372,17 @@ public class DealsControllerTests
     }
 
     [Fact]
+    public async Task RestoreFlaggedDeal_PassesExcusedThrough()
+    {
+        _repository.RestoreFlaggedDealAsync(9, "Bob", "ok", true).Returns(DealRestoreResult.Restored);
+
+        Assert.IsType<NoContentResult>(await CreateController("Bob").RestoreFlaggedDeal(9, new ResolveFlagRequest { AdminNotes = "ok", Excused = true }));
+    }
+
+    [Fact]
     public async Task RestoreFlaggedDeal_Returns500_OnError()
     {
-        _repository.RestoreFlaggedDealAsync(9, Arg.Any<string>(), Arg.Any<string?>()).ThrowsAsync(new Exception("boom"));
+        _repository.RestoreFlaggedDealAsync(9, Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<bool>()).ThrowsAsync(new Exception("boom"));
 
         AssertServerError(await CreateController().RestoreFlaggedDeal(9, new ResolveFlagRequest()), "boom");
     }

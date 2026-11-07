@@ -8,6 +8,7 @@ import {
   type SlotDetail,
 } from '~/stores/account'
 import type { AdminAccount } from '~/stores/adminAccounts'
+import type { Leaderboard, LeaderboardStanding } from '~/stores/leaderboard'
 import type { TeamEvent } from '~/stores/adminTeamEvents'
 import { Team } from '~/infrastructure/teamEvents'
 import {
@@ -299,4 +300,34 @@ export const apiError = (
 ) => ({
   data: ref(null),
   error: ref(error),
+})
+
+export const leaderboardStanding = (
+  id: number,
+  overrides: Partial<LeaderboardStanding> = {},
+): LeaderboardStanding => ({
+  accountId: id,
+  nationId: 100 + id,
+  nationName: `Nation${id}`,
+  rulerName: `Ruler${id}`,
+  allianceName: 'Valyria',
+  outgoingLegs: 10,
+  flags: 0,
+  flagsPerLeg: 0,
+  rank: id,
+  legsToQualify: 0,
+  nextFlagDropsOn: null,
+  ...overrides,
+})
+
+export const leaderboard = (
+  overrides: Partial<Leaderboard> = {},
+): Leaderboard => ({
+  windowDays: 90,
+  minimumOutgoingLegs: 5,
+  windowStart: '2026-08-10T00:00:00',
+  rankedAccounts: 12,
+  top: [],
+  mine: null,
+  ...overrides,
 })
