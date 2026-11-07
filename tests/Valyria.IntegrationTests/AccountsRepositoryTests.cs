@@ -146,6 +146,40 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
     }
 
     [Fact]
+    public async Task CreateAccount_AllowsBlankDiscordFields()
+    {
+        await Data.NationAsync(100, "Bobland", "Bob");
+
+        var created = await Repository.CreateAccountAsync(new AccountCreateRequest
+        {
+            NationId = 100,
+            Role = 'S',
+            UniqueCode = "ZXCVB",
+            Discord = null,
+            DiscordUniqueId = null
+        });
+
+        Assert.Null(created.Discord);
+        Assert.Null(created.DiscordUniqueId);
+    }
+
+    [Fact]
+    public async Task UpdateAccount_AllowsClearingTheDiscordId()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B', discordId: 111);
+
+        await Repository.UpdateAccountAsync(new AccountUpdateRequest
+        {
+            Id = bob,
+            Role = 'B',
+            UniqueCode = "ABCDE",
+            DiscordUniqueId = null
+        });
+
+        Assert.Null((await Repository.GetAccountByIdAsync(bob)).DiscordUniqueId);
+    }
+
+    [Fact]
     public async Task RemoveAccount_DeletesTheAccount_AndKeepsAnAuditCopy()
     {
         var bob = await Data.MemberAsync(100, "Bob", 'B', psw: "ABCDE");

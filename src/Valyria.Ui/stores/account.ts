@@ -11,7 +11,7 @@ export interface Account {
   rulerName: string
   allianceName: string
   discord: string
-  discordUniqueId: number
+  discordUniqueId: number | null
   discordNotificationsEnabled: boolean
   uniqueCode: string
   role: string

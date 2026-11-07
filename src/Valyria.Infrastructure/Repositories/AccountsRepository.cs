@@ -19,7 +19,8 @@ select 	account.id as Id,
     coalesce(nation.nation_name, deleted_nation.nation_name) as NationName,
     coalesce(nation.ruler_name, deleted_nation.ruler_name) as RulerName,
     account.discord as Discord,
-    account.discord_id as DiscordUniqueId,
+    -- discord_id is not nullable, so 0 stands for no Discord ID
+    nullif(account.discord_id, 0) as DiscordUniqueId,
     account.discord_notifications_enabled as DiscordNotificationsEnabled,
     account.psw as UniqueCode,
     account.va as Role,
@@ -109,7 +110,7 @@ values (@nation_id, @discord, @discord_id, @psw, @va, @fm, @fac, @dra, now())";
         {
             nation_id = request.NationId,
             discord = request.Discord,
-            discord_id = request.DiscordUniqueId,
+            discord_id = request.DiscordUniqueId ?? 0,
             psw = request.UniqueCode,
             va = request.Role,
             fm = request.HasForeignMinistry,
@@ -146,7 +147,7 @@ where id = @id";
             role = account.Role,
             unique_code = account.UniqueCode,
             discord = account.Discord,
-            discord_id = account.DiscordUniqueId,
+            discord_id = account.DiscordUniqueId ?? 0,
             has_fm = account.HasForeignMinistry,
             has_fac = account.HasFederalAidCommission,
             has_dra = account.HasDisasterReliefAgency
