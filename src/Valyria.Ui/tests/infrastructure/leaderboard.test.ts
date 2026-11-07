@@ -27,6 +27,11 @@ describe('leaderboard text', () => {
         }),
       ),
     ).toBe('0.09 flags per leg')
+    expect(
+      formatFlagsPerLeg(
+        leaderboardStanding(1, { flags: 1, outgoingLegs: 0, flagsPerLeg: 0 }),
+      ),
+    ).toBe('No outgoing legs yet')
   })
 
   it('tells an unranked account how many more legs it needs', () => {
