@@ -13,7 +13,9 @@ export const describeRecord = (standing: LeaderboardStanding): string =>
 export const formatFlagsPerLeg = (standing: LeaderboardStanding): string =>
   standing.flags === 0
     ? 'Perfect record'
-    : `${standing.flagsPerLeg.toFixed(2)} flags per leg`
+    : standing.outgoingLegs === 0
+      ? 'No outgoing legs yet'
+      : `${standing.flagsPerLeg.toFixed(2)} flags per leg`
 
 export interface StandingSummary {
   title: string
