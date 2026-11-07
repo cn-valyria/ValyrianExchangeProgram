@@ -3,7 +3,8 @@ export default defineNuxtRouteMiddleware((to) => {
   const toast = useToast()
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/login', '/how-it-works']
+  // /discord/link shows its own login prompt, so it can bring the member back with the link's token
+  const publicRoutes = ['/', '/login', '/how-it-works', '/discord/link']
 
   // Check if the route requires authentication
   const requiresAuth = !publicRoutes.includes(to.path)

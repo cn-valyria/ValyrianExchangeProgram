@@ -227,10 +227,26 @@ public class AccountsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(
     }
 
     [Fact]
+    public async Task LinkDiscordAccount_SetsTheDiscordIdAndUsername_ReplacingAnyBefore()
+    {
+        var bob = await Data.MemberAsync(100, "Bob", 'B', discord: "old#1", discordId: 111);
+        var sue = await Data.MemberAsync(200, "Sue", 'S');
+
+        await Repository.LinkDiscordAccountAsync(bob, 123456789012345678, "bob_");
+
+        var account = await Repository.GetAccountByIdAsync(bob);
+        Assert.Equal(123456789012345678, account.DiscordUniqueId);
+        Assert.Equal("bob_", account.Discord);
+        Assert.Null((await Repository.GetAccountByIdAsync(sue)).DiscordUniqueId);
+        Assert.Equal([100], (await Repository.GetAccountsByDiscordIdAsync(123456789012345678)).Select(a => a.NationId));
+    }
+
+    [Fact]
     public async Task UpdateAndRemove_ThrowNotFound_ForAMissingAccount()
     {
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.HoldAccountAsync(12345, "admin"));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.UpdateAccountSettingsAsync(12345, new AccountSettings()));
+        await Assert.ThrowsAsync<NotFoundException>(() => Repository.LinkDiscordAccountAsync(12345, 1, "bob_"));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.UpdateAccountAsync(new AccountUpdateRequest { Id = 12345 }));
         await Assert.ThrowsAsync<NotFoundException>(() => Repository.RemoveAccountAsync(12345));
     }

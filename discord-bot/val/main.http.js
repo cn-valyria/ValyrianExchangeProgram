@@ -1,4 +1,4 @@
-import { findAccountsByDiscordId } from "./accounts.js";
+import { createRegisterLink, findAccountsByDiscordId } from "./accounts.js";
 import { createInteractionHandler } from "./interactions.js";
 import { importPublicKey } from "./signature.js";
 
@@ -8,4 +8,5 @@ let publicKey;
 export default createInteractionHandler({
   getPublicKey: async () => (publicKey ??= await importPublicKey(Deno.env.get("DISCORD_PUBLIC_KEY"))),
   findAccountsByDiscordId,
+  createRegisterLink,
 });

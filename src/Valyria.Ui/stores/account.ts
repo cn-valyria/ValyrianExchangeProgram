@@ -31,6 +31,14 @@ export interface AccountSettings {
   discordNotificationsEnabled: boolean
 }
 
+// The Discord account behind a /register link (Valyria.Core.Contracts.DiscordLinkDetails). The ID is a string,
+// since Discord IDs don't fit in a JavaScript number
+export interface DiscordLinkDetails {
+  discordId: string
+  discordUsername: string
+  expiresAt: string
+}
+
 export interface AccountSimplified extends NationSimplified {
   accountId: number
 }
@@ -225,6 +233,40 @@ export const useAccountStore = defineStore('account', {
       if (this.account.id === accountId) {
         Object.assign(this.account, settings)
       }
+    },
+
+    // The Discord account a /register link token is for. Throws the API error (400 if the link is invalid or expired)
+    async previewDiscordLink(token: string) {
+      const { apiFetch } = useApiClient()
+
+      const { data, error } = await apiFetch<DiscordLinkDetails>(
+        '/api/discord-link/preview',
+        { method: 'POST', body: { token } },
+      )
+
+      if (error.value) {
+        console.error('Failed to read the Discord link:', error.value)
+        throw error.value
+      }
+
+      return data.value as DiscordLinkDetails
+    },
+
+    // Links the token's Discord account to the signed-in member's own account
+    async linkDiscordAccount(token: string) {
+      const { apiFetch } = useApiClient()
+
+      const { data, error } = await apiFetch<DiscordLinkDetails>(
+        '/api/discord-link',
+        { method: 'POST', body: { token } },
+      )
+
+      if (error.value) {
+        console.error('Failed to link the Discord account:', error.value)
+        throw error.value
+      }
+
+      return data.value as DiscordLinkDetails
     },
 
     async loadDealsSummary(accountId: number) {

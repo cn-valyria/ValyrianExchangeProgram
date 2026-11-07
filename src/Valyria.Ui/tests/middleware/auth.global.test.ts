@@ -38,7 +38,7 @@ const run = (path: string) => authMiddleware(route(path), route('/'))
 const redirectedTo = () => routerPush.mock.lastCall?.[0]
 
 describe('auth middleware', () => {
-  it.each(['/', '/login', '/how-it-works'])(
+  it.each(['/', '/login', '/how-it-works', '/discord/link'])(
     'lets anyone see %s',
     async (path) => {
       await run(path)

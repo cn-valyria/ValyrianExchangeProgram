@@ -106,7 +106,7 @@ Valyria.Aspire/
 
 ## Discord Bot
 
-[`discord-bot/`](discord-bot/README.md) is a small Discord bot hosted on [Val Town](https://www.val.town), separate from the Aspire app. Members run `/uniquecode` to privately get the unique code for the VEP account(s) linked to their Discord ID. The bot has no database access; it calls the API's `/api/discord` endpoint with the shared `DiscordBotApiKey`. CI deploys it to Val Town on every merge to `main`; see its [README](discord-bot/README.md) for setup and configuration.
+[`discord-bot/`](discord-bot/README.md) is a small Discord bot hosted on [Val Town](https://www.val.town), separate from the Aspire app. Members run `/uniquecode` to privately get the unique code for the VEP account(s) linked to their Discord ID, and `/register` to link their Discord account to their VEP account themselves. The bot has no database access; it calls the API's `/api/discord` endpoints with the shared `DiscordBotApiKey`. CI deploys it to Val Town on every merge to `main`; see its [README](discord-bot/README.md) for setup and configuration.
 
 ## API Endpoints
 
@@ -125,6 +125,12 @@ Valyria.Aspire/
 ### Discord bot (`/api/discord`)
 Authenticated with the `X-Api-Key` header (the `DiscordBotApiKey` setting), not a JWT. See [discord-bot/README.md](discord-bot/README.md).
 - `GET /api/discord/users/{discordId}/accounts` - Accounts (with unique codes) linked to a Discord user ID
+- `POST /api/discord/link-tokens` - A 15-minute token for a `/register` link, signed for the Discord user who ran the command
+
+### Discord linking (`/api/discord-link`)
+A member's JWT, not the bot's API key. See [discord-bot/README.md](discord-bot/README.md#register).
+- `POST /api/discord-link/preview` - The Discord account a `/register` link token is for
+- `POST /api/discord-link` - Link the token's Discord account to the signed-in member's own account
 
 ### Deals (`/api/deals`)
 - `GET /api/deals/{id}` - Get deal details

@@ -152,9 +152,15 @@ async function onSubmit() {
       color: 'success',
     })
 
-    // Redirect to home or intended page
+    // Redirect to home or intended page. Only paths on this site, so a crafted link can't send members elsewhere
+    const redirect = router.currentRoute.value.query.redirect
     const redirectTo =
-      (router.currentRoute.value.query.redirect as string) || '/'
+      typeof redirect === 'string' &&
+      redirect.startsWith('/') &&
+      !redirect.startsWith('//') &&
+      !redirect.startsWith('/\\')
+        ? redirect
+        : '/'
     router.push(redirectTo)
   } catch (error) {
     console.error('Login failed:', error)

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Valyria.Api.Auth;
+using Valyria.Core.Contracts;
 using Valyria.Core.Interfaces;
 
 namespace Valyria.Api.Controllers;
@@ -18,11 +19,14 @@ namespace Valyria.Api.Controllers;
 public class DiscordController : ControllerBase
 {
     private readonly IAccountsRepository _accountsRepository;
+    private readonly IDiscordLinkTokenProvider _linkTokenProvider;
     private readonly ILogger<DiscordController> _logger;
 
-    public DiscordController(IAccountsRepository accountsRepository, ILogger<DiscordController> logger)
+    public DiscordController(IAccountsRepository accountsRepository, IDiscordLinkTokenProvider linkTokenProvider,
+        ILogger<DiscordController> logger)
     {
         _accountsRepository = accountsRepository;
+        _linkTokenProvider = linkTokenProvider;
         _logger = logger;
     }
 
@@ -46,5 +50,23 @@ public class DiscordController : ControllerBase
             _logger.LogError(e, wrapperException.Message);
             return StatusCode(500, new { error = wrapperException.Message, details = e.Message });
         }
+    }
+
+    /// <summary>
+    /// A short-lived token for the /register link, for the Discord user who ran the command. The member opens the
+    /// link while logged into VEP and approves it, which links this Discord account to their VEP account
+    /// (see DiscordLinkController)
+    /// </summary>
+    [HttpPost("link-tokens")]
+    public IActionResult CreateLinkToken([FromBody] DiscordLinkTokenRequest request)
+    {
+        if (!long.TryParse(request.DiscordId, out var discordId) || discordId <= 0)
+            return BadRequest(new { error = "DiscordId must be a Discord user ID" });
+
+        var (token, expiresAt) = _linkTokenProvider.CreateToken(discordId, request.DiscordUsername.Trim());
+
+        _logger.LogInformation("{Method} issued a link token for Discord user {DiscordId}", nameof(CreateLinkToken), discordId);
+
+        return Ok(new DiscordLinkTokenResponse { Token = token, ExpiresAt = expiresAt });
     }
 }
