@@ -79,6 +79,12 @@
           :account-id="accountId"
         />
 
+        <!-- Waiting for an Aid Slot: deals held up by accepted aid outside VEP, which can't be cancelled -->
+        <AccountWaitingForSlot
+          :deals="dealsSummary.activeDeals"
+          :account-id="accountId"
+        />
+
         <!-- Active Deals Card -->
         <AccountActiveDeals
           :account="account"

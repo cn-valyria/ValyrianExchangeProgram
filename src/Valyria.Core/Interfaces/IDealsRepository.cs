@@ -157,6 +157,15 @@ public class DealFlagDetail
     /// </summary>
     public System.DateTime? CancelsOn { get; set; }
     /// <summary>
+    /// True if the deal is blocked by full slots and none of the blocking nation's outside aid is pending,
+    /// so nothing can be cancelled in CN. The deal isn't cancelled until the day after SlotFreesOn
+    /// </summary>
+    public bool SlotsLocked { get; set; }
+    /// <summary>
+    /// For a deal blocked by full slots, the first CN date one of the blocking nation's slots frees
+    /// </summary>
+    public System.DateTime? SlotFreesOn { get; set; }
+    /// <summary>
     /// Extra time an admin gave the account holding up the deal, while it still applies
     /// </summary>
     public DealExtensionKind? ExtensionKind { get; set; }

@@ -24,6 +24,10 @@ export interface AdminDeal {
   daysResponsible: number | null
   // Extensions included. Null when nobody is holding up the deal, or an extension removed the deadline
   cancelsOn: string | null
+  // Blocked by full slots with none of the outside aid still pending, so nothing can be cancelled in CN
+  slotsLocked: boolean
+  // For a full-slot block, the first CN date one of the blocking nation's slots frees
+  slotFreesOn: string | null
   // Extra time an admin gave the account holding up the deal, while it still applies
   extensionKind: DealExtensionKind | null
   extendedBy: string | null
@@ -99,6 +103,10 @@ export interface DealFlag {
   daysResponsible: number | null
   // Extensions included
   cancelsOn: string | null
+  // Blocked by full slots with none of the outside aid still pending, so nothing can be cancelled in CN
+  slotsLocked: boolean
+  // For a full-slot block, the first CN date one of the blocking nation's slots frees
+  slotFreesOn: string | null
   // Extra time an admin already gave this account on the deal, while it still applies
   extensionKind: DealExtensionKind | null
   extendedBy: string | null

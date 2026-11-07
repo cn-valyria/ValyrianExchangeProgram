@@ -17,7 +17,8 @@ public class DealsRepository : IDealsRepository
 
     // deal_state columns shared by the account and admin deal queries (aliases ds, and dd for
     // deal_deadline). The DB enum values ('awaiting_send') aren't valid C# enum names, so they're mapped
-    // to the enums' numbers. CancelsOn is the deadline check_deal_inactivity cancels on, extensions included
+    // to the enums' numbers. CancelsOn is the deadline check_deal_inactivity cancels on, extensions included.
+    // SlotsLocked/SlotFreesOn: slots full of accepted outside aid, and when the first one frees (see V19)
     private const string DealStateColumns = @"
                 CASE ds.state
                     WHEN 'pending_start' THEN 0
@@ -34,6 +35,8 @@ public class DealsRepository : IDealsRepository
                 ds.in_flight_until AS InFlightUntil,
                 DATEDIFF(DATE(CONVERT_TZ(UTC_TIMESTAMP(), '+00:00', '-05:00')), ds.responsible_since) AS DaysResponsible,
                 dd.cancels_on AS CancelsOn,
+                COALESCE(ds.slots_locked, FALSE) AS SlotsLocked,
+                ds.slot_frees_on AS SlotFreesOn,
                 CASE dd.extension_kind
                     WHEN 'five_days' THEN 0
                     WHEN 'until_next_leg' THEN 1
@@ -232,21 +235,21 @@ public class DealsRepository : IDealsRepository
         {
             var cause = flag.FlagReason switch
             {
-                "sender_slots_full" or "receiver_slots_full" => "your aid slots were full of other aid",
-                "out_of_sequence_aid" => "aid you sent out of turn blocked it",
-                _ => "you didn't send the expected aid"
+                "sender_slots_full" or "receiver_slots_full" => "your aid slots stayed full of aid outside VEP past the deadline",
+                "out_of_sequence_aid" => "aid you sent out of turn blocked it for 5 days",
+                _ => "you didn't send the expected aid for 5 days"
             };
-            message = $"Your deal with {partner} was cancelled because {cause} for 5 days. {matchingPaused}";
+            message = $"Your deal with {partner} was cancelled because {cause}. {matchingPaused}";
         }
         else
         {
             var cause = flag.FlagReason switch
             {
-                "sender_slots_full" or "receiver_slots_full" => "their aid slots were full of other aid",
-                "out_of_sequence_aid" => "aid they sent out of turn blocked it",
-                _ => "they didn't send the expected aid"
+                "sender_slots_full" or "receiver_slots_full" => "their aid slots stayed full of aid outside VEP past the deadline",
+                "out_of_sequence_aid" => "aid they sent out of turn blocked it for 5 days",
+                _ => "they didn't send the expected aid for 5 days"
             };
-            message = $"Your deal with {partner} was cancelled because {cause} for 5 days. Your slot will be matched with a new partner.";
+            message = $"Your deal with {partner} was cancelled because {cause}. Your slot will be matched with a new partner.";
         }
 
         return new DealNotification

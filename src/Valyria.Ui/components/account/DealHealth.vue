@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { getDealActions } from '~/infrastructure/deals'
+import { getDealActions, getDealWarnings } from '~/infrastructure/deals'
 import type { DealDetail, DealNotification } from '~/stores/account'
 
 interface Props {
@@ -40,8 +40,17 @@ const hasDeals = computed(() => props.deals.length > 0)
 
 const actions = computed(() => getDealActions(props.deals))
 
-const flaggedCount = computed(
+// Deals held up until a locked slot frees: nothing to do today, but still flagged
+const warnings = computed(() => getDealWarnings(props.deals))
+
+const flaggedActionCount = computed(
   () => actions.value.filter((action) => action.flagged).length,
+)
+
+const flaggedCount = computed(
+  () =>
+    flaggedActionCount.value +
+    warnings.value.filter((warning) => warning.flagged).length,
 )
 
 // Deals cancelled over a flag against this account, which pause matching until reviewed
@@ -53,6 +62,7 @@ const status = computed(() => {
   if (flaggedCount.value > 0 || cancelledFlagCount.value > 0) return 'flagged'
   if (!hasDeals.value) return 'none'
   if (actions.value.length > 0) return 'action'
+  if (warnings.value.length > 0) return 'waiting'
   return 'good'
 })
 
@@ -62,6 +72,8 @@ const statusLabel = computed(() => {
       return 'Flagged'
     case 'action':
       return 'Action Today'
+    case 'waiting':
+      return 'Slot Locked'
     case 'good':
       return 'All Good'
     default:
@@ -74,6 +86,7 @@ const statusClass = computed(() => {
     case 'flagged':
       return 'text-red-600 dark:text-red-400'
     case 'action':
+    case 'waiting':
       return 'text-orange-600 dark:text-orange-400'
     case 'good':
       return 'text-green-600 dark:text-green-400'
@@ -87,6 +100,7 @@ const badgeColor = computed(() => {
     case 'flagged':
       return 'error'
     case 'action':
+    case 'waiting':
       return 'warning'
     case 'good':
       return 'success'
@@ -98,11 +112,15 @@ const badgeColor = computed(() => {
 const description = computed(() => {
   switch (status.value) {
     case 'flagged':
-      return flaggedCount.value > 0
-        ? `${flaggedCount.value} of your deals ${flaggedCount.value === 1 ? 'is' : 'are'} flagged. Fix ${flaggedCount.value === 1 ? 'it' : 'them'} below to avoid cancellation. You won't be matched with new partners until then.`
-        : "A deal was cancelled over a flag on your account. You won't be matched with new partners until VEP management reviews it."
+      if (flaggedActionCount.value > 0)
+        return `${flaggedCount.value} of your deals ${flaggedCount.value === 1 ? 'is' : 'are'} flagged. Fix ${flaggedActionCount.value === flaggedCount.value ? (flaggedCount.value === 1 ? 'it' : 'them') : 'what you can'} below to avoid cancellation. You won't be matched with new partners until then.`
+      if (flaggedCount.value > 0)
+        return `${flaggedCount.value} of your deals ${flaggedCount.value === 1 ? 'is' : 'are'} flagged because your aid slots are full of aid outside VEP. See below for when you can send. You won't be matched with new partners until then.`
+      return "A deal was cancelled over a flag on your account. You won't be matched with new partners until VEP management reviews it."
     case 'action':
       return `${actions.value.length} of your deals ${actions.value.length === 1 ? 'needs' : 'need'} something from you today. See the list below.`
+    case 'waiting':
+      return `${warnings.value.length} of your deals ${warnings.value.length === 1 ? 'is' : 'are'} waiting for an aid slot to free. See the list below for when.`
     case 'good':
       return 'Nothing to do today. Your deals are waiting on aid already in progress or on an aid slot opening up.'
     default:

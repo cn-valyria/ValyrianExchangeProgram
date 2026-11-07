@@ -159,6 +159,11 @@ Admins record a team's event (`team_event`, new) once a majority of its senators
 
 `account.discord_notifications_enabled` (new, default true) lets a member opt out of the data loader's Discord pings, both for new deals and the daily mass messages. Mass message recipients still include them, since the CN messages go out regardless.
 
+### [V19__locked_slot_deadline.sql](migrations/V19__locked_slot_deadline.sql)
+**VEP 3.0: Don't cancel a deal before a locked aid slot can free up**
+
+Accepted aid can't be cancelled in CN, so a nation whose slots are full of accepted aid outside VEP can't free one until that aid is 10 days old. `deal_state` gains `slots_locked` (full-slot block with none of the outside aid still pending), `slot_frees_on` (first CN date one of the blocking nation's slots frees) and `cancel_not_before` (the day after, set once per responsibility stretch). `deal_deadline.cancels_on` is never earlier than `cancel_not_before`, while `clock_since` is unchanged, so the 1-day warning and its matching hold still apply. If any of the outside aid is still pending, the normal 5-day clock applies. Locked deals are left out of the mass message recipients until the slot frees.
+
 ## Database Architecture
 
 ### Two-Database Design

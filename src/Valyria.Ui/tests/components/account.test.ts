@@ -7,6 +7,7 @@ import DealHealth from '~/components/account/DealHealth.vue'
 import DealHistory from '~/components/account/DealHistory.vue'
 import SettingsDialog from '~/components/account/SettingsDialog.vue'
 import SlotUsage from '~/components/account/SlotUsage.vue'
+import WaitingForSlot from '~/components/account/WaitingForSlot.vue'
 import {
   DealActivityState,
   DealBlockedReason,
@@ -402,6 +403,39 @@ describe('ActionNeeded', () => {
 
     await click(button('Try Again', wrapper.element))
     expect(loadDealFlag).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('WaitingForSlot', () => {
+  // Slots full of accepted aid outside VEP, which frees in a few days
+  const locked = () => ({
+    state: DealActivityState.Blocked,
+    blockedReason: DealBlockedReason.SenderSlotsFull,
+    iAmResponsible: true,
+    slotsLocked: true,
+    slotFreesOn: `${addDays(cnToday(), 3)}T00:00:00`,
+    cancelsOn: `${addDays(cnToday(), 4)}T00:00:00`,
+    flaggedOn: `${cnToday()}T06:00:00`,
+  })
+
+  it('shows locked deals as a warning instead of an action', async () => {
+    const deals = [dealDetail({ id: 1, ...locked() })]
+    const waiting = await mountInApp(WaitingForSlot, { deals })
+    const action = await mountInApp(ActionNeeded, { deals, myNationId: 101 })
+
+    expect(waiting.text()).toContain('Waiting for an Aid Slot')
+    expect(waiting.text()).toContain('Send $9M to Ruler2')
+    expect(waiting.text()).toContain(`Slot frees ${addDays(cnToday(), 3)}`)
+    expect(waiting.text()).toContain("Accepted aid can't be cancelled in CN")
+    expect(waiting.text()).toContain('Flagged')
+    expect(action.text()).not.toContain('Action Needed Today')
+  })
+
+  it('shows nothing when no deal is waiting on a locked slot', async () => {
+    const wrapper = await mountInApp(WaitingForSlot, {
+      deals: [dealDetail({ id: 1, ...locked(), slotsLocked: false })],
+    })
+    expect(wrapper.text()).not.toContain('Waiting for an Aid Slot')
   })
 })
 

@@ -48,7 +48,7 @@ order by mm.sort_order";
 
     // One row per account with something to do today, matching what the account page's
     // Action Needed card shows (getDealAction in the UI). Expecting aid isn't counted, since
-    // there's nothing to do but keep a slot free
+    // there's nothing to do but keep a slot free, and neither is waiting for a locked slot to free
     private const string GetRecipientsQuery = @"
 with deal_actions as (
     -- Send, free a slot, or wait out out-of-turn aid: whoever is holding up the deal
@@ -67,6 +67,8 @@ with deal_actions as (
     join deal d on d.id = ds.deal_id and d.status = 'active'
     join deal_deadline dd on dd.deal_id = ds.deal_id
     where ds.responsible_account_id is not null
+        -- Slots full of accepted aid can't be freed until one expires, so there's nothing to do yet (see V19)
+        and not (ds.slots_locked and ds.slot_frees_on > " + CnToday + @")
 
     union all
 

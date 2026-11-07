@@ -287,7 +287,7 @@
                 color="warning"
                 variant="subtle"
                 title="Important"
-                description="If you hold up a deal (by not sending on your turn, filling your aid slots with aid outside VEP, or sending aid out of turn) the deal is flagged after a day and cancelled after 5. If an aid offer is cancelled or expires without being accepted, the deal is cancelled and both nations are flagged for review. Flagged accounts aren't matched with new partners until the flag is resolved."
+                description="If you hold up a deal (by not sending on your turn, filling your aid slots with aid outside VEP, or sending aid out of turn) the deal is flagged after a day and cancelled after 5. Accepted aid can't be cancelled in CN, so if accepted aid outside VEP fills your slots, the deal is still flagged but isn't cancelled until the day after a slot frees. If an aid offer is cancelled or expires without being accepted, the deal is cancelled and both nations are flagged for review. Flagged accounts aren't matched with new partners until the flag is resolved."
                 icon="i-heroicons-exclamation-triangle"
               />
             </div>

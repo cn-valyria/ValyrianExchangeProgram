@@ -1,5 +1,5 @@
 import { accountRoles } from './dataLists'
-import { describeLeg, type BadgeColor } from './deals'
+import { describeLeg, getCnToday, type BadgeColor } from './deals'
 import {
   DealLegOutcome,
   DealStatus,
@@ -12,6 +12,9 @@ import {
   type FlagDealLeg,
   type FlagSlotAid,
 } from '~/stores/adminDeals'
+
+// Kept here too for older imports; deals.ts owns it so it doesn't import flags.ts
+export { getCnToday }
 
 // How the flags page groups flags: the deal is still running, or the flag already ended it
 export type FlagDealView = 'all' | 'active' | 'cancelled'
@@ -107,11 +110,6 @@ const formatDate = (date: string | null): string =>
 
 const plural = (count: number, word: string): string =>
   `${count} ${word}${count === 1 ? '' : 's'}`
-
-// Today's CN date (server time is UTC; CN runs on UTC-5), as "2026-10-09"
-export function getCnToday(now: Date = new Date()): string {
-  return new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
-}
 
 // Whole days from one CN date to another
 function daysBetween(from: string, to: string): number {
@@ -263,11 +261,16 @@ export function describeWhatHappened(
 function describeFix(flag: DealFlag): string {
   const flagged = getAccountName(flag.flaggedAccount)
   const partner = getAccountName(flag.innocentAccount)
+  // Accepted aid can't be cancelled in CN, so the slot only frees once that aid runs out (see V19)
+  const locked =
+    flag.slotsLocked && flag.slotFreesOn !== null
+      ? ` ${flagged}'s slots hold accepted aid outside VEP, which can't be cancelled. A slot frees on ${formatDate(flag.slotFreesOn)}, so VEP doesn't cancel the deal before the day after.`
+      : ''
   switch (flag.flagReason) {
     case DealFlagReason.SenderSlotsFull:
-      return `It clears itself once ${flagged} sends the aid. Freeing a slot alone isn't enough, since it's still their turn.`
+      return `It clears itself once ${flagged} sends the aid. Freeing a slot alone isn't enough, since it's still their turn.${locked}`
     case DealFlagReason.ReceiverSlotsFull:
-      return `It clears itself once ${flagged} frees an aid slot for ${partner}'s aid.`
+      return `It clears itself once ${flagged} frees an aid slot for ${partner}'s aid.${locked}`
     case DealFlagReason.OutOfSequenceAid: {
       const cancelsFirst =
         flag.blockedUntil !== null &&

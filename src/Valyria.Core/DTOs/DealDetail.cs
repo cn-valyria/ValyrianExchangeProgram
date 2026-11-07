@@ -42,6 +42,15 @@ public class DealDetail
     /// </summary>
     public DateTime? CancelsOn { get; set; }
     /// <summary>
+    /// True if the deal is blocked by full slots and none of the blocking nation's outside aid is pending,
+    /// so nothing can be cancelled in CN. The deal isn't cancelled until the day after SlotFreesOn
+    /// </summary>
+    public bool SlotsLocked { get; set; }
+    /// <summary>
+    /// For a deal blocked by full slots, the first CN date one of the blocking nation's slots frees
+    /// </summary>
+    public DateTime? SlotFreesOn { get; set; }
+    /// <summary>
     /// First CN date the in-flight leg no longer occupies a slot
     /// </summary>
     public DateTime? InFlightUntil { get; set; }

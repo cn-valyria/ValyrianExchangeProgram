@@ -70,7 +70,7 @@
           color="info"
           icon="i-heroicons-information-circle"
           title="Keeping your deals active"
-          description="You and each partner take turns: whoever sends cash goes first, then the other side sends, and so on. Each aid offer fills an aid slot on both nations for 10 days, so a deal only needs you when it's your turn and you both have a free slot. Accept offers before they expire, and keep your slots free of aid outside VEP. Click a partner you send aid to and you'll go straight to the aid form."
+          description="You and each partner take turns: whoever sends cash goes first, then the other side sends, and so on. Each aid offer fills an aid slot on both nations for 10 days, so a deal only needs you when it's your turn and you both have a free slot. Accept offers before they expire, and keep your slots free of aid outside VEP: once accepted, it can't be cancelled and holds a slot for 10 days. Click a partner you send aid to and you'll go straight to the aid form."
         />
 
         <UAlert

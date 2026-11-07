@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   describeAid,
   describeLeg,
@@ -8,8 +8,10 @@ import {
   getDealAction,
   getDealActions,
   getDealStatus,
+  getDealWarnings,
   getNationLink,
   isFlagged,
+  isWaitingForSlot,
 } from '~/infrastructure/deals'
 import { adminDeal } from '../helpers/fixtures'
 import {
@@ -57,6 +59,8 @@ const deal = (overrides: Partial<DealDetail> = {}): DealDetail => ({
   partnerIsResponsible: false,
   daysResponsible: null,
   cancelsOn: null,
+  slotsLocked: false,
+  slotFreesOn: null,
   inFlightUntil: null,
   inFlightIsIncoming: false,
   inFlightAccepted: false,
@@ -141,6 +145,91 @@ describe('getDealAction', () => {
       getDealAction(deal({ state: DealActivityState.PendingStart })),
     ).toBeNull()
     expect(getDealAction(deal({ state: null }))).toBeNull()
+  })
+})
+
+describe('locked slots', () => {
+  // Slots full of accepted aid outside VEP: nothing can be cancelled until a slot frees on the 14th
+  const locked = (overrides: Partial<DealDetail> = {}): DealDetail =>
+    deal({
+      state: DealActivityState.Blocked,
+      blockedReason: DealBlockedReason.SenderSlotsFull,
+      iAmResponsible: true,
+      slotsLocked: true,
+      slotFreesOn: '2026-10-14T00:00:00',
+      cancelsOn: '2026-10-15T00:00:00',
+      ...overrides,
+    })
+  const today = '2026-10-10'
+
+  it("waits only while the slot is locked and hasn't freed yet", () => {
+    expect(isWaitingForSlot(locked(), today)).toBe(true)
+    expect(isWaitingForSlot(locked(), '2026-10-14')).toBe(false)
+    expect(isWaitingForSlot(locked({ slotsLocked: false }), today)).toBe(false)
+    expect(
+      isWaitingForSlot(
+        locked({ iAmResponsible: false, partnerIsResponsible: true }),
+        today,
+      ),
+    ).toBe(false)
+  })
+
+  it('moves a locked deal out of Action Needed and into the warnings', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-10T17:00:00Z'))
+    try {
+      expect(getDealAction(locked())).toBeNull()
+      expect(getDealActions([locked()])).toEqual([])
+      expect(getDealWarnings([locked()]).map((w) => w.deal.id)).toEqual([1])
+      // Pending outside aid can still be cancelled today, so it stays an action
+      expect(getDealAction(locked({ slotsLocked: false }))?.kind).toBe(
+        'freeSlot',
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('explains when the slot frees instead of asking for a fix today', () => {
+    const [send] = getDealWarnings(
+      [locked({ flaggedOn: '2026-10-09T18:00:00' })],
+      today,
+    )
+    expect(send.title).toBe('Send $9M')
+    expect(send.preposition).toBe('to')
+    expect(send.flagged).toBe(true)
+    expect(send.detail).toContain(
+      'You should have been able to send $9M to Ruler2 by now',
+    )
+    expect(send.detail).toContain('waiting for a slot to free on 2026-10-14')
+    expect(send.detail).toContain(
+      'This deal has been flagged for review, and it will be cancelled on 2026-10-15',
+    )
+    expect(send.detail).not.toContain('today')
+
+    const [accept] = getDealWarnings(
+      [locked({ blockedReason: DealBlockedReason.ReceiverSlotsFull })],
+      today,
+    )
+    expect(accept.title).toBe('Accept 100 tech')
+    expect(accept.preposition).toBe('from')
+    expect(accept.detail).toContain('Ruler2 should have been able to send you')
+    expect(accept.detail).toContain('The deal will be flagged for review')
+  })
+
+  it('tells the partner when the deal picks up again', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-10T17:00:00Z'))
+    try {
+      expect(getDealStatus(locked()).label).toBe('Slot Locked')
+      const partner = getDealStatus(
+        locked({ iAmResponsible: false, partnerIsResponsible: true }),
+      )
+      expect(partner.label).toBe('Blocked by Partner')
+      expect(partner.detail).toContain('A slot frees on 2026-10-14')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

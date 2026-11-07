@@ -99,6 +99,10 @@ export interface DealDetail {
   partnerIsResponsible: boolean
   daysResponsible: number | null
   cancelsOn: string | null
+  // Blocked by full slots with none of the outside aid still pending, so nothing can be cancelled in CN
+  slotsLocked: boolean
+  // For a full-slot block, the first CN date one of the blocking nation's slots frees
+  slotFreesOn: string | null
   inFlightUntil: string | null
   inFlightIsIncoming: boolean
   inFlightAccepted: boolean

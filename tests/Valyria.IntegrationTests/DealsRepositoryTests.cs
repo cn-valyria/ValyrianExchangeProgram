@@ -143,10 +143,10 @@ public class DealsRepositoryTests(MySqlFixture fixture) : RepositoryTestBase(fix
     [Theory]
     [InlineData("aid_failed", "aid_expired", true, "error", "an aid offer between you expired without being accepted")]
     [InlineData("aid_failed", "aid_cancelled", true, "error", "an aid offer between you was cancelled")]
-    [InlineData("5_day_replacement", "sender_slots_full", true, "error", "because your aid slots were full of other aid for 5 days. You won't be matched")]
+    [InlineData("5_day_replacement", "sender_slots_full", true, "error", "because your aid slots stayed full of aid outside VEP past the deadline. You won't be matched")]
     [InlineData("5_day_replacement", "out_of_sequence_aid", true, "error", "because aid you sent out of turn blocked it")]
     [InlineData("5_day_replacement", "awaiting_send", true, "error", "because you didn't send the expected aid")]
-    [InlineData("5_day_replacement", "receiver_slots_full", false, "info", "because their aid slots were full of other aid for 5 days. Your slot will be matched")]
+    [InlineData("5_day_replacement", "receiver_slots_full", false, "info", "because their aid slots stayed full of aid outside VEP past the deadline. Your slot will be matched")]
     [InlineData("5_day_replacement", "out_of_sequence_aid", false, "info", "because aid they sent out of turn blocked it")]
     [InlineData("5_day_replacement", null, false, "info", "because they didn't send the expected aid")]
     public async Task GetAccountDeals_ExplainsCancelledDeals(string flagType, string? reason, bool flaggedMe, string type, string expectedText)
